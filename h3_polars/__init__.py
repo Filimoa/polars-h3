@@ -15,10 +15,11 @@ def latlng_to_cell(
     lat: IntoExprColumn, lng: IntoExprColumn, resolution: int
 ) -> pl.Expr:
     return register_plugin_function(
-        args=[lat, lng, resolution],
+        args=[lat, lng],
         plugin_path=LIB,
         function_name="latlng_to_cell",
         is_elementwise=True,
+        kwargs={"resolution": resolution},
     )
 
 
@@ -26,8 +27,9 @@ def latlng_to_cell_string(
     lat: IntoExprColumn, lng: IntoExprColumn, resolution: int
 ) -> pl.Expr:
     return register_plugin_function(
-        args=[lat, lng, resolution],
+        args=[lat, lng],
         plugin_path=LIB,
         function_name="latlng_to_cell_string",
         is_elementwise=True,
+        kwargs={"resolution": resolution},
     )
