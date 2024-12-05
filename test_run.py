@@ -102,3 +102,28 @@ df = pl.DataFrame(
 
 
 print(df)
+
+
+df = (
+    pl.DataFrame({"origin": ["8a1fb46622dffff"], "destination": ["8a1fb46622d7fff"]})
+    .with_columns(
+        [
+            # Get grid distance
+            pl.col("origin").pipe(h3_polars.str_to_int).alias("origin_int"),
+            pl.col("destination").pipe(h3_polars.str_to_int).alias("dest_int"),
+        ]
+    )
+    .with_columns(
+        [
+            # Calculate grid distance
+            h3_polars.grid_distance("origin_int", "dest_int").alias("distance"),
+            # Get ring at k=2
+            pl.col("origin_int").pipe(h3_polars.grid_ring, k=2).alias("ring"),
+            # Get disk at k=2
+            pl.col("origin_int").pipe(h3_polars.grid_disk, k=2).alias("disk"),
+            # Get path between cells
+            h3_polars.grid_path_cells("origin_int", "dest_int").alias("path"),
+        ]
+    )
+)
+print(df)

@@ -13,6 +13,11 @@ struct ResolutionKwargs {
     resolution: Option<u8>,
 }
 
+#[derive(Deserialize)]
+struct GridKwargs {
+    k: u32,
+}
+
 fn latlng_list_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
     let field = Field::new(
         input_fields[0].name.clone(),
@@ -168,4 +173,30 @@ fn uncompact_cells(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<
         PolarsError::ComputeError("Resolution required for uncompact_cells".into())
     })?;
     crate::engine::hierarchy::uncompact_cells(cell_series, resolution)
+}
+
+#[polars_expr(output_type=Int32)]
+fn grid_distance(inputs: &[Series]) -> PolarsResult<Series> {
+    let origin_series = &inputs[0];
+    let destination_series = &inputs[1];
+    crate::engine::traversal::grid_distance(origin_series, destination_series)
+}
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn grid_ring(inputs: &[Series], kwargs: GridKwargs) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::traversal::grid_ring(cell_series, kwargs.k)
+}
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn grid_disk(inputs: &[Series], kwargs: GridKwargs) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::traversal::grid_disk(cell_series, kwargs.k)
+}
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn grid_path_cells(inputs: &[Series]) -> PolarsResult<Series> {
+    let origin_series = &inputs[0];
+    let destination_series = &inputs[1];
+    crate::engine::traversal::grid_path_cells(origin_series, destination_series)
 }

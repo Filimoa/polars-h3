@@ -56,14 +56,10 @@ Here's the updated table with an additional column, **Supported**, which indicat
 | `child_pos_to_cell` | Provides the child cell at a given position within an ordered list of all children of parent at the specified resolution childRes. The order of the ordered list is the same as that returned by cellToChildren. This is the complement of cellToChildPos. | ✅ |
 | `compact_cells` | Compacts a collection of H3 cells by recursively replacing children cells with their parents if all children are present. Input cells must all share the same resolution. | ✅ |
 | `uncompact_cells` | Uncompacts the set compactedSet of indexes to the resolution res. h3Set must be at least of size uncompactCellsSize(compactedSet, numHexes, res). | ✅ |
-| `h3_grid_disk` | Find cells within a grid distance | 🚧 |
-| `grid_distance` | Find cells within a grid distance, sorted by distance | 🕥|
-| `h3_grid_disk_unsafe` | Find cells within a grid distance, with no pentagon distortion | 🕥|
-| `grid_ring` | Produces the "hollow ring" of cells which are exactly grid distance k from the origin cell. This function may fail if pentagonal distortion is encountered. | 🕥|
-| `grid_disk` | Produces the "filled-in disk" of cells which are at most grid distance k from the origin cell. Output order is not guaranteed. | 🕥|
-| `h3_grid_ring_unsafe` | Find cells exactly a grid distance away, with no pentagon distortion | 🕥|
-| `h3_grid_path_cells` | Find a grid path to connect two cells | 🕥|
-| `h3_grid_distance` | Find the grid distance between two cells | 🕥|
+| `grid_ring` | Produces the "hollow ring" of cells which are exactly grid distance k from the origin cell | ✅ |
+| `grid_disk` | Produces the "filled-in disk" of cells which are at most grid distance k from the origin cell. Output order is not guaranteed. | ✅ |
+| `grid_path_cells` | Find a grid path to connect two cells | ✅ |
+| `grid_distance` | Find the grid distance between two cells | ✅ |
 | `h3_cell_to_local_ij` | Convert a cell ID to a local I,J coordinate space | 🕥|
 | `h3_local_ij_to_cell` | Convert a local I,J coordinate to a cell ID | 🕥|
 | `h3_cell_to_vertex` | Get the vertex ID for a cell ID and vertex number | 🕥|

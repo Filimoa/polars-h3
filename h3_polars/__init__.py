@@ -208,3 +208,37 @@ def uncompact_cells(cells: IntoExprColumn, resolution: int) -> pl.Expr:
         is_elementwise=True,
         kwargs={"resolution": resolution},
     )
+
+
+def grid_distance(origin: IntoExprColumn, destination: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[origin, destination],
+        plugin_path=LIB,
+        function_name="grid_distance",
+    )
+
+
+def grid_ring(cell: IntoExprColumn, k: int) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="grid_ring",
+        kwargs={"k": k},
+    )
+
+
+def grid_disk(cell: IntoExprColumn, k: int) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="grid_disk",
+        kwargs={"k": k},
+    )
+
+
+def grid_path_cells(origin: IntoExprColumn, destination: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[origin, destination],
+        plugin_path=LIB,
+        function_name="grid_path_cells",
+    )
