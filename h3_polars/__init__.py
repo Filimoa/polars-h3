@@ -242,3 +242,39 @@ def grid_path_cells(origin: IntoExprColumn, destination: IntoExprColumn) -> pl.E
         plugin_path=LIB,
         function_name="grid_path_cells",
     )
+
+
+# ===== Vertexes ===== #
+
+
+def cell_to_vertex(cell: IntoExprColumn, vertex_num: int) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_vertex",
+        kwargs={"vertex_num": vertex_num},
+    )
+
+
+def cell_to_vertexes(cell: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_vertexes",
+    )
+
+
+def vertex_to_latlng(vertex: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[vertex],
+        plugin_path=LIB,
+        function_name="vertex_to_latlng",
+    )
+
+
+def is_valid_vertex(vertex: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[vertex],
+        plugin_path=LIB,
+        function_name="is_valid_vertex",
+    )

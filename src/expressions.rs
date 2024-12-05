@@ -62,6 +62,7 @@ fn cell_to_latlng(inputs: &[Series]) -> PolarsResult<Series> {
     crate::engine::indexing::cell_to_latlng(cell_series)
 }
 
+// ===== Inspection ===== //
 #[polars_expr(output_type=UInt8)]
 fn get_resolution(inputs: &[Series]) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
@@ -92,6 +93,7 @@ fn is_pentagon(inputs: &[Series]) -> PolarsResult<Series> {
     crate::engine::inspection::is_pentagon(cell_series)
 }
 
+#[allow(non_snake_case)]
 #[polars_expr(output_type=Boolean)]
 fn is_res_class_III(inputs: &[Series]) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
@@ -118,6 +120,8 @@ fn list_uint64_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
         DataType::List(Box::new(DataType::UInt64)),
     ))
 }
+
+// ===== Hierarchy ===== //
 
 #[polars_expr(output_type=UInt64)]
 fn cell_to_parent(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
@@ -175,6 +179,8 @@ fn uncompact_cells(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<
     crate::engine::hierarchy::uncompact_cells(cell_series, resolution)
 }
 
+// ===== Traversal ===== //
+
 #[polars_expr(output_type=Int32)]
 fn grid_distance(inputs: &[Series]) -> PolarsResult<Series> {
     let origin_series = &inputs[0];
@@ -199,4 +205,35 @@ fn grid_path_cells(inputs: &[Series]) -> PolarsResult<Series> {
     let origin_series = &inputs[0];
     let destination_series = &inputs[1];
     crate::engine::traversal::grid_path_cells(origin_series, destination_series)
+}
+
+// ===== Vertexes ===== //
+
+#[derive(Deserialize)]
+struct VertexKwargs {
+    vertex_num: u8,
+}
+
+#[polars_expr(output_type=UInt64)]
+fn cell_to_vertex(inputs: &[Series], kwargs: VertexKwargs) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::vertexes::cell_to_vertex(cell_series, kwargs.vertex_num)
+}
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn cell_to_vertexes(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::vertexes::cell_to_vertexes(cell_series)
+}
+
+#[polars_expr(output_type_func=latlng_list_dtype)]
+fn vertex_to_latlng(inputs: &[Series]) -> PolarsResult<Series> {
+    let vertex_series = &inputs[0];
+    crate::engine::vertexes::vertex_to_latlng(vertex_series)
+}
+
+#[polars_expr(output_type=Boolean)]
+fn is_valid_vertex(inputs: &[Series]) -> PolarsResult<Series> {
+    let vertex_series = &inputs[0];
+    crate::engine::vertexes::is_valid_vertex(vertex_series)
 }

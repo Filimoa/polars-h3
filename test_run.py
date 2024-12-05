@@ -127,3 +127,34 @@ df = (
     )
 )
 print(df)
+
+
+df = (
+    pl.DataFrame({"cell": ["8a1fb46622dffff"]})
+    .with_columns(
+        [
+            pl.col("cell").pipe(h3_polars.str_to_int).alias("cell_int"),
+        ]
+    )
+    .with_columns(
+        [
+            # Get single vertex
+            pl.col("cell_int")
+            .pipe(h3_polars.cell_to_vertex, vertex_num=2)
+            .alias("vertex"),
+            # Get all vertexes
+            pl.col("cell_int").pipe(h3_polars.cell_to_vertexes).alias("vertexes"),
+            # Get vertex coordinates
+            pl.col("cell_int")
+            .pipe(h3_polars.cell_to_vertex, vertex_num=2)
+            .pipe(h3_polars.vertex_to_latlng)
+            .alias("vertex_coords"),
+            # Validate vertex
+            pl.col("cell_int")
+            .pipe(h3_polars.cell_to_vertex, vertex_num=2)
+            .pipe(h3_polars.is_valid_vertex)
+            .alias("is_valid"),
+        ]
+    )
+)
+print(df)

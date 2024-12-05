@@ -1,5 +1,5 @@
 use super::utils::parse_cell_indices;
-use h3o::{CellIndex, LatLng, Resolution};
+use h3o::CellIndex;
 use polars::prelude::*;
 use rayon::prelude::*;
 
@@ -114,6 +114,7 @@ pub fn is_pentagon(cell_series: &Series) -> PolarsResult<Series> {
     Ok(is_pent.into_series())
 }
 
+#[allow(non_snake_case)]
 pub fn is_res_class_III(cell_series: &Series) -> PolarsResult<Series> {
     let cells = parse_cell_indices(cell_series)?;
 
