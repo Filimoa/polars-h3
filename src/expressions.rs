@@ -296,3 +296,65 @@ fn directed_edge_to_boundary(inputs: &[Series]) -> PolarsResult<Series> {
     let edge_series = &inputs[0];
     crate::engine::edge::directed_edge_to_boundary(edge_series)
 }
+
+// ===== Metrics ===== //
+
+// #[derive(Deserialize)]
+// struct UnitKwargs {
+//     unit: String,
+// }
+
+// #[derive(Deserialize)]
+// struct ResolutionAndUnitKwargs {
+//     resolution: u8,
+//     unit: String,
+// }
+
+// #[polars_expr(output_type=Float64)]
+// fn get_hexagon_area(inputs: &[Series], kwargs: ResolutionAndUnitKwargs) -> PolarsResult<Series> {
+//     crate::engine::metrics::get_hexagon_area(kwargs.resolution, &kwargs.unit)
+// }
+
+// #[polars_expr(output_type=Float64)]
+// fn cell_area(inputs: &[Series], kwargs: UnitKwargs) -> PolarsResult<Series> {
+//     let cell_series = &inputs[0];
+//     crate::engine::metrics::cell_area(cell_series, &kwargs.unit)
+// }
+
+// #[polars_expr(output_type=Float64)]
+// fn get_hexagon_edge_length(
+//     inputs: &[Series],
+//     kwargs: ResolutionAndUnitKwargs,
+// ) -> PolarsResult<Series> {
+//     crate::engine::metrics::get_hexagon_edge_length(kwargs.resolution, &kwargs.unit)
+// }
+
+// #[polars_expr(output_type=UInt64)]
+// fn get_num_cells(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
+//     crate::engine::metrics::get_num_cells(kwargs.resolution)
+// }
+
+// #[polars_expr(output_type_func=list_uint64_dtype)]
+// fn get_res0_cells(inputs: &[Series]) -> PolarsResult<Series> {
+//     crate::engine::metrics::get_res0_cells()
+// }
+
+// #[polars_expr(output_type_func=list_uint64_dtype)]
+// fn get_pentagons(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
+//     crate::engine::metrics::get_pentagons(kwargs.resolution)
+// }
+
+// #[polars_expr(output_type=Float64)]
+// fn great_circle_distance(inputs: &[Series], kwargs: UnitKwargs) -> PolarsResult<Series> {
+//     let lat1_series = &inputs[0];
+//     let lng1_series = &inputs[1];
+//     let lat2_series = &inputs[2];
+//     let lng2_series = &inputs[3];
+//     crate::engine::metrics::great_circle_distance(
+//         lat1_series,
+//         lng1_series,
+//         lat2_series,
+//         lng2_series,
+//         &kwargs.unit,
+//     )
+// }

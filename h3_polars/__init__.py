@@ -347,3 +347,8 @@ def directed_edge_to_boundary(edge: IntoExprColumn) -> pl.Expr:
         plugin_path=LIB,
         function_name="directed_edge_to_boundary",
     )
+
+
+# ===== Metrics ===== #
+
+# get_hexagon_edge_length , get_hexagon_area, great_circle_distance are not implemented

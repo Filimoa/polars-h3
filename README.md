@@ -1,6 +1,6 @@
 # h3-polars
 
-This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H3 discrete global grid system](https://github.com/uber/h3/), so you can index points and geometries to hexagons in SQL.
+This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H3 discrete global grid system](https://github.com/uber/h3/), so you can index points and geometries to hexagons directly in Polars. All credits goes to the [h3o](https://github.com/HydroniumLabs/h3o) for doing the heavy lifting.
 
 # Get started
 
@@ -22,12 +22,14 @@ SELECT h3_cell_to_latlng(586265647244115967);
 
 # Implemented functions
 
-This extension implements the entire [H3 API](https://h3geo.org/docs/api/indexing). The full list of functions is below.
+This extension implements most of the [H3 API](https://h3geo.org/docs/api/indexing). The full list of functions is below.
 
-All functions support H3 indexes specified as `UBIGINT` (`uint64`) or `BIGINT` (`int64`),
+All functions support H3 indexes specified as `pl.UInt64` or `pl.Int64`,
 but the unsigned one is preferred and is returned when the extension can't detect which
 one to use. The unsigned and signed APIs are identical. All functions also support
-`VARCHAR` H3 index input and output.
+`pl.Utf8` H3 index input and output.
+
+We are unable to support the functions that work with geometries. 
 
 ### Full list of functions
 
@@ -73,16 +75,16 @@ Here's the updated table with an additional column, **Supported**, which indicat
 | `cells_to_directed_edge` | Convert an origin/destination pair to directed edge ID | ✅ |
 | `are_neighbor_cells` | True if the two cell IDs are directly adjacent | ✅ |
 | `directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | ✅ |
-| `h3_get_hexagon_area_avg` | Get average area of a hexagon cell at resolution | 🕥|
-| `h3_cell_area` | Get the area of a cell ID | 🕥|
-| `h3_get_hexagon_edge_length_avg` | Average hexagon edge length at resolution | 🕥|
-| `h3_edge_length` | Get the length of a directed edge ID | 🕥|
-| `h3_get_num_cells` | Get the number of cells at a resolution | 🕥|
-| `h3_get_res0_cells` | Get all resolution 0 cells | 🕥|
-| `h3_get_res0_cells_string` | Get all resolution 0 cells (returns VARCHAR) | 🕥|
-| `h3_get_pentagons` | Get all pentagons at a resolution | 🕥|
-| `h3_get_pentagons_string` | Get all pentagons at a resolution (returns VARCHAR) | 🕥|
-| `h3_great_circle_distance` | Compute the great circle distance between two points (haversine) | 🕥|
+| `h3_get_hexagon_area_avg` | Get average area of a hexagon cell at resolution |  🚧|
+| `h3_cell_area` | Get the area of a cell ID |  🚧|
+| `h3_get_hexagon_edge_length_avg` | Average hexagon edge length at resolution |  🚧|
+| `h3_edge_length` | Get the length of a directed edge ID |  🚧|
+| `h3_get_num_cells` | Get the number of cells at a resolution |  🚧|
+| `h3_get_res0_cells` | Get all resolution 0 cells |  🚧|
+| `h3_get_res0_cells_string` | Get all resolution 0 cells (returns VARCHAR) |  🚧|
+| `h3_get_pentagons` | Get all pentagons at a resolution |  🚧|
+| `h3_get_pentagons_string` | Get all pentagons at a resolution (returns VARCHAR) |  🚧|
+| `h3_great_circle_distance` | Compute the great circle distance between two points (haversine) |  🚧|
 | `cells_to_multi_polygon_wkt` | Convert a set of cells to multipolygon WKT | 🛑 |
 | `polygon_wkt_to_cells` | Convert polygon WKT to a set of cells | 🛑 |
 | `cell_to_boundary_wkt` | Convert cell ID to cell boundary | 🛑 |
