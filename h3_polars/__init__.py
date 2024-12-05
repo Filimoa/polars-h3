@@ -11,10 +11,23 @@ if TYPE_CHECKING:
 LIB = Path(__file__).parent
 
 
-def lat_lng_to_h3(lat: IntoExprColumn, lng: IntoExprColumn) -> pl.Expr:
+def latlng_to_cell(
+    lat: IntoExprColumn, lng: IntoExprColumn, resolution: int
+) -> pl.Expr:
     return register_plugin_function(
-        args=[lat, lng],
+        args=[lat, lng, resolution],
         plugin_path=LIB,
-        function_name="lat_lng_to_h3",
+        function_name="latlng_to_cell",
         is_elementwise=True,
     )
+
+
+# def latlng_to_cell_string(
+#     lat: IntoExprColumn, lng: IntoExprColumn, resolution: int
+# ) -> pl.Expr:
+#     return register_plugin_function(
+#         args=[lat, lng, resolution],
+#         plugin_path=LIB,
+#         function_name="latlng_to_cell_string",
+#         is_elementwise=True,
+#     )

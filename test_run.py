@@ -5,8 +5,18 @@ import polars as pl
 import h3_polars
 
 # Test with some data
-df = pl.DataFrame({"lat": [37.7749], "lng": [-122.4194]})
-result = df.with_columns(h3_cell=h3_polars.lat_lng_to_h3(pl.col("lat"), pl.col("lng")))
+df = pl.DataFrame(
+    {"lat": [37.7749], "lng": [-122.4194], "res": [7]},
+)
+result = df.with_columns(
+    h3_cell=h3_polars.latlng_to_cell(
+        pl.col("lat"),
+        pl.col("lng"),
+        7,
+        # pl.col("res"),
+        # resolution=7,
+    )
+)
 print(result)
 
 # Create example DataFrame with lat/lng columns
@@ -16,10 +26,6 @@ print(result)
 #         "lng": [-122.388903, -122.389907, -122.390911],
 #     }
 # )
-
-# # Convert lat/lng to H3 cells
-# result = df.with_columns(h3_cell=h3_polars.lat_lng_to_h3("lat", "lng"))
-# print(result)
 
 
 # # Create a sample DataFrame with H3 cells

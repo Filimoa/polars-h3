@@ -35,7 +35,7 @@ Here's the updated table with an additional column, **Supported**, which indicat
 
 | Function | Description | Supported
 | --: | --- | ---
-| `h3_latlng_to_cell` | Convert latitude/longitude coordinate to cell ID | ✅
+| `latlng_to_cell` | Convert latitude/longitude coordinate to cell ID | ✅
 | `h3_latlng_to_cell_string` | Convert latitude/longitude coordinate to cell ID (returns VARCHAR) | 🕥
 | `h3_cell_to_lat` | Convert cell ID to latitude | 🕥
 | `h3_cell_to_lng` | Convert cell ID to longitude | 🕥
