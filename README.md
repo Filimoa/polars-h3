@@ -33,7 +33,10 @@ We are unable to support the functions that work with geometries.
 
 ### Full list of functions
 
-Here's the updated table with an additional column, **Supported**, which indicates whether each function is supported or not.  
+✅ = Supported
+🚧 = In Progress
+🕥 = Not Planned
+🛑 = Not supported
 
 | Function | Description | Supported|
 | --: | --- | ---|
