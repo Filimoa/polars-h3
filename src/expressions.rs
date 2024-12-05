@@ -22,7 +22,7 @@ fn latlng_to_cell(inputs: &[Series], kwargs: LatLngToCellKwargs) -> PolarsResult
     let lng_series = &inputs[1];
     let resolution = kwargs.resolution;
 
-    crate::engine::core::latlng_to_cell(lat_series, lng_series, resolution)
+    crate::engine::indexing::latlng_to_cell(lat_series, lng_series, resolution)
 }
 
 #[polars_expr(output_type = String)]
@@ -31,23 +31,29 @@ fn latlng_to_cell_string(inputs: &[Series], kwargs: LatLngToCellKwargs) -> Polar
     let lng_series = &inputs[1];
     let resolution = kwargs.resolution;
 
-    crate::engine::core::latlng_to_cell_string(lat_series, lng_series, resolution)
+    crate::engine::indexing::latlng_to_cell_string(lat_series, lng_series, resolution)
 }
 
 #[polars_expr(output_type=Float64)]
 fn cell_to_lat(inputs: &[Series]) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
-    crate::engine::core::cell_to_lat(cell_series)
+    crate::engine::indexing::cell_to_lat(cell_series)
 }
 
 #[polars_expr(output_type=Float64)]
 fn cell_to_lng(inputs: &[Series]) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
-    crate::engine::core::cell_to_lng(cell_series)
+    crate::engine::indexing::cell_to_lng(cell_series)
 }
 
 #[polars_expr(output_type_func=latlng_list_dtype)]
 fn cell_to_latlng(inputs: &[Series]) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
-    crate::engine::core::cell_to_latlng(cell_series)
+    crate::engine::indexing::cell_to_latlng(cell_series)
+}
+
+#[polars_expr(output_type=UInt8)]
+fn get_resolution(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::inspection::get_resolution(cell_series)
 }

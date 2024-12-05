@@ -43,5 +43,6 @@ df = pl.DataFrame(
     lat=h3_polars.cell_to_lat(pl.col("h3_cell")),
     lng=h3_polars.cell_to_lng(pl.col("h3_cell")),
     latlng=h3_polars.cell_to_latlng(pl.col("h3_cell")),
+    res=h3_polars.get_resolution(pl.col("h3_cell")),
 )
 print(df)

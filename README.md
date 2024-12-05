@@ -41,7 +41,7 @@ Here's the updated table with an additional column, **Supported**, which indicat
 | `cell_to_lng` | Convert cell ID to longitude | ✅ |
 | `cell_to_latlng` | Convert cell ID to latitude/longitude | ✅ |
 | `cell_to_boundary_wkt` | Convert cell ID to cell boundary | 🛑 |
-| `get_resolution` | Get resolution number of cell ID | 🚧 |
+| `get_resolution` | Get resolution number of cell ID | ✅ |
 | `get_base_cell_number` | Get base cell number of cell ID | 🕥|
 | `str_to_int` | Convert VARCHAR cell ID to UBIGINT | 🚧 |
 | `int_to_str` | Convert BIGINT or UBIGINT cell ID to VARCHAR | 🚧 |

@@ -60,3 +60,12 @@ def cell_to_latlng(cell: IntoExprColumn) -> pl.Expr:
         function_name="cell_to_latlng",
         is_elementwise=True,
     )
+
+
+def get_resolution(expr: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[expr],
+        plugin_path=LIB,
+        function_name="get_resolution",
+        is_elementwise=True,
+    )
