@@ -33,3 +33,30 @@ def latlng_to_cell_string(
         is_elementwise=True,
         kwargs={"resolution": resolution},
     )
+
+
+def cell_to_lat(cell: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_lat",
+        is_elementwise=True,
+    )
+
+
+def cell_to_lng(cell: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_lng",
+        is_elementwise=True,
+    )
+
+
+def cell_to_latlng(cell: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_latlng",
+        is_elementwise=True,
+    )
