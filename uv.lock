@@ -20,27 +20,6 @@ wheels = [
 ]
 
 [[package]]
-name = "h3-polars"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "maturin" },
-    { name = "mypy" },
-    { name = "polars" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "maturin" },
-    { name = "mypy" },
-    { name = "polars" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[[package]]
 name = "iniconfig"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -154,6 +133,27 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/f3/c317b1bc6759d1ec343c25d5ebd376a07a2e1fd2bd04fdc07ce6b2a855c4/polars-1.8.2-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:67c1e448d6e38697650b22dd359f13c40b567c0b66686c8602e4367400e87801", size = 32548666 },
     { url = "https://files.pythonhosted.org/packages/1d/df/5ccf44218728caecda9f555879b40fe4ab34ff629c81b9117a1107437fdc/polars-1.8.2-cp38-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:570ee86b033dc5a6dbe2cb0df48522301642f304dda3da48f53d7488899a2206", size = 29187225 },
     { url = "https://files.pythonhosted.org/packages/9c/45/77e4fda23368907c06bf70fc722de28d442c5087bbc8a60c29b8396750ea/polars-1.8.2-cp38-abi3-win_amd64.whl", hash = "sha256:ce1a1c1e2150ffcc44a5f1c461d738e1dcd95abbd0f210af0271c7ac0c9f7ef9", size = 32394690 },
+]
+
+[[package]]
+name = "polars-h3"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "maturin" },
+    { name = "mypy" },
+    { name = "polars" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "maturin" },
+    { name = "mypy" },
+    { name = "polars" },
+    { name = "pytest" },
+    { name = "ruff" },
 ]
 
 [[package]]
