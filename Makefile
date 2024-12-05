@@ -1,4 +1,11 @@
 SHELL=/bin/bash
+PYTHON = python
+PIP = $(VENV_DIR)/bin/pip
+
+.venv:
+	$(PYTHON) -m venv $(VENV_DIR)
+	$(PIP) install -U pip setuptools wheel
+	$(PIP) install maturin
 
 install:
 	unset CONDA_PREFIX && \
