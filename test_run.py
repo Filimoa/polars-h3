@@ -158,3 +158,33 @@ df = (
     )
 )
 print(df)
+
+
+df = (
+    pl.DataFrame({"origin": ["8a1fb46622dffff"], "destination": ["8a1fb46622d7fff"]})
+    .with_columns(
+        [
+            pl.col("origin").pipe(h3_polars.str_to_int).alias("origin_int"),
+            pl.col("destination").pipe(h3_polars.str_to_int).alias("dest_int"),
+        ]
+    )
+    .with_columns(
+        [
+            # Check if cells are neighbors
+            h3_polars.are_neighbor_cells("origin_int", "dest_int").alias(
+                "are_neighbors"
+            ),
+            # Get directed edge
+            h3_polars.cells_to_directed_edge("origin_int", "dest_int").alias("edge"),
+            # Get all edges from origin
+            pl.col("origin_int")
+            .pipe(h3_polars.origin_to_directed_edges)
+            .alias("edges"),
+            # Get edge boundary
+            h3_polars.cells_to_directed_edge("origin_int", "dest_int")
+            .pipe(h3_polars.directed_edge_to_boundary)
+            .alias("boundary"),
+        ]
+    )
+)
+print(df)

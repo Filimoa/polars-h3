@@ -40,7 +40,6 @@ Here's the updated table with an additional column, **Supported**, which indicat
 | `cell_to_lat` | Convert cell ID to latitude | ✅ |
 | `cell_to_lng` | Convert cell ID to longitude | ✅ |
 | `cell_to_latlng` | Convert cell ID to latitude/longitude | ✅ |
-| `cell_to_boundary_wkt` | Convert cell ID to cell boundary | 🛑 |
 | `get_resolution` | Get resolution number of cell ID | ✅ |
 | `get_base_cell_number` | Get base cell number of cell ID | 🕥|
 | `str_to_int` | Convert VARCHAR cell ID to UBIGINT | ✅ |
@@ -66,14 +65,14 @@ Here's the updated table with an additional column, **Supported**, which indicat
 | `cell_to_vertexes` | Get all vertex IDs for a cell ID | ✅|
 | `vertex_to_latlng` | Convert a vertex ID to latitude/longitude coordinate | ✅ |
 | `is_valid_vertex` | True if passed a valid vertex ID | ✅|
-| `h3_is_valid_directed_edge` | True if passed a valid directed edge ID | 🕥|
-| `h3_origin_to_directed_edges` | Get all directed edge IDs for a cell ID | 🕥|
-| `h3_directed_edge_to_cells` | Convert a directed edge ID to origin/destination cell IDs | 🕥|
-| `h3_get_directed_edge_origin` | Convert a directed edge ID to origin cell ID | 🕥|
-| `h3_get_directed_edge_destination` | Convert a directed edge ID to destination cell ID | 🕥|
-| `h3_cells_to_directed_edge` | Convert an origin/destination pair to directed edge ID | 🕥|
-| `h3_are_neighbor_cells` | True if the two cell IDs are directly adjacent | 🕥|
-| `h3_directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | 🛑 |
+| `is_valid_directed_edge` | True if passed a valid directed edge ID | ✅ |
+| `origin_to_directed_edges` | Get all directed edge IDs for a cell ID | ✅ |
+| `directed_edge_to_cells` | Convert a directed edge ID to origin/destination cell IDs | ✅ |
+| `get_directed_edge_origin` | Convert a directed edge ID to origin cell ID | ✅ |
+| `get_directed_edge_destination` | Convert a directed edge ID to destination cell ID | ✅|
+| `cells_to_directed_edge` | Convert an origin/destination pair to directed edge ID | ✅ |
+| `are_neighbor_cells` | True if the two cell IDs are directly adjacent | ✅ |
+| `directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | ✅ |
 | `h3_get_hexagon_area_avg` | Get average area of a hexagon cell at resolution | 🕥|
 | `h3_cell_area` | Get the area of a cell ID | 🕥|
 | `h3_get_hexagon_edge_length_avg` | Average hexagon edge length at resolution | 🕥|
@@ -86,3 +85,4 @@ Here's the updated table with an additional column, **Supported**, which indicat
 | `h3_great_circle_distance` | Compute the great circle distance between two points (haversine) | 🕥|
 | `cells_to_multi_polygon_wkt` | Convert a set of cells to multipolygon WKT | 🛑 |
 | `polygon_wkt_to_cells` | Convert polygon WKT to a set of cells | 🛑 |
+| `cell_to_boundary_wkt` | Convert cell ID to cell boundary | 🛑 |

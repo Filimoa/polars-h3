@@ -278,3 +278,72 @@ def is_valid_vertex(vertex: IntoExprColumn) -> pl.Expr:
         plugin_path=LIB,
         function_name="is_valid_vertex",
     )
+
+
+# ===== Edge ===== #
+
+
+def are_neighbor_cells(origin: IntoExprColumn, destination: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[origin, destination],
+        plugin_path=LIB,
+        function_name="are_neighbor_cells",
+    )
+
+
+def cells_to_directed_edge(
+    origin: IntoExprColumn, destination: IntoExprColumn
+) -> pl.Expr:
+    return register_plugin_function(
+        args=[origin, destination],
+        plugin_path=LIB,
+        function_name="cells_to_directed_edge",
+    )
+
+
+def is_valid_directed_edge(edge: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[edge],
+        plugin_path=LIB,
+        function_name="is_valid_directed_edge",
+    )
+
+
+def get_directed_edge_origin(edge: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[edge],
+        plugin_path=LIB,
+        function_name="get_directed_edge_origin",
+    )
+
+
+def get_directed_edge_destination(edge: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[edge],
+        plugin_path=LIB,
+        function_name="get_directed_edge_destination",
+    )
+
+
+def directed_edge_to_cells(edge: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[edge],
+        plugin_path=LIB,
+        function_name="directed_edge_to_cells",
+    )
+
+
+def origin_to_directed_edges(cell: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="origin_to_directed_edges",
+    )
+
+
+def directed_edge_to_boundary(edge: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[edge],
+        plugin_path=LIB,
+        function_name="directed_edge_to_boundary",
+    )

@@ -237,3 +237,62 @@ fn is_valid_vertex(inputs: &[Series]) -> PolarsResult<Series> {
     let vertex_series = &inputs[0];
     crate::engine::vertexes::is_valid_vertex(vertex_series)
 }
+
+// ===== Edge ===== //
+
+fn boundary_list_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
+    Ok(Field::new(
+        input_fields[0].name.clone(),
+        DataType::List(Box::new(DataType::Float64)),
+    ))
+}
+
+#[polars_expr(output_type=Boolean)]
+fn are_neighbor_cells(inputs: &[Series]) -> PolarsResult<Series> {
+    let origin_series = &inputs[0];
+    let destination_series = &inputs[1];
+    crate::engine::edge::are_neighbor_cells(origin_series, destination_series)
+}
+
+#[polars_expr(output_type=UInt64)]
+fn cells_to_directed_edge(inputs: &[Series]) -> PolarsResult<Series> {
+    let origin_series = &inputs[0];
+    let destination_series = &inputs[1];
+    crate::engine::edge::cells_to_directed_edge(origin_series, destination_series)
+}
+
+#[polars_expr(output_type=Boolean)]
+fn is_valid_directed_edge(inputs: &[Series]) -> PolarsResult<Series> {
+    let edge_series = &inputs[0];
+    crate::engine::edge::is_valid_directed_edge(edge_series)
+}
+
+#[polars_expr(output_type=UInt64)]
+fn get_directed_edge_origin(inputs: &[Series]) -> PolarsResult<Series> {
+    let edge_series = &inputs[0];
+    crate::engine::edge::get_directed_edge_origin(edge_series)
+}
+
+#[polars_expr(output_type=UInt64)]
+fn get_directed_edge_destination(inputs: &[Series]) -> PolarsResult<Series> {
+    let edge_series = &inputs[0];
+    crate::engine::edge::get_directed_edge_destination(edge_series)
+}
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn directed_edge_to_cells(inputs: &[Series]) -> PolarsResult<Series> {
+    let edge_series = &inputs[0];
+    crate::engine::edge::directed_edge_to_cells(edge_series)
+}
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn origin_to_directed_edges(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::edge::origin_to_directed_edges(cell_series)
+}
+
+#[polars_expr(output_type_func=boundary_list_dtype)]
+fn directed_edge_to_boundary(inputs: &[Series]) -> PolarsResult<Series> {
+    let edge_series = &inputs[0];
+    crate::engine::edge::directed_edge_to_boundary(edge_series)
+}

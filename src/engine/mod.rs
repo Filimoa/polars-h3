@@ -1,4 +1,5 @@
 // pub mod boundaries;
+pub mod edge;
 pub mod hierarchy;
 pub mod indexing;
 pub mod inspection;
