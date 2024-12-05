@@ -5,8 +5,6 @@ import polars as pl
 from polars.plugins import register_plugin_function
 
 
-# from h3_polars._internal import __version__ as __version__
-
 if TYPE_CHECKING:
     from h3_polars.typing import IntoExprColumn
 

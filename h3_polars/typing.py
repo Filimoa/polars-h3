@@ -1,14 +1,14 @@
-# File: /h3_polars/typing.py
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
-import sys
-import polars as pl
+if TYPE_CHECKING:
+    import sys
+    import polars as pl
 
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias
-else:
-    from typing_extensions import TypeAlias
+    if sys.version_info >= (3, 10):
+        from typing import TypeAlias
+    else:
+        from typing_extensions import TypeAlias
+    from polars.datatypes import DataType, DataTypeClass
 
-# Remove TYPE_CHECKING condition so types are available at runtime
-IntoExprColumn = Union[pl.Expr, str, pl.Series]
-PolarsDataType = Union[pl.datatypes.DataType, pl.datatypes.DataTypeClass]
+    IntoExprColumn: TypeAlias = Union[pl.Expr, str, pl.Series]
+    PolarsDataType: TypeAlias = Union[DataType, DataTypeClass]
