@@ -6,7 +6,7 @@ PIP = $(VENV_DIR)/bin/pip
 	$(PYTHON) -m venv $(VENV_DIR)
 	$(PIP) install -U pip setuptools wheel
 	$(PIP) install maturin
-
+	
 install:
 	unset CONDA_PREFIX && \
 	source .venv/bin/activate && maturin develop
