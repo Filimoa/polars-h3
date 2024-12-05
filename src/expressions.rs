@@ -8,9 +8,7 @@ fn latlng_to_cell(inputs: &[Series]) -> PolarsResult<Series> {
     crate::engine::core::latlng_to_cell(&inputs)
 }
 
-// #[polars_expr(output_type=String)]
-// fn latlng_to_cell_string(inputs: &[Series]) -> PolarsResult<Series> {
-//     let resolution = inputs[2].u8()?;
-//     let resolution = resolution.get(0).unwrap_or(9);
-//     crate::engine::core::latlng_to_cell_string(&inputs[..2], resolution)
-// }
+#[polars_expr(output_type=String)]
+fn latlng_to_cell_string(inputs: &[Series]) -> PolarsResult<Series> {
+    crate::engine::core::latlng_to_cell_string(&inputs)
+}

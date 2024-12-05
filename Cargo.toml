@@ -13,3 +13,4 @@ pyo3-polars = { version = "0.18.0", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 polars = { version = "0.44.2", default-features = false }
 h3o = "0.4.0"
+rayon = "1.10.0"
