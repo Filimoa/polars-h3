@@ -8,6 +8,11 @@ struct LatLngToCellKwargs {
     resolution: u8,
 }
 
+#[derive(Deserialize)]
+struct ResolutionKwargs {
+    resolution: Option<u8>,
+}
+
 fn latlng_list_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
     let field = Field::new(
         input_fields[0].name.clone(),
@@ -56,4 +61,111 @@ fn cell_to_latlng(inputs: &[Series]) -> PolarsResult<Series> {
 fn get_resolution(inputs: &[Series]) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
     crate::engine::inspection::get_resolution(cell_series)
+}
+
+#[polars_expr(output_type=UInt64)]
+fn str_to_int(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::inspection::str_to_int(cell_series)
+}
+
+#[polars_expr(output_type=String)]
+fn int_to_str(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::inspection::int_to_str(cell_series)
+}
+
+#[polars_expr(output_type=Boolean)]
+fn is_valid_cell(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::inspection::is_valid_cell(cell_series)
+}
+
+#[polars_expr(output_type=Boolean)]
+fn is_pentagon(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::inspection::is_pentagon(cell_series)
+}
+
+#[polars_expr(output_type=Boolean)]
+fn is_res_class_III(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::inspection::is_res_class_III(cell_series)
+}
+
+fn faces_list_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
+    let field = Field::new(
+        input_fields[0].name.clone(),
+        DataType::List(Box::new(DataType::Int64)),
+    );
+    Ok(field)
+}
+
+#[polars_expr(output_type_func=faces_list_dtype)]
+fn get_icosahedron_faces(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::inspection::get_icosahedron_faces(cell_series)
+}
+
+fn list_uint64_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
+    Ok(Field::new(
+        input_fields[0].name.clone(),
+        DataType::List(Box::new(DataType::UInt64)),
+    ))
+}
+
+#[polars_expr(output_type=UInt64)]
+fn cell_to_parent(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::hierarchy::cell_to_parent(cell_series, kwargs.resolution)
+}
+
+#[polars_expr(output_type=UInt64)]
+fn cell_to_center_child(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::hierarchy::cell_to_center_child(cell_series, kwargs.resolution)
+}
+
+#[polars_expr(output_type=UInt64)]
+fn cell_to_children_size(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::hierarchy::cell_to_children_size(cell_series, kwargs.resolution)
+}
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn cell_to_children(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::hierarchy::cell_to_children(cell_series, kwargs.resolution)
+}
+
+#[polars_expr(output_type=UInt64)]
+fn cell_to_child_pos(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::hierarchy::cell_to_child_pos(cell_series, kwargs.resolution.unwrap_or(0))
+}
+
+#[polars_expr(output_type=UInt64)]
+fn child_pos_to_cell(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
+    let parent_series = &inputs[0];
+    let pos_series = &inputs[1];
+    crate::engine::hierarchy::child_pos_to_cell(
+        parent_series,
+        kwargs.resolution.unwrap_or(0),
+        pos_series,
+    )
+}
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn compact_cells(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::hierarchy::compact_cells(cell_series)
+}
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn uncompact_cells(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    let resolution = kwargs.resolution.ok_or_else(|| {
+        PolarsError::ComputeError("Resolution required for uncompact_cells".into())
+    })?;
+    crate::engine::hierarchy::uncompact_cells(cell_series, resolution)
 }

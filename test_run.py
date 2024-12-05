@@ -35,14 +35,70 @@ print(df)
 # Create exam
 
 
+df = (
+    pl.DataFrame(
+        {
+            "h3_cell": ["8944ec60ba3ffff"] * 10,
+        },
+    )
+    .with_columns(
+        lat=h3_polars.cell_to_lat(pl.col("h3_cell")),
+        lng=h3_polars.cell_to_lng(pl.col("h3_cell")),
+        latlng=h3_polars.cell_to_latlng(pl.col("h3_cell")),
+        res=h3_polars.get_resolution(pl.col("h3_cell")),
+        int_cell=h3_polars.str_to_int(pl.col("h3_cell")),
+        # str_cell=h3_polars.int_to_str(pl.col("int_cell")),
+        is_valid=h3_polars.is_valid_cell(pl.col("h3_cell")),
+    )
+    .with_columns(
+        str_cell=h3_polars.int_to_str(pl.col("int_cell")),
+    )
+)
+print(df)
+
+
+df = pl.DataFrame({"cell": ["8a1fb46622dffff", "821fb46622fffff"]}).with_columns(
+    [
+        pl.col("cell")
+        .pipe(h3_polars.str_to_int)
+        .pipe(h3_polars.is_pentagon)
+        .alias("is_pent"),
+        pl.col("cell")
+        .pipe(h3_polars.str_to_int)
+        .pipe(h3_polars.is_res_class_III)
+        .alias("is_class3"),
+        pl.col("cell")
+        .pipe(h3_polars.str_to_int)
+        .pipe(h3_polars.get_icosahedron_faces)
+        .alias("faces"),
+    ]
+)
+print(df)
+
+
 df = pl.DataFrame(
     {
-        "h3_cell": ["8944ec60ba3ffff"] * 10,
-    },
+        "cell": ["8a1fb46622dffff"],
+    }
 ).with_columns(
-    lat=h3_polars.cell_to_lat(pl.col("h3_cell")),
-    lng=h3_polars.cell_to_lng(pl.col("h3_cell")),
-    latlng=h3_polars.cell_to_latlng(pl.col("h3_cell")),
-    res=h3_polars.get_resolution(pl.col("h3_cell")),
+    [
+        # Get parent
+        pl.col("cell")
+        .pipe(h3_polars.str_to_int)
+        .pipe(h3_polars.cell_to_parent, resolution=9)
+        .alias("parent"),
+        # Get children
+        pl.col("cell")
+        .pipe(h3_polars.str_to_int)
+        .pipe(h3_polars.cell_to_children, resolution=11)
+        .alias("children"),
+        # Get center child
+        pl.col("cell")
+        .pipe(h3_polars.str_to_int)
+        .pipe(h3_polars.cell_to_center_child, resolution=11)
+        .alias("center_child"),
+    ]
 )
+
+
 print(df)

@@ -69,3 +69,142 @@ def get_resolution(expr: IntoExprColumn) -> pl.Expr:
         function_name="get_resolution",
         is_elementwise=True,
     )
+
+
+def str_to_int(expr: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[expr],
+        plugin_path=LIB,
+        function_name="str_to_int",
+        is_elementwise=True,
+    )
+
+
+def int_to_str(expr: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[expr],
+        plugin_path=LIB,
+        function_name="int_to_str",
+        is_elementwise=True,
+    )
+
+
+def is_valid_cell(expr: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[expr],
+        plugin_path=LIB,
+        function_name="is_valid_cell",
+        is_elementwise=True,
+    )
+
+
+def is_pentagon(expr: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[expr],
+        plugin_path=LIB,
+        function_name="is_pentagon",
+        is_elementwise=True,
+    )
+
+
+def is_res_class_III(expr: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[expr],
+        plugin_path=LIB,
+        function_name="is_res_class_III",
+        is_elementwise=True,
+    )
+
+
+def get_icosahedron_faces(expr: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[expr],
+        plugin_path=LIB,
+        function_name="get_icosahedron_faces",
+        is_elementwise=True,
+    )
+
+
+def cell_to_parent(cell: IntoExprColumn, resolution: int | None = None) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_parent",
+        is_elementwise=True,
+        kwargs={"resolution": resolution},
+    )
+
+
+def cell_to_center_child(
+    cell: IntoExprColumn, resolution: int | None = None
+) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_center_child",
+        is_elementwise=True,
+        kwargs={"resolution": resolution},
+    )
+
+
+def cell_to_children_size(
+    cell: IntoExprColumn, resolution: int | None = None
+) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_children_size",
+        is_elementwise=True,
+        kwargs={"resolution": resolution},
+    )
+
+
+def cell_to_children(cell: IntoExprColumn, resolution: int) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_children",
+        is_elementwise=True,
+        kwargs={"resolution": resolution},
+    )
+
+
+def cell_to_child_pos(cell: IntoExprColumn, resolution: int = 0) -> pl.Expr:
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_child_pos",
+        is_elementwise=True,
+        kwargs={"resolution": resolution},
+    )
+
+
+def child_pos_to_cell(
+    parent: IntoExprColumn, pos: IntoExprColumn, resolution: int = 0
+) -> pl.Expr:
+    return register_plugin_function(
+        args=[parent, pos],
+        plugin_path=LIB,
+        function_name="child_pos_to_cell",
+        is_elementwise=True,
+        kwargs={"resolution": resolution},
+    )
+
+
+def compact_cells(cells: IntoExprColumn) -> pl.Expr:
+    return register_plugin_function(
+        args=[cells],
+        plugin_path=LIB,
+        function_name="compact_cells",
+        is_elementwise=True,
+    )
+
+
+def uncompact_cells(cells: IntoExprColumn, resolution: int) -> pl.Expr:
+    return register_plugin_function(
+        args=[cells],
+        plugin_path=LIB,
+        function_name="uncompact_cells",
+        is_elementwise=True,
+        kwargs={"resolution": resolution},
+    )

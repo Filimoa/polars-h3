@@ -43,19 +43,19 @@ Here's the updated table with an additional column, **Supported**, which indicat
 | `cell_to_boundary_wkt` | Convert cell ID to cell boundary | 🛑 |
 | `get_resolution` | Get resolution number of cell ID | ✅ |
 | `get_base_cell_number` | Get base cell number of cell ID | 🕥|
-| `str_to_int` | Convert VARCHAR cell ID to UBIGINT | 🚧 |
-| `int_to_str` | Convert BIGINT or UBIGINT cell ID to VARCHAR | 🚧 |
-| `is_valid_cell` | True if this is a valid cell ID | 🚧 |
-| `is_res_class_iii` | True if the cell's resolution is class III | 🕥|
-| `is_pentagon` | True if the cell is a pentagon | 🕥|
-| `get_icosahedron_faces` | List of icosahedron face IDs the cell is on | 🕥|
-| `cell_to_parent` | Get coarser cell for a cell | 🚧 |
-| `cell_to_children` | Get finer cells for a cell | 🚧 |
-| `cell_to_center_child` | Provides the center child (finer) cell contained by cell at resolution childRes. | 🕥|
-| `cell_to_child_pos` | Provides the position of the child cell within an ordered list of all children of the cell's parent at the specified resolution parentRes. The order of the ordered list is the same as that returned by cellToChildren. This is the complement of childPosToCell. | 🕥|
-| `child_pos_to_cell` | Provides the child cell at a given position within an ordered list of all children of parent at the specified resolution childRes. The order of the ordered list is the same as that returned by cellToChildren. This is the complement of cellToChildPos. | 🕥|
-| `compact_cells` | Compacts a collection of H3 cells by recursively replacing children cells with their parents if all children are present. Input cells must all share the same resolution. | 🕥|
-| `uncompact_cells` | Uncompacts the set compactedSet of indexes to the resolution res. h3Set must be at least of size uncompactCellsSize(compactedSet, numHexes, res). | 🕥|
+| `str_to_int` | Convert VARCHAR cell ID to UBIGINT | ✅ |
+| `int_to_str` | Convert BIGINT or UBIGINT cell ID to VARCHAR | ✅ |
+| `is_valid_cell` | True if this is a valid cell ID | ✅ |
+| `is_res_class_iii` | True if the cell's resolution is class III | ✅ |
+| `is_pentagon` | True if the cell is a pentagon | ✅ |
+| `get_icosahedron_faces` | List of icosahedron face IDs the cell is on | ✅ |
+| `cell_to_parent` | Get coarser cell for a cell | ✅ |
+| `cell_to_children` | Get finer cells for a cell | ✅ |
+| `cell_to_center_child` | Provides the center child (finer) cell contained by cell at resolution childRes. | ✅ |
+| `cell_to_child_pos` | Provides the position of the child cell within an ordered list of all children of the cell's parent at the specified resolution parentRes. The order of the ordered list is the same as that returned by cellToChildren. This is the complement of childPosToCell. | ✅ |
+| `child_pos_to_cell` | Provides the child cell at a given position within an ordered list of all children of parent at the specified resolution childRes. The order of the ordered list is the same as that returned by cellToChildren. This is the complement of cellToChildPos. | ✅ |
+| `compact_cells` | Compacts a collection of H3 cells by recursively replacing children cells with their parents if all children are present. Input cells must all share the same resolution. | ✅ |
+| `uncompact_cells` | Uncompacts the set compactedSet of indexes to the resolution res. h3Set must be at least of size uncompactCellsSize(compactedSet, numHexes, res). | ✅ |
 | `h3_grid_disk` | Find cells within a grid distance | 🚧 |
 | `grid_distance` | Find cells within a grid distance, sorted by distance | 🕥|
 | `h3_grid_disk_unsafe` | Find cells within a grid distance, with no pentagon distortion | 🕥|
