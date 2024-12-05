@@ -1,0 +1,9 @@
+*.so
+*.pyc
+target
+venv
+.venv
+*.so
+*.dll
+*.pyd
+*.DS_Store
