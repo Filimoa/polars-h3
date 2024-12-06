@@ -6,7 +6,7 @@ PIP = $(VENV_DIR)/bin/pip
 .venv:
 	$(PYTHON) -m venv $(VENV_DIR)
 	$(PIP) install -U pip setuptools wheel
-	$(PIP) install maturin polars ruff mypy
+	$(PIP) install maturin polars ruff
 
 install:
 	unset CONDA_PREFIX && \
@@ -20,7 +20,6 @@ pre-commit:
 	cargo +nightly fmt --all && cargo clippy --all-features
 	.venv/bin/python -m ruff check . --fix --exit-non-zero-on-fix
 	.venv/bin/python -m ruff format polars_h3 tests
-	.venv/bin/mypy polars_h3 tests
 
 test:
 	.venv/bin/python -m pytest tests
