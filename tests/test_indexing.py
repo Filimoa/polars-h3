@@ -1,7 +1,7 @@
 import pytest
 import polars as pl
 import polars_h3
-from typing import Optional
+from typing import Optional, Union, Dict, List
 
 
 def test_latlng_to_cell_valid():
@@ -68,7 +68,7 @@ def test_latlng_to_cell_null_inputs(lat: Optional[float], lng: Optional[float]):
     ],
 )
 def test_cell_to_latlng(
-    h3_cell: list[int | str], schema: dict[str, pl.DataType] | None
+    h3_cell: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
 ):
     df = pl.DataFrame({"int_h3_cell": h3_cell}, schema=schema).with_columns(
         lat=polars_h3.cell_to_lat("int_h3_cell"),

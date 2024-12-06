@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from pathlib import Path
+from pathlib import Path, Union
 
 import polars as pl
 from polars.plugins import register_plugin_function
@@ -100,7 +100,7 @@ def get_icosahedron_faces(expr: IntoExprColumn) -> pl.Expr:
 
 
 def cell_to_parent(
-    cell: IntoExprColumn, resolution: HexResolution | None = None
+    cell: IntoExprColumn, resolution: Union[HexResolution, None] = None
 ) -> pl.Expr:
     """
     Returns the parent cell at the specified resolution.
@@ -116,7 +116,7 @@ def cell_to_parent(
 
 
 def cell_to_center_child(
-    cell: IntoExprColumn, resolution: HexResolution | None = None
+    cell: IntoExprColumn, resolution: Union[HexResolution, None] = None
 ) -> pl.Expr:
     """
     Returns the center child cell at the specified resolution.
@@ -132,7 +132,7 @@ def cell_to_center_child(
 
 
 def cell_to_children_size(
-    cell: IntoExprColumn, resolution: HexResolution | None = None
+    cell: IntoExprColumn, resolution: Union[HexResolution, None] = None
 ) -> pl.Expr:
     """
     Returns the number of children cells at the specified resolution.

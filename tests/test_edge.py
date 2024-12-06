@@ -1,5 +1,7 @@
 import pytest
 import polars as pl
+
+from typing import List, Dict, Union
 import polars_h3
 
 
@@ -15,7 +17,9 @@ import polars_h3
     ],
 )
 def test_is_valid_directed_edge(
-    edge: list[int | str], schema: dict[str, pl.DataType] | None, expected_valid: bool
+    edge: List[Union[int, str]],
+    schema: Union[Dict[str, pl.DataType], None],
+    expected_valid: bool,
 ):
     df = pl.DataFrame({"edge": edge}, schema=schema).with_columns(
         valid=polars_h3.is_valid_directed_edge("edge")
@@ -32,7 +36,7 @@ def test_is_valid_directed_edge(
     ],
 )
 def test_origin_to_directed_edges(
-    origin_cell: list[int | str], schema: dict[str, pl.DataType] | None
+    origin_cell: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
 ):
     df = pl.DataFrame({"h3_cell": origin_cell}, schema=schema).with_columns(
         edges=polars_h3.origin_to_directed_edges("h3_cell")
@@ -97,9 +101,9 @@ def test_directed_edge_operations():
     ],
 )
 def test_are_neighbor_cells(
-    cell1: list[int | str],
-    cell2: list[int | str],
-    schema: dict[str, pl.DataType] | None,
+    cell1: List[Union[int, str]],
+    cell2: List[Union[int, str]],
+    schema: Union[Dict[str, pl.DataType], None],
     expected_neighbors: bool,
 ):
     df = pl.DataFrame({"cell1": cell1, "cell2": cell2}, schema=schema).with_columns(

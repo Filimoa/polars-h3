@@ -1,6 +1,7 @@
 import pytest
 import polars as pl
 import polars_h3
+from typing import List, Union, Dict
 
 
 @pytest.mark.parametrize(
@@ -14,8 +15,8 @@ import polars_h3
     ],
 )
 def test_get_resolution(
-    h3_input: list[int | str],
-    schema: dict[str, pl.DataType] | None,
+    h3_input: List[Union[int, str]],
+    schema: Union[Dict[str, pl.DataType], None],
     expected_resolution: int,
 ):
     df = pl.DataFrame({"h3_cell": h3_input}, schema=schema).with_columns(
@@ -40,8 +41,8 @@ def test_get_resolution(
     ],
 )
 def test_is_valid_cell(
-    h3_input: list[int | str],
-    schema: dict[str, pl.DataType] | None,
+    h3_input: List[Union[int, str]],
+    schema: Union[Dict[str, pl.DataType], None],
     expected_valid: bool,
 ):
     df = pl.DataFrame({"h3_cell": h3_input}, schema=schema).with_columns(
@@ -59,7 +60,7 @@ def test_is_valid_cell(
         pytest.param([1], None, id="invalid_cell"),
     ],
 )
-def test_int_to_str_conversion(h3_int_input: list[int], expected_str: str):
+def test_int_to_str_conversion(h3_int_input: List[int], expected_str: str):
     # Test UInt64
     df_uint = pl.DataFrame(
         {"h3_cell": h3_int_input}, schema={"h3_cell": pl.UInt64}
@@ -82,7 +83,7 @@ def test_int_to_str_conversion(h3_int_input: list[int], expected_str: str):
         pytest.param(["sergey"], None, id="invalid_cell"),
     ],
 )
-def test_str_to_int_conversion(h3_str_input: list[str], expected_int: int):
+def test_str_to_int_conversion(h3_str_input: List[str], expected_int: int):
     # Test UInt64
     df_uint = pl.DataFrame({"h3_cell": h3_str_input}).with_columns(
         polars_h3.str_to_int("h3_cell").alias("h3_int")
@@ -179,9 +180,9 @@ def test_str_to_int_invalid():
     ],
 )
 def test_get_icosahedron_faces(
-    h3_input: list[int | str],
-    schema: dict[str, pl.DataType] | None,
-    expected_faces: list[int],
+    h3_input: List[Union[int, str]],
+    schema: Union[Dict[str, pl.DataType], None],
+    expected_faces: List[int],
 ):
     df = pl.DataFrame({"h3_cell": h3_input}, schema=schema).with_columns(
         faces=polars_h3.get_icosahedron_faces("h3_cell").list.sort()
@@ -200,7 +201,7 @@ def test_get_icosahedron_faces(
     ],
 )
 def test_get_icosahedron_faces_invalid(
-    h3_input: list[int | str], schema: dict[str, pl.DataType] | None
+    h3_input: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
 ):
     df = pl.DataFrame({"h3_cell": h3_input}, schema=schema).with_columns(
         faces=polars_h3.get_icosahedron_faces("h3_cell")

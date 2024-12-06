@@ -1,6 +1,7 @@
 import pytest
 import polars as pl
 import polars_h3
+from typing import Union, List, Dict
 
 
 @pytest.mark.parametrize(
@@ -20,7 +21,9 @@ import polars_h3
         ),
     ],
 )
-def test_grid_disk(h3_cell: list[int | str], schema: dict[str, pl.DataType]):
+def test_grid_disk(
+    h3_cell: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
+):
     df = pl.DataFrame({"h3_cell": h3_cell}, schema=schema).with_columns(
         polars_h3.grid_disk("h3_cell", 0).list.sort().alias("disk_radius_0"),
         polars_h3.grid_disk("h3_cell", 1).list.sort().alias("disk_radius_1"),
@@ -152,10 +155,10 @@ def test_grid_disk_raises_invalid_k():
     ],
 )
 def test_grid_path_cells(
-    h3_cell_1: list[int | str],
-    h3_cell_2: list[int | str],
-    schema: dict[str, pl.DataType],
-    expected_path: list[int | str] | None,
+    h3_cell_1: List[Union[int, str]],
+    h3_cell_2: List[Union[int, str]],
+    schema: Union[Dict[str, pl.DataType], None],
+    expected_path: List[Union[int, str, None]],
 ):
     df = pl.DataFrame(
         {
@@ -270,10 +273,10 @@ def test_grid_distance():
     ],
 )
 def test_cell_to_local_ij(
-    origin: list[int | str],
-    dest: list[int | str],
-    schema: dict[str, pl.DataType] | None,
-    expected_coords: list[int] | None,
+    origin: List[Union[int, str]],
+    dest: List[Union[int, str]],
+    schema: Union[Dict[str, pl.DataType], None],
+    expected_coords: Union[List[int], None],
 ):
     df = pl.DataFrame(
         {"origin": origin, "dest": dest},
@@ -326,11 +329,11 @@ def test_cell_to_local_ij(
     ],
 )
 def test_local_ij_to_cell(
-    origin: list[int | str],
+    origin: List[Union[int, str]],
     i: int,
     j: int,
-    schema: dict[str, pl.DataType] | None,
-    expected_cell: int | str | None,
+    schema: Union[Dict[str, pl.DataType], None],
+    expected_cell: Union[int, str, None],
 ):
     df = pl.DataFrame({"origin": origin}, schema=schema).with_columns(
         cell=polars_h3.local_ij_to_cell("origin", i, j)

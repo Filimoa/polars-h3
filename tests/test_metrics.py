@@ -1,6 +1,7 @@
 import pytest
 import polars as pl
 import polars_h3
+from typing import Union, List, Dict
 
 
 @pytest.mark.parametrize(
@@ -32,8 +33,8 @@ def test_great_circle_distance(
     lng1: float,
     lat2: float,
     lng2: float,
-    unit: str | None,
-    expected_distance: float | None,
+    unit: Union[str, None],
+    expected_distance: Union[float, None],
 ):
     df = pl.DataFrame(
         {
@@ -62,7 +63,9 @@ def test_great_circle_distance(
         # pytest.param(-1, "km^2", None, id="invalid_res"), # should be able to handle, currently has silent strange behavior
     ],
 )
-def test_average_hexagon_area(resolution: int, unit: str, expected_area: float | None):
+def test_average_hexagon_area(
+    resolution: int, unit: str, expected_area: Union[float, None]
+):
     df = pl.DataFrame({"resolution": [resolution]}).with_columns(
         polars_h3.average_hexagon_area(pl.col("resolution"), unit).alias("area")
     )
@@ -99,10 +102,10 @@ def test_average_hexagon_area(resolution: int, unit: str, expected_area: float |
     ],
 )
 def test_hexagon_area(
-    h3_cell: str | int,
-    schema: dict[str, pl.DataType] | None,
+    h3_cell: Union[str, int],
+    schema: Union[Dict[str, pl.DataType], None],
     unit: str,
-    expected_area: float | None,
+    expected_area: Union[float, None],
 ):
     df = pl.DataFrame({"h3_cell": [h3_cell]}, schema=schema).with_columns(
         area=polars_h3.cell_area(pl.col("h3_cell"), unit)
@@ -124,7 +127,7 @@ def test_hexagon_area(
     ],
 )
 def test_average_hexagon_edge_length(
-    resolution: int, unit: str, expected_length: float | None
+    resolution: int, unit: str, expected_length: Union[float, None]
 ):
     df = pl.DataFrame({"resolution": [resolution]}).with_columns(
         length=polars_h3.average_hexagon_edge_length(pl.col("resolution"), unit)
@@ -158,8 +161,8 @@ def test_average_hexagon_edge_length(
 #     ],
 # )
 # def test_edge_length(
-#     h3_cell: str | int,
-#     schema: dict[str, pl.DataType] | None,
+#     h3_cell: Union[str, int],
+#     schema: Union[Dict[str, pl.DataType], None],
 #     unit: str,
 #     expected_length: float | None,
 # ):

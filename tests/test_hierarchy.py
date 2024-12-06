@@ -2,6 +2,7 @@
 FIXME: uncompact stuff
 """
 
+from typing import Dict, Union, List
 import pytest
 import polars as pl
 import polars_h3
@@ -28,7 +29,7 @@ import polars_h3
     ],
 )
 def test_cell_to_parent_valid(
-    h3_cell: list[int | str], schema: dict[str, pl.DataType] | None
+    h3_cell: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
 ):
     df = pl.DataFrame({"h3_cell": h3_cell}, schema=schema).with_columns(
         parent=polars_h3.cell_to_parent("h3_cell", 1)
@@ -57,7 +58,7 @@ def test_cell_to_parent_valid(
     ],
 )
 def test_cell_to_center_child_valid(
-    h3_cell: list[int | str], schema: dict[str, pl.DataType] | None
+    h3_cell: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
 ):
     df = pl.DataFrame({"h3_cell": h3_cell}, schema=schema).with_columns(
         child=polars_h3.cell_to_center_child("h3_cell", 4)
@@ -86,7 +87,7 @@ def test_cell_to_center_child_valid(
     ],
 )
 def test_cell_to_children_valid(
-    h3_cell: list[int | str], schema: dict[str, pl.DataType] | None
+    h3_cell: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
 ):
     df = pl.DataFrame({"h3_cell": h3_cell}, schema=schema).with_columns(
         children=polars_h3.cell_to_children("h3_cell", 3)
