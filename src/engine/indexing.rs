@@ -14,13 +14,29 @@ fn parse_latlng_to_cells(
         PolarsError::ComputeError(format!("Invalid resolution: {}", resolution).into())
     })?;
 
-    Ok((0..lat_ca.len())
-        .into_par_iter()
-        .map(|i| match (lat_ca.get(i), lng_ca.get(i)) {
-            (Some(lat), Some(lng)) => LatLng::new(lat, lng).map(|coord| coord.to_cell(res)).ok(),
-            _ => None,
+    // If the data is guaranteed to have no nulls, you can unwrap safely.
+    // Otherwise, you'd handle nulls before here or use `zip()` over iterators that handle nulls gracefully.
+    let lat_values = lat_ca
+        .cont_slice()
+        .expect("No nulls expected in lat_series");
+    let lng_values = lng_ca
+        .cont_slice()
+        .expect("No nulls expected in lng_series");
+
+    // Parallel iterate directly over slices
+    let cells: Vec<Option<CellIndex>> = lat_values
+        .par_iter()
+        .zip(lng_values.par_iter())
+        .map(|(&lat, &lng)| {
+            // If LatLng::new can fail, handle the error or assume validity.
+            match LatLng::new(lat, lng) {
+                Ok(coord) => Some(coord.to_cell(res)),
+                Err(_) => None,
+            }
         })
-        .collect())
+        .collect();
+
+    Ok(cells)
 }
 
 pub fn latlng_to_cell(
