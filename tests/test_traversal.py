@@ -230,6 +230,17 @@ def test_grid_distance():
     assert df["distance"].to_list()[0] is None
 
 
+    # different resolutions
+    df = pl.DataFrame(
+        {
+            "h3_cell_1": ["872a10006ffffff"],
+            "h3_cell_2": ["862a108dfffffff"],
+        },
+    ).with_columns(polars_h3.grid_distance("h3_cell_1", "h3_cell_2").alias("distance"))
+    assert df["distance"].to_list()[0] is None
+
+
+
 @pytest.mark.parametrize(
     "origin, dest, schema, expected_coords",
     [

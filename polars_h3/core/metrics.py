@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
 from pathlib import Path
+from typing import TYPE_CHECKING, Literal
 
 import polars as pl
 from polars.plugins import register_plugin_function
-
 
 if TYPE_CHECKING:
     from polars_h3.typing import IntoExprColumn
@@ -17,8 +16,8 @@ AreaUnit = Literal["km^2", "m^2"]
 EdgeLengthUnit = Literal["km", "m"]
 
 
-def _deg_to_rad(col: str) -> pl.Expr:
-    return pl.col(col) * pl.lit(3.141592653589793) / pl.lit(180)
+def _deg_to_rad(col: IntoExprColumn | str) -> pl.Expr:
+    return pl.col(col) * pl.lit(3.141592653589793) / pl.lit(180)  # type: ignore
 
 
 def great_circle_distance(

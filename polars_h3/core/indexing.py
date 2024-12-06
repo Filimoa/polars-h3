@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import polars as pl
 from polars.plugins import register_plugin_function
-from .utils import _assert_valid_resolution, HexResolution
 
+from .utils import HexResolution, assert_valid_resolution
 
 if TYPE_CHECKING:
     from polars_h3.typing import IntoExprColumn
@@ -15,29 +15,13 @@ if TYPE_CHECKING:
 LIB = Path(__file__).parent.parent
 
 
-def latlng_to_cell(
-    lat: IntoExprColumn, lng: IntoExprColumn, resolution: HexResolution
-) -> pl.Expr:
-    """
-    Indexes the location at the specified resolution, providing the index of the cell containing the location. This buckets the geographic point into the H3 grid.
-    """
-    _assert_valid_resolution(resolution)
-    return register_plugin_function(
-        args=[lat, lng],
-        plugin_path=LIB,
-        function_name="latlng_to_cell",
-        is_elementwise=True,
-        kwargs={"resolution": resolution},
-    )
-
-
 def latlng_to_cell_string(
     lat: IntoExprColumn, lng: IntoExprColumn, resolution: HexResolution
 ) -> pl.Expr:
     """
     Indexes the location at the specified resolution, providing the index of the cell containing the location. This buckets the geographic point into the H3 grid.
     """
-    _assert_valid_resolution(resolution)
+    assert_valid_resolution(resolution)
     return register_plugin_function(
         args=[lat, lng],
         plugin_path=LIB,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Union
 from pathlib import Path
 
@@ -103,9 +104,9 @@ def cell_to_parent(
     cell: IntoExprColumn, resolution: Union[HexResolution, None] = None
 ) -> pl.Expr:
     """
-    Returns the parent cell at the specified resolution.
+    Returns the parent cell at the specified resolution. If the input cell has resolution r, then parentRes = r - 1 would give the immediate parent, parentRes = r - 2 would give the grandparent, and so on.
     """
-    _assert_valid_resolution(resolution)
+    assert_valid_resolution(resolution)
     return register_plugin_function(
         args=[cell],
         plugin_path=LIB,
@@ -115,13 +116,11 @@ def cell_to_parent(
     )
 
 
-def cell_to_center_child(
-    cell: IntoExprColumn, resolution: Union[HexResolution, None] = None
-) -> pl.Expr:
+def cell_to_center_child(cell: IntoExprColumn, resolution: HexResolution) -> pl.Expr:
     """
     Returns the center child cell at the specified resolution.
     """
-    _assert_valid_resolution(resolution)
+    assert_valid_resolution(resolution)
     return register_plugin_function(
         args=[cell],
         plugin_path=LIB,
@@ -131,13 +130,11 @@ def cell_to_center_child(
     )
 
 
-def cell_to_children_size(
-    cell: IntoExprColumn, resolution: Union[HexResolution, None] = None
-) -> pl.Expr:
+def cell_to_children_size(cell: IntoExprColumn, resolution: HexResolution) -> pl.Expr:
     """
     Returns the number of children cells at the specified resolution.
     """
-    _assert_valid_resolution(resolution)
+    assert_valid_resolution(resolution)
     return register_plugin_function(
         args=[cell],
         plugin_path=LIB,
@@ -151,7 +148,7 @@ def cell_to_children(cell: IntoExprColumn, resolution: HexResolution) -> pl.Expr
     """
     Returns the children cells at the specified resolution.
     """
-    _assert_valid_resolution(resolution)
+    assert_valid_resolution(resolution)
     return register_plugin_function(
         args=[cell],
         plugin_path=LIB,
@@ -165,7 +162,7 @@ def cell_to_child_pos(cell: IntoExprColumn, resolution: HexResolution) -> pl.Exp
     """
     Returns the position of the child cell in the parent cell.
     """
-    _assert_valid_resolution(resolution)
+    assert_valid_resolution(resolution)
     return register_plugin_function(
         args=[cell],
         plugin_path=LIB,
@@ -181,7 +178,7 @@ def child_pos_to_cell(
     """
     Returns the child cell at the specified position in the parent cell.
     """
-    _assert_valid_resolution(resolution)
+    assert_valid_resolution(resolution)
     return register_plugin_function(
         args=[parent, pos],
         plugin_path=LIB,
@@ -207,7 +204,7 @@ def uncompact_cells(cells: IntoExprColumn, resolution: HexResolution) -> pl.Expr
     """
     Uncompact a set of H3 cells into a larger set of H3 cells.
     """
-    _assert_valid_resolution(resolution)
+    assert_valid_resolution(resolution)
     return register_plugin_function(
         args=[cells],
         plugin_path=LIB,

@@ -37,7 +37,7 @@ def grid_distance(origin: IntoExprColumn, destination: IntoExprColumn) -> pl.Exp
 
 def grid_ring(cell: IntoExprColumn, k: int) -> pl.Expr:
     """
-    Produces the "hollow ring" of cells which are exactly grid distance k from the origin cell.
+    Produces the "hollow ring" of cells which are exactly grid distance k from the origin cell. This function fails (i.e. returns a None item) when a pentagon (or a pentagon distortion) is encountered.
 
     This function may fail if pentagonal distortion is encountered.
     """
@@ -53,7 +53,7 @@ def grid_ring(cell: IntoExprColumn, k: int) -> pl.Expr:
 
 def grid_disk(cell: IntoExprColumn, k: int) -> pl.Expr:
     """
-    Produces the "filled-in disk" of cells which are at most grid distance k from the origin cell.
+    Produces the "filled-in disk" of cells which are at most grid distance k from the origin cell.  This function fails (i.e. returns a None item) when a pentagon (or a pentagon distortion) is encountered.
 
     Output order is not guaranteed.
     """
