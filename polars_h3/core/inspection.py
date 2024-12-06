@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from pathlib import Path, Union
+from typing import TYPE_CHECKING, Union
+from pathlib import Path
 
 import polars as pl
 from polars.plugins import register_plugin_function
