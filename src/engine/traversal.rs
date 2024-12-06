@@ -14,7 +14,7 @@ pub fn grid_distance(origin_series: &Series, destination_series: &Series) -> Pol
         .into_par_iter()
         .zip(dest_vec.into_par_iter())
         .map(|(origin, dest)| match (origin, dest) {
-            (Some(org), Some(dst)) => org.grid_distance(dst).ok().map(|d| d),
+            (Some(org), Some(dst)) => org.grid_distance(dst).ok(),
             _ => None,
         })
         .collect();
@@ -132,7 +132,7 @@ pub fn local_ij_to_cell(
 
     let cells: UInt64Chunked = origins
         .into_iter()
-        .zip(i_values.into_iter().zip(j_values.into_iter()))
+        .zip(i_values.into_iter().zip(j_values))
         .map(|(origin, (i, j))| match (origin, i, j) {
             (Some(origin), Some(i), Some(j)) => {
                 // Create LocalIJ directly from coordinates

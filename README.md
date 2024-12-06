@@ -1,4 +1,9 @@
-# h3-polars
+
+
+<p align="center">
+ <img src="https://sergey-filimonov.nyc3.cdn.digitaloceanspaces.com/polars-h3/polars-h3-logo.webp" width="550" />
+</p>
+
 
 This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H3 discrete global grid system](https://github.com/uber/h3/), so you can index points and geometries to hexagons directly in Polars. All credits goes to the [h3o](https://github.com/HydroniumLabs/h3o) for doing the heavy lifting.
 

@@ -31,7 +31,7 @@ pub fn cell_area(cell_series: &Series, unit: &str) -> PolarsResult<Series> {
     let areas: Float64Chunked = cells
         .into_par_iter()
         .map(|cell| {
-            cell.map(|idx| {
+            cell.and_then(|idx| {
                 let area_km2 = idx.area_km2();
                 match unit {
                     "km^2" => Some(area_km2),
@@ -39,7 +39,6 @@ pub fn cell_area(cell_series: &Series, unit: &str) -> PolarsResult<Series> {
                     _ => None, // invalid unit
                 }
             })
-            .flatten()
         })
         .collect();
 

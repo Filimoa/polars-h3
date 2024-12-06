@@ -8,3 +8,5 @@ venv
 *.pyd
 *.DS_Store
 __pycache__/
+
+playground.ipynb

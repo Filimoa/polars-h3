@@ -9,13 +9,7 @@ pub fn get_resolution(cell_series: &Series) -> PolarsResult<Series> {
 
     let resolutions: UInt32Chunked = cells
         .into_par_iter()
-        .map(|cell| {
-            cell.and_then(|c| {
-                CellIndex::try_from(c)
-                    .ok()
-                    .map(|idx| u8::from(idx.resolution()) as u32)
-            })
-        })
+        .map(|cell| cell.map(|c| u8::from(c.resolution()) as u32))
         .collect();
 
     Ok(resolutions.into_series())

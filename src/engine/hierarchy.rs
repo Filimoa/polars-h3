@@ -138,7 +138,7 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
                 opt_series
                     .map(|series| {
                         let cells = parse_cell_indices(&series)?;
-                        let cell_vec: Vec<_> = cells.into_iter().filter_map(|x| x).collect();
+                        let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 
                         CellIndex::compact(cell_vec)
                             .map_err(|e| {
@@ -158,7 +158,7 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
         Ok(compacted.into_series())
     } else {
         let cells = parse_cell_indices(cell_series)?;
-        let cell_vec: Vec<_> = cells.into_iter().filter_map(|x| x).collect();
+        let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 
         let compacted = CellIndex::compact(cell_vec)
             .map_err(|e| PolarsError::ComputeError(format!("Compaction error: {}", e).into()))?;
@@ -188,7 +188,7 @@ pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
                 opt_series
                     .map(|series| {
                         let cells = parse_cell_indices(&series)?;
-                        let cell_vec: Vec<_> = cells.into_iter().filter_map(|x| x).collect();
+                        let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 
                         let uncompacted = CellIndex::uncompact(cell_vec, target_res);
                         Ok(Series::new(
@@ -203,8 +203,7 @@ pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
         Ok(uncompacted.into_series())
     } else {
         let cells = parse_cell_indices(cell_series)?;
-        let cell_vec: Vec<_> = cells.into_iter().filter_map(|x| x).collect();
-
+        let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
         let uncompacted: ListChunked = vec![Some(Series::new(
             PlSmallStr::from(""),
             CellIndex::uncompact(cell_vec, target_res)
