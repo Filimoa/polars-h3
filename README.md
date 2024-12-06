@@ -1,7 +1,7 @@
 
 
 <p align="center">
- <img src="https://sergey-filimonov.nyc3.cdn.digitaloceanspaces.com/polars-h3/polars-h3-logo.webp" width="550" />
+ <img src="https://sergey-filimonov.nyc3.cdn.digitaloceanspaces.com/polars-h3/polars-h3-logo.webp"  />
 </p>
 
 
