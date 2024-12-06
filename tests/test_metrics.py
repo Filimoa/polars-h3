@@ -1,7 +1,7 @@
 import pytest
 import polars as pl
 import polars_h3
-from typing import Union, List, Dict
+from typing import Union, Dict
 
 
 @pytest.mark.parametrize(
