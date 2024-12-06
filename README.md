@@ -2,22 +2,48 @@
 
 This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H3 discrete global grid system](https://github.com/uber/h3/), so you can index points and geometries to hexagons directly in Polars. All credits goes to the [h3o](https://github.com/HydroniumLabs/h3o) for doing the heavy lifting.
 
+# Highlights
+
+- 🚀 **Blazing Fast:** Built entirely in Rust, offering lightning-fast H3 operations within Polars. Ideal for high-performance data processing.
+
+- 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, covering almost everything the standard H3 library provides, excluding geometric functions.
+
+- 🧩 **Seamless Integration:** Fully integrates with Polars.
+- 📋 **Fully Tested:** Rigorously tested to ensure correctness.
+
 # Get started
 
-Load from the [community extensions repository](https://community-extensions.duckdb.org/extensions/h3.html):
-```SQL
-INSTALL h3 FROM community;
-LOAD h3;
+You can get started by installing it with pip (or uv):
+```bash
+pip install polars-h3
 ```
 
-Test running an H3 function:
-```SQL
-SELECT h3_cell_to_latlng('822d57fffffffff');
-```
+You can use the extension as a drop-in replacement for the standard H3 functions.
 
-Or, using the integer API, which generally has better performance:
-```SQL
-SELECT h3_cell_to_latlng(586265647244115967);
+```python
+import polars_h3
+ 
+>>> df = pl.DataFrame(
+...     {
+...         "lat": [37.7749],
+...         "long": [-122.4194],
+...     }
+... ).with_columns(
+...     polars_h3.latlng_to_cell_string(
+...         "lat",
+...         "long",
+...         7,
+...     ).alias("h3_cell"),
+... )
+>>> df
+shape: (1, 3)
+┌─────────┬───────────┬─────────────────┐
+│ lat     ┆ long      ┆ h3_cell         │
+│ ---     ┆ ---       ┆ ---             │
+│ f64     ┆ f64       ┆ str             │
+╞═════════╪═══════════╪═════════════════╡
+│ 37.7749 ┆ -122.4194 ┆ 872830828ffffff │
+└─────────┴───────────┴─────────────────┘
 ```
 
 # Implemented functions
@@ -34,8 +60,7 @@ We are unable to support the functions that work with geometries.
 ### Full list of functions
 
 ✅ = Supported
-🚧 = In Progress
-🕥 = Not Planned
+🚧 = Pending
 🛑 = Not supported
 
 | Function | Description | Supported|
@@ -46,7 +71,7 @@ We are unable to support the functions that work with geometries.
 | `cell_to_lng` | Convert cell ID to longitude | ✅ |
 | `cell_to_latlng` | Convert cell ID to latitude/longitude | ✅ |
 | `get_resolution` | Get resolution number of cell ID | ✅ |
-| `get_base_cell_number` | Get base cell number of cell ID | 🕥|
+| `get_base_cell_number` | Get base cell number of cell ID | 🚧|
 | `str_to_int` | Convert VARCHAR cell ID to UBIGINT | ✅ |
 | `int_to_str` | Convert BIGINT or UBIGINT cell ID to VARCHAR | ✅ |
 | `is_valid_cell` | True if this is a valid cell ID | ✅ |
@@ -64,8 +89,8 @@ We are unable to support the functions that work with geometries.
 | `grid_disk` | Produces the "filled-in disk" of cells which are at most grid distance k from the origin cell. Output order is not guaranteed. | ✅ |
 | `grid_path_cells` | Find a grid path to connect two cells | ✅ |
 | `grid_distance` | Find the grid distance between two cells | ✅ |
-| `h3_cell_to_local_ij` | Convert a cell ID to a local I,J coordinate space | 🕥|
-| `h3_local_ij_to_cell` | Convert a local I,J coordinate to a cell ID | 🕥|
+| `cell_to_local_ij` | Convert a cell ID to a local I,J coordinate space | ✅|
+| `local_ij_to_cell` | Convert a local I,J coordinate to a cell ID | ✅|
 | `cell_to_vertex` | Get the vertex ID for a cell ID and vertex number |  ✅ |
 | `cell_to_vertexes` | Get all vertex IDs for a cell ID | ✅|
 | `vertex_to_latlng` | Convert a vertex ID to latitude/longitude coordinate | ✅ |
@@ -78,16 +103,14 @@ We are unable to support the functions that work with geometries.
 | `cells_to_directed_edge` | Convert an origin/destination pair to directed edge ID | ✅ |
 | `are_neighbor_cells` | True if the two cell IDs are directly adjacent | ✅ |
 | `directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | ✅ |
-| `h3_get_hexagon_area_avg` | Get average area of a hexagon cell at resolution |  🚧|
-| `h3_cell_area` | Get the area of a cell ID |  🚧|
-| `h3_get_hexagon_edge_length_avg` | Average hexagon edge length at resolution |  🚧|
-| `h3_edge_length` | Get the length of a directed edge ID |  🚧|
-| `h3_get_num_cells` | Get the number of cells at a resolution |  🚧|
-| `h3_get_res0_cells` | Get all resolution 0 cells |  🚧|
-| `h3_get_res0_cells_string` | Get all resolution 0 cells (returns VARCHAR) |  🚧|
-| `h3_get_pentagons` | Get all pentagons at a resolution |  🚧|
-| `h3_get_pentagons_string` | Get all pentagons at a resolution (returns VARCHAR) |  🚧|
-| `h3_great_circle_distance` | Compute the great circle distance between two points (haversine) |  🚧|
+| `average_hexagon_area` | Get average area of a hexagon cell at resolution |  ✅ |
+| `cell_area` | Get the area of a cell ID |  ✅|
+| `average_hexagon_edge_length` | Average hexagon edge length at resolution |  ✅|
+| `edge_length` | Get the length of a directed edge ID |  🚧|
+| `get_num_cells` | Get the number of cells at a resolution |  ✅|
+| `get_res0_cells` | Get all resolution 0 cells |  🚧|
+| `get_pentagons` | Get all pentagons at a resolution |  🚧|
+| `great_circle_distance` | Compute the great circle distance between two points (haversine) |  ✅|
 | `cells_to_multi_polygon_wkt` | Convert a set of cells to multipolygon WKT | 🛑 |
 | `polygon_wkt_to_cells` | Convert polygon WKT to a set of cells | 🛑 |
 | `cell_to_boundary_wkt` | Convert cell ID to cell boundary | 🛑 |

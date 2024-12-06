@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "h3_polars"
+name = "polars_h3"
 crate-type= ["cdylib"]
 
 [dependencies]
@@ -14,3 +14,8 @@ serde = { version = "1", features = ["derive"] }
 polars = { version = "0.44.2", default-features = false }
 h3o = "0.4.0"
 rayon = "1.10.0"
+
+[profile.release]
+lto = true
+
+

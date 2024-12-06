@@ -127,38 +127,93 @@ pub fn child_pos_to_cell(
 
     Ok(children.into_series())
 }
-
 pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
+    if let DataType::List(_) = cell_series.dtype() {
+        let ca = cell_series.list()?;
+        let cells_vec: Vec<_> = ca.into_iter().collect();
 
-    // Convert to Vec to pass to compact function
-    let cell_vec: Vec<_> = cells.into_iter().filter_map(|x| x).collect();
+        let compacted: ListChunked = cells_vec
+            .into_par_iter()
+            .map(|opt_series| {
+                opt_series
+                    .map(|series| {
+                        let cells = parse_cell_indices(&series)?;
+                        let cell_vec: Vec<_> = cells.into_iter().filter_map(|x| x).collect();
 
-    let compacted = CellIndex::compact(cell_vec)
-        .map_err(|e| PolarsError::ComputeError(format!("Compaction error: {}", e).into()))?;
+                        CellIndex::compact(cell_vec)
+                            .map_err(|e| {
+                                PolarsError::ComputeError(format!("Compaction error: {}", e).into())
+                            })
+                            .map(|compacted| {
+                                Series::new(
+                                    PlSmallStr::from(""),
+                                    compacted.into_iter().map(u64::from).collect::<Vec<_>>(),
+                                )
+                            })
+                    })
+                    .transpose()
+            })
+            .collect::<PolarsResult<_>>()?;
 
-    let compacted_cells: UInt64Chunked = compacted.map(|idx| Some(u64::from(idx))).collect();
+        Ok(compacted.into_series())
+    } else {
+        let cells = parse_cell_indices(cell_series)?;
+        let cell_vec: Vec<_> = cells.into_iter().filter_map(|x| x).collect();
 
-    Ok(compacted_cells.into_series())
+        let compacted = CellIndex::compact(cell_vec)
+            .map_err(|e| PolarsError::ComputeError(format!("Compaction error: {}", e).into()))?;
+
+        let compacted_cells: ListChunked = vec![Some(Series::new(
+            PlSmallStr::from(""),
+            compacted.into_iter().map(u64::from).collect::<Vec<_>>(),
+        ))]
+        .into_iter()
+        .collect();
+
+        Ok(compacted_cells.into_series())
+    }
 }
 
 pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
     let target_res = Resolution::try_from(res)
         .map_err(|_| PolarsError::ComputeError("Invalid resolution".into()))?;
 
-    // Convert to Vec to pass to uncompact function
-    let cell_vec: Vec<_> = cells.into_iter().filter_map(|x| x).collect();
+    if let DataType::List(_) = cell_series.dtype() {
+        let ca = cell_series.list()?;
+        let cells_vec: Vec<_> = ca.into_iter().collect();
 
-    let uncompacted: ListChunked = vec![Some(Series::new(
-        PlSmallStr::from(""),
-        CellIndex::uncompact(cell_vec, target_res)
-            .map(u64::from)
-            .collect::<Vec<_>>()
-            .as_slice(),
-    ))]
-    .into_iter()
-    .collect();
+        let uncompacted: ListChunked = cells_vec
+            .into_par_iter()
+            .map(|opt_series| {
+                opt_series
+                    .map(|series| {
+                        let cells = parse_cell_indices(&series)?;
+                        let cell_vec: Vec<_> = cells.into_iter().filter_map(|x| x).collect();
 
-    Ok(uncompacted.into_series())
+                        let uncompacted = CellIndex::uncompact(cell_vec, target_res);
+                        Ok(Series::new(
+                            PlSmallStr::from(""),
+                            uncompacted.into_iter().map(u64::from).collect::<Vec<_>>(),
+                        ))
+                    })
+                    .transpose()
+            })
+            .collect::<PolarsResult<_>>()?;
+
+        Ok(uncompacted.into_series())
+    } else {
+        let cells = parse_cell_indices(cell_series)?;
+        let cell_vec: Vec<_> = cells.into_iter().filter_map(|x| x).collect();
+
+        let uncompacted: ListChunked = vec![Some(Series::new(
+            PlSmallStr::from(""),
+            CellIndex::uncompact(cell_vec, target_res)
+                .map(u64::from)
+                .collect::<Vec<_>>(),
+        ))]
+        .into_iter()
+        .collect();
+
+        Ok(uncompacted.into_series())
+    }
 }

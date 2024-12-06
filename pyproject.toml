@@ -18,9 +18,12 @@ dependencies = [
     "mypy",
 ]
 
-[tool.maturin]
-module-name = "h3_polars._internal"
-
 [[tool.mypy.overrides]]
 module = "polars.utils.udfs"
 ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "h3>=4.1.2",
+    "jupyter>=1.1.1",
+]

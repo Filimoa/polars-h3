@@ -87,3 +87,62 @@ pub fn grid_path_cells(
 
     Ok(paths.into_series())
 }
+
+pub fn cell_to_local_ij(cell_series: &Series, origin_series: &Series) -> PolarsResult<Series> {
+    let cells = parse_cell_indices(cell_series)?;
+    let origins = parse_cell_indices(origin_series)?;
+
+    let origin_vec: Vec<_> = origins.into_iter().collect();
+
+    let coords: ListChunked = cells
+        .into_par_iter()
+        .zip(origin_vec.into_par_iter())
+        .map(|(cell, origin)| {
+            match (cell, origin) {
+                (Some(cell), Some(origin)) => {
+                    cell.to_local_ij(origin).ok().map(|local_ij| {
+                        // Convert to [i, j] coordinates
+                        Series::new(
+                            PlSmallStr::from(""),
+                            &[local_ij.i() as f64, local_ij.j() as f64],
+                        )
+                    })
+                },
+                _ => None,
+            }
+        })
+        .collect();
+
+    Ok(coords.into_series())
+}
+
+pub fn local_ij_to_cell(
+    origin_series: &Series,
+    i_series: &Series,
+    j_series: &Series,
+) -> PolarsResult<Series> {
+    let origins = parse_cell_indices(origin_series)?;
+
+    // Convert inputs to i32, handling errors appropriately
+    let i_coords = i_series.cast(&DataType::Int32)?;
+    let j_coords = j_series.cast(&DataType::Int32)?;
+
+    let i_values = i_coords.i32()?;
+    let j_values = j_coords.i32()?;
+
+    let cells: UInt64Chunked = origins
+        .into_iter()
+        .zip(i_values.into_iter().zip(j_values.into_iter()))
+        .map(|(origin, (i, j))| match (origin, i, j) {
+            (Some(origin), Some(i), Some(j)) => {
+                // Create LocalIJ directly from coordinates
+                let local_ij = h3o::LocalIJ::new_unchecked(origin, i, j);
+                // Convert to cell index
+                CellIndex::try_from(local_ij).ok().map(Into::into)
+            },
+            _ => None,
+        })
+        .collect();
+
+    Ok(cells.into_series())
+}

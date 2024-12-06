@@ -1,68 +1,74 @@
-// use super::utils::parse_cell_indices;
-// use h3o::{CellIndex, Resolution};
-// use polars::prelude::*;
-// use rayon::prelude::*;
+use super::utils::parse_cell_indices;
+use h3o::CellIndex;
+use polars::prelude::*;
+use rayon::prelude::*;
 
-// const EARTH_RADIUS_KM: f64 = 6371.007180918475;
+pub fn get_num_cells(resolution: u8) -> PolarsResult<Series> {
+    let count = h3o::Resolution::try_from(resolution)
+        .map(|res| res.cell_count())
+        .map_err(|e| PolarsError::ComputeError(format!("Invalid resolution: {}", e).into()))?;
 
-// pub fn cell_area(cell_series: &Series, unit: &str) -> PolarsResult<Series> {
-//     let cells = parse_cell_indices(cell_series)?;
+    Ok(Series::new(PlSmallStr::from(""), &[count]))
+}
 
-//     let areas: Float64Chunked = cells
+pub fn get_res0_cells() -> PolarsResult<Series> {
+    let cells: Vec<u64> = CellIndex::base_cells().map(|cell| cell.into()).collect();
+
+    Ok(Series::new(PlSmallStr::from(""), cells))
+}
+
+pub fn get_pentagons(resolution: u8) -> PolarsResult<Series> {
+    let pentagons: Vec<u64> = h3o::Resolution::try_from(resolution)
+        .map(|res| res.pentagons().map(|cell| cell.into()).collect())
+        .map_err(|e| PolarsError::ComputeError(format!("Error getting pentagons: {}", e).into()))?;
+
+    Ok(Series::new(PlSmallStr::from(""), pentagons))
+}
+
+pub fn cell_area(cell_series: &Series, unit: &str) -> PolarsResult<Series> {
+    let cells = parse_cell_indices(cell_series)?;
+
+    let areas: Float64Chunked = cells
+        .into_par_iter()
+        .map(|cell| {
+            cell.map(|idx| {
+                let area_km2 = idx.area_km2();
+                match unit {
+                    "km^2" => Some(area_km2),
+                    "m^2" => Some(area_km2 * 1_000_000.0),
+                    _ => None, // invalid unit
+                }
+            })
+            .flatten()
+        })
+        .collect();
+
+    Ok(areas.into_series())
+}
+
+// Can't figure out how to get the directed edge indices from a series
+// pub fn edge_length(series: &Series, unit: &str) -> PolarsResult<Series> {
+//     if unit != "km" && unit != "m" {
+//         return Err(PolarsError::ComputeError(
+//             "Invalid unit. Expected 'km' or 'm'.".into(),
+//         ));
+//     }
+
+//     let edges = parse_directed_edge_indices(series)?;
+
+//     let lengths: Float64Chunked = edges
 //         .into_par_iter()
-//         .map(|cell| {
-//             cell.map(|idx| {
-//                 let area_rads2 = idx.area_rads2();
+//         .map(|edge_opt| {
+//             edge_opt.map(|edge| {
+//                 let length_km = edge.length_km();
 //                 match unit {
-//                     "rads^2" => area_rads2,
-//                     "km^2" => area_rads2 * EARTH_RADIUS_KM * EARTH_RADIUS_KM,
-//                     "m^2" => area_rads2 * EARTH_RADIUS_KM * EARTH_RADIUS_KM * 1_000_000.0,
-//                     _ => f64::NAN,
+//                     "km" => length_km,
+//                     "m" => length_km * 1000.0,
+//                     _ => unreachable!(),
 //                 }
 //             })
 //         })
 //         .collect();
 
-//     Ok(areas.into_series())
-// }
-
-// // Cell counting functions
-// pub fn get_num_cells(resolution: u8) -> PolarsResult<Series> {
-//     let res = Resolution::try_from(resolution)
-//         .map_err(|_| PolarsError::ComputeError("Invalid resolution".into()))?;
-
-//     let num_cells = 2 + 120 * (7_u64.pow(u32::from(resolution)));
-//     Ok(Series::new(PlSmallStr::from(""), &[num_cells]))
-// }
-
-// pub fn get_res0_cells() -> PolarsResult<Series> {
-//     let cells: ListChunked = vec![Some(Series::new(
-//         PlSmallStr::from(""),
-//         CellIndex::base_cells()
-//             .map(u64::from)
-//             .collect::<Vec<_>>()
-//             .as_slice(),
-//     ))]
-//     .into_iter()
-//     .collect();
-
-//     Ok(cells.into_series())
-// }
-
-// pub fn get_pentagons(resolution: u8) -> PolarsResult<Series> {
-//     let res = Resolution::try_from(resolution)
-//         .map_err(|_| PolarsError::ComputeError("Invalid resolution".into()))?;
-
-//     let pentagons: ListChunked = vec![Some(Series::new(
-//         PlSmallStr::from(""),
-//         CellIndex::base_cells()
-//             .filter(|cell| cell.is_pentagon())
-//             .map(|cell| u64::from(cell.center_child(res).unwrap_or(cell)))
-//             .collect::<Vec<_>>()
-//             .as_slice(),
-//     ))]
-//     .into_iter()
-//     .collect();
-
-//     Ok(pentagons.into_series())
+//     Ok(lengths.into_series())
 // }
