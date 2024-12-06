@@ -6,7 +6,7 @@ PIP = $(VENV_DIR)/bin/pip
 .venv:
 	$(PYTHON) -m venv $(VENV_DIR)
 	$(PIP) install -U pip setuptools wheel
-	$(PIP) install maturin
+	$(PIP) install maturin polars ruff mypy
 
 install:
 	unset CONDA_PREFIX && \
