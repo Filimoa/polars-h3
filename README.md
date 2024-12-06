@@ -9,16 +9,17 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 
 # Highlights
 
-- 🚀 **Blazing Fast:** Built entirely in Rust, offering lightning-fast H3 operations within Polars. Ideal for high-performance data processing.
+- 🚀 **Blazing Fast:** Built entirely in Rust, offering lightning-fast, multi-core H3 operations within Polars. Ideal for high-performance data processing.
 
 - 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, covering almost everything the standard H3 library provides, excluding geometric functions.
 
 - 🧩 **Seamless Integration:** Fully integrates with Polars.
+
 - 📋 **Fully Tested:** Rigorously tested to ensure correctness.
 
 # Get started
 
-You can get started by installing it with pip (or uv):
+You can get started by installing it with pip (or [uv](https://github.com/astral-sh/uv)):
 ```bash
 pip install polars-h3
 ```
@@ -50,6 +51,8 @@ shape: (1, 3)
 │ 37.7749 ┆ -122.4194 ┆ 872830828ffffff │
 └─────────┴───────────┴─────────────────┘
 ```
+
+Check out the [quickstart notebook](notebooks/quickstart.ipynb) for more examples.
 
 # Implemented functions
 
