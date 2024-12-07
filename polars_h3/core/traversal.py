@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import polars as pl
 from polars.plugins import register_plugin_function
-
 
 if TYPE_CHECKING:
     from polars_h3.typing import IntoExprColumn

@@ -1,7 +1,9 @@
-import pytest
+from typing import Union
+
 import polars as pl
+import pytest
+
 import polars_h3
-from typing import List, Union, Dict
 
 
 @pytest.mark.parametrize(
@@ -16,8 +18,8 @@ from typing import List, Union, Dict
     ],
 )
 def test_is_valid_vertex(
-    vertex: List[Union[int, str]],
-    schema: Union[Dict[str, pl.DataType], None],
+    vertex: list[Union[int, str]],
+    schema: Union[dict[str, pl.DataType], None],
     expected_valid: bool,
 ):
     df = pl.DataFrame({"vertex": vertex}, schema=schema).with_columns(
@@ -63,9 +65,9 @@ def test_is_valid_vertex(
     ],
 )
 def test_cell_to_vertexes(
-    h3_cell: List[Union[int, str]],
-    schema: Union[Dict[str, pl.DataType], None],
-    expected_vertexes: Union[List[int], None],
+    h3_cell: list[Union[int, str]],
+    schema: Union[dict[str, pl.DataType], None],
+    expected_vertexes: Union[list[int], None],
 ):
     df = pl.DataFrame({"h3_cell": h3_cell}, schema=schema).with_columns(
         vertexes=polars_h3.cell_to_vertexes("h3_cell")

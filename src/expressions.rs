@@ -26,6 +26,46 @@ fn latlng_list_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
     Ok(field)
 }
 
+fn map_list_dtype(dt: &DataType) -> PolarsResult<DataType> {
+    match dt {
+        DataType::List(inner) => {
+            let mapped_inner = map_list_dtype(inner)?;
+            Ok(DataType::List(Box::new(mapped_inner)))
+        },
+        DataType::UInt64 => Ok(DataType::UInt64),
+        DataType::Int64 => Ok(DataType::Int64),
+        DataType::String => Ok(DataType::String),
+        other => polars_bail!(
+            ComputeError: "Unsupported input type for dynamic list dtype function: {:?}",
+            other
+        ),
+    }
+}
+
+fn dynamic_list_output_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
+    let input_dtype = &input_fields[0].dtype;
+
+    // map_list_dtype will handle both nested lists and base types
+    let mapped_dtype = map_list_dtype(input_dtype)?;
+
+    Ok(Field::new(input_fields[0].name.clone(), mapped_dtype))
+}
+
+fn dynamic_scalar_output_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
+    let input_dtype = &input_fields[0].dtype;
+    let output_dtype = match input_dtype {
+        DataType::UInt64 => DataType::UInt64,
+        DataType::Int64 => DataType::Int64,
+        DataType::String => DataType::String,
+        dt => {
+            polars_bail!(ComputeError: "Unsupported input type: {:?}", dt);
+        },
+    };
+    Ok(Field::new(input_fields[0].name.clone(), output_dtype))
+}
+
+// ===== Indexing ===== //
+
 #[polars_expr(output_type=UInt64)]
 fn latlng_to_cell(inputs: &[Series], kwargs: LatLngToCellKwargs) -> PolarsResult<Series> {
     let lat_series = &inputs[0];
@@ -63,6 +103,7 @@ fn cell_to_latlng(inputs: &[Series]) -> PolarsResult<Series> {
 }
 
 // ===== Inspection ===== //
+
 #[polars_expr(output_type=UInt8)]
 fn get_resolution(inputs: &[Series]) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
@@ -123,13 +164,13 @@ fn list_uint64_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
 
 // ===== Hierarchy ===== //
 
-#[polars_expr(output_type=UInt64)]
+#[polars_expr(output_type_func=dynamic_scalar_output_dtype)]
 fn cell_to_parent(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
     crate::engine::hierarchy::cell_to_parent(cell_series, kwargs.resolution)
 }
 
-#[polars_expr(output_type=UInt64)]
+#[polars_expr(output_type_func=dynamic_scalar_output_dtype)]
 fn cell_to_center_child(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
     crate::engine::hierarchy::cell_to_center_child(cell_series, kwargs.resolution)
@@ -141,7 +182,7 @@ fn cell_to_children_size(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsR
     crate::engine::hierarchy::cell_to_children_size(cell_series, kwargs.resolution)
 }
 
-#[polars_expr(output_type_func=list_uint64_dtype)]
+#[polars_expr(output_type_func=dynamic_list_output_dtype)]
 fn cell_to_children(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
     crate::engine::hierarchy::cell_to_children(cell_series, kwargs.resolution)
@@ -153,7 +194,7 @@ fn cell_to_child_pos(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResul
     crate::engine::hierarchy::cell_to_child_pos(cell_series, kwargs.resolution.unwrap_or(0))
 }
 
-#[polars_expr(output_type=UInt64)]
+#[polars_expr(output_type_func=dynamic_scalar_output_dtype)]
 fn child_pos_to_cell(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
     let parent_series = &inputs[0];
     let pos_series = &inputs[1];
@@ -164,7 +205,7 @@ fn child_pos_to_cell(inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResul
     )
 }
 
-#[polars_expr(output_type_func=list_uint64_dtype)]
+#[polars_expr(output_type_func=dynamic_list_output_dtype)]
 fn compact_cells(inputs: &[Series]) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
     crate::engine::hierarchy::compact_cells(cell_series)
@@ -188,19 +229,19 @@ fn grid_distance(inputs: &[Series]) -> PolarsResult<Series> {
     crate::engine::traversal::grid_distance(origin_series, destination_series)
 }
 
-#[polars_expr(output_type_func=list_uint64_dtype)]
+#[polars_expr(output_type_func=dynamic_list_output_dtype)]
 fn grid_ring(inputs: &[Series], kwargs: GridKwargs) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
     crate::engine::traversal::grid_ring(cell_series, kwargs.k)
 }
 
-#[polars_expr(output_type_func=list_uint64_dtype)]
+#[polars_expr(output_type_func=dynamic_list_output_dtype)]
 fn grid_disk(inputs: &[Series], kwargs: GridKwargs) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
     crate::engine::traversal::grid_disk(cell_series, kwargs.k)
 }
 
-#[polars_expr(output_type_func=list_uint64_dtype)]
+#[polars_expr(output_type_func=dynamic_list_output_dtype)]
 fn grid_path_cells(inputs: &[Series]) -> PolarsResult<Series> {
     let origin_series = &inputs[0];
     let destination_series = &inputs[1];

@@ -1,7 +1,8 @@
-use super::utils::parse_cell_indices;
 use h3o::CellIndex;
 use polars::prelude::*;
 use rayon::prelude::*;
+
+use super::utils::{cast_list_u64_to_dtype, parse_cell_indices, resolve_target_inner_dtype};
 
 pub fn grid_distance(origin_series: &Series, destination_series: &Series) -> PolarsResult<Series> {
     let origins = parse_cell_indices(origin_series)?;
@@ -23,6 +24,7 @@ pub fn grid_distance(origin_series: &Series, destination_series: &Series) -> Pol
 }
 
 pub fn grid_ring(cell_series: &Series, k: u32) -> PolarsResult<Series> {
+    let original_dtype = cell_series.dtype().clone();
     let cells = parse_cell_indices(cell_series)?;
 
     let rings: ListChunked = cells
@@ -38,10 +40,13 @@ pub fn grid_ring(cell_series: &Series, k: u32) -> PolarsResult<Series> {
         })
         .collect();
 
-    Ok(rings.into_series())
+    let rings_series = rings.into_series();
+    let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
+    cast_list_u64_to_dtype(&rings_series, &DataType::UInt64, Some(&target_inner_dtype))
 }
 
 pub fn grid_disk(cell_series: &Series, k: u32) -> PolarsResult<Series> {
+    let original_dtype = cell_series.dtype().clone();
     let cells = parse_cell_indices(cell_series)?;
     let disks: ListChunked = cells
         .into_par_iter()
@@ -55,12 +60,16 @@ pub fn grid_disk(cell_series: &Series, k: u32) -> PolarsResult<Series> {
             })
         })
         .collect();
-    Ok(disks.into_series())
+    let disks_series = disks.into_series();
+    let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
+    cast_list_u64_to_dtype(&disks_series, &DataType::UInt64, Some(&target_inner_dtype))
 }
+
 pub fn grid_path_cells(
     origin_series: &Series,
     destination_series: &Series,
 ) -> PolarsResult<Series> {
+    let original_dtype = origin_series.dtype().clone();
     let origins = parse_cell_indices(origin_series)?;
     let destinations = parse_cell_indices(destination_series)?;
 
@@ -85,7 +94,9 @@ pub fn grid_path_cells(
         })
         .collect();
 
-    Ok(paths.into_series())
+    let paths_series = paths.into_series();
+    let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
+    cast_list_u64_to_dtype(&paths_series, &DataType::UInt64, Some(&target_inner_dtype))
 }
 
 pub fn cell_to_local_ij(cell_series: &Series, origin_series: &Series) -> PolarsResult<Series> {

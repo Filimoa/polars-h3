@@ -15,20 +15,37 @@ if TYPE_CHECKING:
 LIB = Path(__file__).parent.parent
 
 
-def latlng_to_cell_string(
-    lat: IntoExprColumn, lng: IntoExprColumn, resolution: HexResolution
+def latlng_to_cell(
+    lat: IntoExprColumn,
+    lng: IntoExprColumn,
+    resolution: HexResolution,
+    return_dtype: type[pl.DataType] = pl.UInt64,
 ) -> pl.Expr:
     """
-    Indexes the location at the specified resolution, providing the index of the cell containing the location. This buckets the geographic point into the H3 grid.
+    Indexes the location at the specified resolution, providing the index of the cell containing the location. The result dtype is determined by `return_dtype`.
     """
     assert_valid_resolution(resolution)
-    return register_plugin_function(
-        args=[lat, lng],
-        plugin_path=LIB,
-        function_name="latlng_to_cell_string",
-        is_elementwise=True,
-        kwargs={"resolution": resolution},
-    )
+
+    if return_dtype == pl.Utf8:
+        expr = register_plugin_function(
+            args=[lat, lng],
+            plugin_path=LIB,
+            function_name="latlng_to_cell_string",
+            is_elementwise=True,
+            kwargs={"resolution": resolution},
+        )
+    else:
+        expr = register_plugin_function(
+            args=[lat, lng],
+            plugin_path=LIB,
+            function_name="latlng_to_cell",
+            is_elementwise=True,
+            kwargs={"resolution": resolution},
+        )
+        if return_dtype != pl.UInt64:
+            expr = expr.cast(return_dtype)
+
+    return expr
 
 
 def cell_to_lat(cell: IntoExprColumn) -> pl.Expr:

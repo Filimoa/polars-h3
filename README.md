@@ -74,12 +74,10 @@ We are unable to support the functions that work with geometries.
 | Function | Description | Supported|
 | --: | --- | ---|
 | `latlng_to_cell` | Convert latitude/longitude coordinate to cell ID | ✅|
-| `latlng_to_cell_string` | Convert latitude/longitude coordinate to cell ID (returns VARCHAR) | ✅ |
 | `cell_to_lat` | Convert cell ID to latitude | ✅ |
 | `cell_to_lng` | Convert cell ID to longitude | ✅ |
 | `cell_to_latlng` | Convert cell ID to latitude/longitude | ✅ |
 | `get_resolution` | Get resolution number of cell ID | ✅ |
-| `get_base_cell_number` | Get base cell number of cell ID | 🚧|
 | `str_to_int` | Convert VARCHAR cell ID to UBIGINT | ✅ |
 | `int_to_str` | Convert BIGINT or UBIGINT cell ID to VARCHAR | ✅ |
 | `is_valid_cell` | True if this is a valid cell ID | ✅ |
@@ -110,7 +108,6 @@ We are unable to support the functions that work with geometries.
 | `get_directed_edge_destination` | Convert a directed edge ID to destination cell ID | ✅|
 | `cells_to_directed_edge` | Convert an origin/destination pair to directed edge ID | ✅ |
 | `are_neighbor_cells` | True if the two cell IDs are directly adjacent | ✅ |
-| `directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | ✅ |
 | `average_hexagon_area` | Get average area of a hexagon cell at resolution |  ✅ |
 | `cell_area` | Get the area of a cell ID |  ✅|
 | `average_hexagon_edge_length` | Average hexagon edge length at resolution |  ✅|
@@ -122,3 +119,4 @@ We are unable to support the functions that work with geometries.
 | `cells_to_multi_polygon_wkt` | Convert a set of cells to multipolygon WKT | 🛑 |
 | `polygon_wkt_to_cells` | Convert polygon WKT to a set of cells | 🛑 |
 | `cell_to_boundary_wkt` | Convert cell ID to cell boundary | 🛑 |
+| `directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | 🛑 |

@@ -1,7 +1,10 @@
-use super::utils::parse_cell_indices;
 use h3o::{CellIndex, Resolution};
 use polars::prelude::*;
 use rayon::prelude::*;
+
+use super::utils::{
+    cast_list_u64_to_dtype, cast_u64_to_dtype, parse_cell_indices, resolve_target_inner_dtype,
+};
 
 fn get_target_resolution(cell: CellIndex, target_res: Option<u8>) -> Option<Resolution> {
     match target_res {
@@ -15,16 +18,16 @@ fn get_target_resolution(cell: CellIndex, target_res: Option<u8>) -> Option<Reso
 }
 
 pub fn cell_to_parent(cell_series: &Series, parent_res: Option<u8>) -> PolarsResult<Series> {
+    let original_dtype = cell_series.dtype().clone();
     let cells = parse_cell_indices(cell_series)?;
 
     let parents: UInt64Chunked = cells
         .into_par_iter()
         .map(|cell| {
             cell.and_then(|idx| {
-                let target_res = if let Some(res) = parent_res {
-                    Resolution::try_from(res).ok()
-                } else {
-                    idx.resolution().pred()
+                let target_res = match parent_res {
+                    Some(res) => Resolution::try_from(res).ok(),
+                    None => idx.resolution().pred(),
                 };
                 target_res.and_then(|res| idx.parent(res))
             })
@@ -32,10 +35,11 @@ pub fn cell_to_parent(cell_series: &Series, parent_res: Option<u8>) -> PolarsRes
         })
         .collect();
 
-    Ok(parents.into_series())
+    cast_u64_to_dtype(&original_dtype, None, parents)
 }
 
 pub fn cell_to_center_child(cell_series: &Series, child_res: Option<u8>) -> PolarsResult<Series> {
+    let original_dtype = cell_series.dtype().clone();
     let cells = parse_cell_indices(cell_series)?;
 
     let center_children: UInt64Chunked = cells
@@ -49,7 +53,23 @@ pub fn cell_to_center_child(cell_series: &Series, child_res: Option<u8>) -> Pola
         })
         .collect();
 
-    Ok(center_children.into_series())
+    let target_dtype = match original_dtype {
+        DataType::UInt64 => DataType::UInt64,
+        DataType::Int64 => DataType::Int64,
+        DataType::String => DataType::String,
+        _ => {
+            return Err(PolarsError::ComputeError(
+                format!(
+                    "Unsupported original dtype for cell_to_center_child: {:?}",
+                    original_dtype
+                )
+                .into(),
+            ))
+        },
+    };
+
+    // Cast the UInt64Chunked result to the correct dtype
+    cast_u64_to_dtype(&original_dtype, Some(&target_dtype), center_children)
 }
 
 pub fn cell_to_children_size(cell_series: &Series, child_res: Option<u8>) -> PolarsResult<Series> {
@@ -70,6 +90,7 @@ pub fn cell_to_children_size(cell_series: &Series, child_res: Option<u8>) -> Pol
 }
 
 pub fn cell_to_children(cell_series: &Series, child_res: Option<u8>) -> PolarsResult<Series> {
+    let original_dtype = cell_series.dtype().clone();
     let cells = parse_cell_indices(cell_series)?;
 
     let children: ListChunked = cells
@@ -84,7 +105,12 @@ pub fn cell_to_children(cell_series: &Series, child_res: Option<u8>) -> PolarsRe
         })
         .collect();
 
-    Ok(children.into_series())
+    let children_series = children.into_series();
+
+    let target_dtype = resolve_target_inner_dtype(&original_dtype)?;
+    let casted_children =
+        cast_list_u64_to_dtype(&children_series, &DataType::UInt64, Some(&target_dtype))?;
+    Ok(casted_children)
 }
 
 pub fn cell_to_child_pos(child_series: &Series, parent_res: u8) -> PolarsResult<Series> {
@@ -102,15 +128,16 @@ pub fn cell_to_child_pos(child_series: &Series, parent_res: u8) -> PolarsResult<
 
     Ok(positions.into_series())
 }
+
 pub fn child_pos_to_cell(
     parent_series: &Series,
     child_res: u8,
     pos_series: &Series,
 ) -> PolarsResult<Series> {
+    let original_dtype = parent_series.dtype().clone();
     let parents = parse_cell_indices(parent_series)?;
     let positions = pos_series.u64()?;
 
-    // Convert positions to Vec to ensure we can do parallel iteration
     let pos_vec: Vec<Option<u64>> = positions.into_iter().collect();
 
     let children: UInt64Chunked = parents
@@ -125,10 +152,17 @@ pub fn child_pos_to_cell(
         })
         .collect();
 
-    Ok(children.into_series())
+    let target_dtype = resolve_target_inner_dtype(&original_dtype)?;
+
+    cast_u64_to_dtype(&original_dtype, Some(&target_dtype), children)
 }
+
 pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
-    if let DataType::List(_) = cell_series.dtype() {
+    let original_dtype = cell_series.dtype().clone();
+
+    // Perform the compaction logic
+    let out_series = if let DataType::List(_) = cell_series.dtype() {
+        // Input is already a List column
         let ca = cell_series.list()?;
         let cells_vec: Vec<_> = ca.into_iter().collect();
 
@@ -145,40 +179,58 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
                                 PolarsError::ComputeError(format!("Compaction error: {}", e).into())
                             })
                             .map(|compacted| {
-                                Series::new(
-                                    PlSmallStr::from(""),
-                                    compacted.into_iter().map(u64::from).collect::<Vec<_>>(),
-                                )
+                                // Note: `compacted` is a Vec<CellIndex>.
+                                // Convert to `u64` and store as a Series of UInt64.
+                                let compacted_u64: Vec<u64> =
+                                    compacted.into_iter().map(u64::from).collect();
+                                Series::new(PlSmallStr::from(""), compacted_u64.as_slice())
                             })
                     })
                     .transpose()
             })
             .collect::<PolarsResult<_>>()?;
 
-        Ok(compacted.into_series())
+        compacted.into_series()
     } else {
+        // Input is not a list, so we treat it as a single column of cells.
         let cells = parse_cell_indices(cell_series)?;
         let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 
         let compacted = CellIndex::compact(cell_vec)
             .map_err(|e| PolarsError::ComputeError(format!("Compaction error: {}", e).into()))?;
 
+        // Wrap in a single List
+        let compacted_u64: Vec<u64> = compacted.into_iter().map(u64::from).collect();
         let compacted_cells: ListChunked = vec![Some(Series::new(
             PlSmallStr::from(""),
-            compacted.into_iter().map(u64::from).collect::<Vec<_>>(),
+            compacted_u64.as_slice(),
         ))]
         .into_iter()
         .collect();
 
-        Ok(compacted_cells.into_series())
-    }
+        compacted_cells.into_series()
+    };
+
+    // Determine the target inner dtype based on the original column
+    // If the original was a List, extract its inner type. Otherwise, use the original directly.
+    let inner_original_dtype = match &original_dtype {
+        DataType::List(inner) => *inner.clone(),
+        dt => dt.clone(),
+    };
+
+    let target_inner_dtype = resolve_target_inner_dtype(&inner_original_dtype)?;
+
+    cast_list_u64_to_dtype(&out_series, &DataType::UInt64, Some(&target_inner_dtype))
 }
 
 pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
+    let original_dtype = cell_series.dtype().clone();
     let target_res = Resolution::try_from(res)
         .map_err(|_| PolarsError::ComputeError("Invalid resolution".into()))?;
 
-    if let DataType::List(_) = cell_series.dtype() {
+    // Perform the uncompact logic
+    let out_series = if let DataType::List(_) = cell_series.dtype() {
+        // Input is already a List column
         let ca = cell_series.list()?;
         let cells_vec: Vec<_> = ca.into_iter().collect();
 
@@ -191,28 +243,46 @@ pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
                         let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 
                         let uncompacted = CellIndex::uncompact(cell_vec, target_res);
+                        // Convert the CellIndex result to a UInt64 Series
+                        let uncompacted_u64: Vec<u64> =
+                            uncompacted.into_iter().map(u64::from).collect();
                         Ok(Series::new(
                             PlSmallStr::from(""),
-                            uncompacted.into_iter().map(u64::from).collect::<Vec<_>>(),
+                            uncompacted_u64.as_slice(),
                         ))
                     })
                     .transpose()
             })
             .collect::<PolarsResult<_>>()?;
 
-        Ok(uncompacted.into_series())
+        uncompacted.into_series()
     } else {
+        // Input is not a list, treat it as a single column of cells.
         let cells = parse_cell_indices(cell_series)?;
         let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
-        let uncompacted: ListChunked = vec![Some(Series::new(
+
+        let uncompacted = CellIndex::uncompact(cell_vec, target_res);
+        let uncompacted_u64: Vec<u64> = uncompacted.into_iter().map(u64::from).collect();
+
+        // Wrap in a single List
+        let uncompacted_cells: ListChunked = vec![Some(Series::new(
             PlSmallStr::from(""),
-            CellIndex::uncompact(cell_vec, target_res)
-                .map(u64::from)
-                .collect::<Vec<_>>(),
+            uncompacted_u64.as_slice(),
         ))]
         .into_iter()
         .collect();
 
-        Ok(uncompacted.into_series())
-    }
+        uncompacted_cells.into_series()
+    };
+
+    // Determine the target inner dtype based on the original column
+    let inner_original_dtype = match &original_dtype {
+        DataType::List(inner) => *inner.clone(),
+        dt => dt.clone(),
+    };
+
+    // Map original inner dtype to the target dtype
+    let target_inner_dtype = resolve_target_inner_dtype(&inner_original_dtype)?;
+    // We have a List(UInt64) right now, cast it to List(target_inner_dtype)
+    cast_list_u64_to_dtype(&out_series, &DataType::UInt64, Some(&target_inner_dtype))
 }

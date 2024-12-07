@@ -2,105 +2,142 @@
 FIXME: uncompact stuff
 """
 
-from typing import Dict, Union, List
-import pytest
 import polars as pl
+import pytest
+
 import polars_h3
 
 
 @pytest.mark.parametrize(
-    "h3_cell, schema",
+    "test_params",
     [
         pytest.param(
-            [586265647244115967],
-            {"h3_cell": pl.UInt64},
+            {
+                "input": 586265647244115967,
+                "output": 581764796395814911,
+                "schema": {"input": pl.UInt64},
+            },
             id="uint64_input",
         ),
         pytest.param(
-            [586265647244115967],
-            {"h3_cell": pl.Int64},
+            {
+                "input": 586265647244115967,
+                "output": 581764796395814911,
+                "schema": {"input": pl.Int64},
+            },
             id="int64_input",
         ),
         pytest.param(
-            ["822d57fffffffff"],
-            None,
+            {
+                "input": "822d57fffffffff",
+                "output": "812d7ffffffffff",
+                "schema": None,
+            },
             id="string_input",
         ),
     ],
 )
-def test_cell_to_parent_valid(
-    h3_cell: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
-):
-    df = pl.DataFrame({"h3_cell": h3_cell}, schema=schema).with_columns(
-        parent=polars_h3.cell_to_parent("h3_cell", 1)
-    )
-    assert df["parent"].to_list()[0] == 581764796395814911
+def test_cell_to_parent_valid(test_params):
+    df = pl.DataFrame(
+        {"input": [test_params["input"]]}, schema=test_params["schema"]
+    ).with_columns(parent=polars_h3.cell_to_parent("input", 1))
+    assert df["parent"].to_list()[0] == test_params["output"]
 
 
 @pytest.mark.parametrize(
-    "h3_cell, schema",
+    "test_params",
     [
         pytest.param(
-            [586265647244115967],
-            {"h3_cell": pl.UInt64},
+            {
+                "input": 586265647244115967,
+                "output": 595272305332977663,
+                "schema": {"input": pl.UInt64},
+            },
             id="uint64_input",
         ),
         pytest.param(
-            [586265647244115967],
-            {"h3_cell": pl.Int64},
+            {
+                "input": 586265647244115967,
+                "output": 595272305332977663,
+                "schema": {"input": pl.Int64},
+            },
             id="int64_input",
         ),
         pytest.param(
-            ["822d57fffffffff"],
-            None,
+            {
+                "input": "822d57fffffffff",
+                "output": "842d501ffffffff",
+                "schema": None,
+            },
             id="string_input",
         ),
     ],
 )
-def test_cell_to_center_child_valid(
-    h3_cell: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
-):
-    df = pl.DataFrame({"h3_cell": h3_cell}, schema=schema).with_columns(
-        child=polars_h3.cell_to_center_child("h3_cell", 4)
-    )
-    assert df["child"].to_list()[0] == 595272305332977663
+def test_cell_to_center_child_valid(test_params):
+    df = pl.DataFrame(
+        {"input": [test_params["input"]]}, schema=test_params["schema"]
+    ).with_columns(child=polars_h3.cell_to_center_child("input", 4))
+    assert df["child"].to_list()[0] == test_params["output"]
 
 
 @pytest.mark.parametrize(
-    "h3_cell, schema",
+    "test_params",
     [
         pytest.param(
-            [586265647244115967],
-            {"h3_cell": pl.UInt64},
+            {
+                "input": 586265647244115967,
+                "output": [
+                    590768765835149311,
+                    590768834554626047,
+                    590768903274102783,
+                    590768971993579519,
+                    590769040713056255,
+                    590769109432532991,
+                    590769178152009727,
+                ],
+                "schema": {"input": pl.UInt64},
+            },
             id="uint64_input",
         ),
         pytest.param(
-            [586265647244115967],
-            {"h3_cell": pl.Int64},
+            {
+                "input": 586265647244115967,
+                "output": [
+                    590768765835149311,
+                    590768834554626047,
+                    590768903274102783,
+                    590768971993579519,
+                    590769040713056255,
+                    590769109432532991,
+                    590769178152009727,
+                ],
+                "schema": {"input": pl.Int64},
+            },
             id="int64_input",
         ),
         pytest.param(
-            ["822d57fffffffff"],
-            None,
+            {
+                "input": "822d57fffffffff",
+                "output": [
+                    "832d50fffffffff",
+                    "832d51fffffffff",
+                    "832d52fffffffff",
+                    "832d53fffffffff",
+                    "832d54fffffffff",
+                    "832d55fffffffff",
+                    "832d56fffffffff",
+                ],
+                "schema": None,
+            },
             id="string_input",
         ),
     ],
 )
-def test_cell_to_children_valid(
-    h3_cell: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
-):
-    df = pl.DataFrame({"h3_cell": h3_cell}, schema=schema).with_columns(
-        children=polars_h3.cell_to_children("h3_cell", 3)
-    )
-    assert df["children"].to_list()[0] == [
-        590768765835149311,
-        590768834554626047,
-        590768903274102783,
-        590768971993579519,
-        590769040713056255,
-        590769109432532991,
-        590769178152009727,
-    ]
+def test_cell_to_children_valid(test_params):
+    df = pl.DataFrame(
+        {"input": [test_params["input"]]}, schema=test_params["schema"]
+    ).with_columns(children=polars_h3.cell_to_children("input", 3))
+    assert df["children"].to_list()[0] == test_params["output"]
 
 
 @pytest.mark.parametrize(

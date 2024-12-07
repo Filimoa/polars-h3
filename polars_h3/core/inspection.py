@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Union
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import polars as pl
 from polars.plugins import register_plugin_function
-from .utils import _assert_valid_resolution, HexResolution
 
+from .utils import HexResolution, assert_valid_resolution
 
 if TYPE_CHECKING:
     from polars_h3.typing import IntoExprColumn
@@ -101,7 +100,8 @@ def get_icosahedron_faces(expr: IntoExprColumn) -> pl.Expr:
 
 
 def cell_to_parent(
-    cell: IntoExprColumn, resolution: Union[HexResolution, None] = None
+    cell: IntoExprColumn,
+    resolution: HexResolution,
 ) -> pl.Expr:
     """
     Returns the parent cell at the specified resolution. If the input cell has resolution r, then parentRes = r - 1 would give the immediate parent, parentRes = r - 2 would give the grandparent, and so on.

@@ -1,6 +1,4 @@
-from typing import Literal
-
-HexResolution = Literal[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+from ._types import HexResolution
 
 
 def assert_valid_resolution(resolution: HexResolution) -> None:

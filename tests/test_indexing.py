@@ -1,78 +1,109 @@
-import pytest
 import polars as pl
+import pytest
+
 import polars_h3
-from typing import Optional, Union, Dict, List
-
-
-def test_latlng_to_cell_valid():
-    df = pl.DataFrame({"lat": [0.0], "lng": [0.0]}).with_columns(
-        h3_cell=polars_h3.latlng_to_cell("lat", "lng", 1)
-    )
-    assert df["h3_cell"][0] == 583031433791012863
-
-
-def test_latlng_to_cell_string_valid():
-    df = pl.DataFrame(
-        {"lat": [37.7752702151959], "lng": [-122.418307270836]}
-    ).with_columns(
-        h3_cell=polars_h3.latlng_to_cell_string("lat", "lng", 9),
-    )
-    assert df["h3_cell"][0] == "8928308280fffff"
 
 
 @pytest.mark.parametrize(
-    "resolution",
+    "input_lat,input_lng,resolution,return_dtype,expected",
     [
-        pytest.param(-1, id="negative_resolution"),
-        pytest.param(30, id="too_high_resolution"),
+        (0.0, 0.0, 1, pl.UInt64, 583031433791012863),
+        (37.7752702151959, -122.418307270836, 9, pl.Utf8, "8928308280fffff"),
     ],
+    ids=["cell_int", "cell_string"],
 )
-def test_latlng_to_cell_invalid_resolution(resolution: int):
-    df = pl.DataFrame({"lat": [0.0], "lng": [0.0]})
+def test_latlng_to_cell_valid(input_lat, input_lng, resolution, return_dtype, expected):
+    df = pl.DataFrame({"lat": [input_lat], "lng": [input_lng]}).with_columns(
+        h3_cell=polars_h3.latlng_to_cell(
+            "lat", "lng", resolution, return_dtype=return_dtype
+        )
+    )
+    assert df["h3_cell"][0] == expected
 
-    with pytest.raises(ValueError):
-        df.with_columns(h3_cell=polars_h3.latlng_to_cell("lat", "lng", resolution))
 
+@pytest.mark.parametrize(
+    "input_lat,input_lng,resolution",
+    [
+        (0.0, 0.0, -1),
+        (0.0, 0.0, 30),
+    ],
+    ids=["negative_resolution", "too_high_resolution"],
+)
+def test_latlng_to_cell_invalid_resolution(input_lat, input_lng, resolution):
+    df = pl.DataFrame({"lat": [input_lat], "lng": [input_lng]})
     with pytest.raises(ValueError):
         df.with_columns(
-            h3_cell=polars_h3.latlng_to_cell_string("lat", "lng", resolution)
+            h3_cell=polars_h3.latlng_to_cell(
+                "lat", "lng", resolution, return_dtype=pl.UInt64
+            )
+        )
+    with pytest.raises(ValueError):
+        df.with_columns(
+            h3_cell=polars_h3.latlng_to_cell(
+                "lat", "lng", resolution, return_dtype=pl.Utf8
+            )
         )
 
 
 @pytest.mark.parametrize(
-    "lat, lng",
+    "input_lat,input_lng",
     [
-        pytest.param(37.7752702151959, None, id="null_longitude"),
-        pytest.param(None, -122.418307270836, id="null_latitude"),
-        pytest.param(None, None, id="both_null"),
+        (37.7752702151959, None),
+        (None, -122.418307270836),
+        (None, None),
     ],
+    ids=["null_longitude", "null_latitude", "both_null"],
 )
-def test_latlng_to_cell_null_inputs(lat: Optional[float], lng: Optional[float]):
-    df = pl.DataFrame({"lat": [lat], "lng": [lng]})
-
+def test_latlng_to_cell_null_inputs(input_lat, input_lng):
+    df = pl.DataFrame({"lat": [input_lat], "lng": [input_lng]})
     with pytest.raises(pl.exceptions.ComputeError):
-        df.with_columns(h3_cell=polars_h3.latlng_to_cell("lat", "lng", 9))
-
+        df.with_columns(
+            h3_cell=polars_h3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64)
+        )
     with pytest.raises(pl.exceptions.ComputeError):
-        df.with_columns(h3_cell=polars_h3.latlng_to_cell_string("lat", "lng", 9))
+        df.with_columns(
+            h3_cell=polars_h3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.Utf8)
+        )
 
 
 @pytest.mark.parametrize(
-    "h3_cell, schema",
+    "test_params",
     [
         pytest.param(
-            [599686042433355775], {"int_h3_cell": pl.UInt64}, id="uint64_input"
+            {
+                "input": 599686042433355775,
+                "output_lat": 37.345793375368,
+                "output_lng": -121.976375972551,
+                "schema": {"input": pl.UInt64},
+            },
+            id="uint64_input",
         ),
-        pytest.param([599686042433355775], {"int_h3_cell": pl.Int64}, id="int64_input"),
-        pytest.param(["85283473fffffff"], None, id="string_input"),
+        pytest.param(
+            {
+                "input": 599686042433355775,
+                "output_lat": 37.345793375368,
+                "output_lng": -121.976375972551,
+                "schema": {"input": pl.Int64},
+            },
+            id="int64_input",
+        ),
+        pytest.param(
+            {
+                "input": "85283473fffffff",
+                "output_lat": 37.345793375368,
+                "output_lng": -121.976375972551,
+                "schema": None,
+            },
+            id="string_input",
+        ),
     ],
 )
-def test_cell_to_latlng(
-    h3_cell: List[Union[int, str]], schema: Union[Dict[str, pl.DataType], None]
-):
-    df = pl.DataFrame({"int_h3_cell": h3_cell}, schema=schema).with_columns(
-        lat=polars_h3.cell_to_lat("int_h3_cell"),
-        lng=polars_h3.cell_to_lng("int_h3_cell"),
+def test_cell_to_latlng(test_params):
+    df = pl.DataFrame(
+        {"input": [test_params["input"]]}, schema=test_params["schema"]
+    ).with_columns(
+        lat=polars_h3.cell_to_lat("input"),
+        lng=polars_h3.cell_to_lng("input"),
     )
-    assert pytest.approx(df["lat"][0], 0.00001) == 37.345793375368
-    assert pytest.approx(df["lng"][0], 0.00001) == -121.976375972551
+    assert pytest.approx(df["lat"][0], 0.00001) == test_params["output_lat"]
+    assert pytest.approx(df["lng"][0], 0.00001) == test_params["output_lng"]
