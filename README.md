@@ -120,3 +120,15 @@ We are unable to support the functions that work with geometries.
 | `polygon_wkt_to_cells` | Convert polygon WKT to a set of cells | 🛑 |
 | `cell_to_boundary_wkt` | Convert cell ID to cell boundary | 🛑 |
 | `directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | 🛑 |
+
+
+> ⚠️ **Performance Note:** When possible, prefer using `pl.UInt64` for H3 indices instead of the UTF-8 hex string representation. String representations require casting operations which impact performance. Working directly with the native 64-bit integer format provides better computational efficiency.
+
+Example:
+```python
+# Preferred: Using UInt64 representation
+h3_indices = pl.Series([553270469932032, 553270469932033], dtype=pl.UInt64)
+
+# Less performant: Using string representation
+h3_indices = pl.Series(["85283473fffffff", "85283473fffffff"], dtype=pl.Utf8)
+```
