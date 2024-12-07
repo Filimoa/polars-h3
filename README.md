@@ -58,7 +58,7 @@ Check out the [quickstart notebook](notebooks/quickstart.ipynb) for more example
 
 This extension implements most of the [H3 API](https://h3geo.org/docs/api/indexing). The full list of functions is below.
 
-All functions support H3 indexes specified as `pl.UInt64` or `pl.Int64`,
+**Performance Note:** All functions support H3 indexes specified as `pl.UInt64` or `pl.Int64`,
 but the unsigned one is preferred and is returned when the extension can't detect which
 one to use. The unsigned and signed APIs are identical. All functions also support
 `pl.Utf8` H3 index input and output.
