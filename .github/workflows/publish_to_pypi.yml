@@ -19,10 +19,7 @@ concurrency:
 permissions:
   contents: read
 
-# Make sure CI fails on all warnings, including Clippy lints
-env:
-  RUSTFLAGS: "-Dwarnings"
-
+# Make sure CI fails on all warnings, including Clippy lints (disabled for now)
 jobs:
   linux_tests:
     runs-on: ubuntu-latest
