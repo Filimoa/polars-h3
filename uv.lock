@@ -1200,35 +1200,33 @@ wheels = [
 
 [[package]]
 name = "polars-h3"
-version = "0.1.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
-    { name = "maturin" },
-    { name = "mypy" },
     { name = "polars" },
-    { name = "pytest" },
-    { name = "ruff" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "h3" },
     { name = "jupyter" },
-]
-
-[package.metadata]
-requires-dist = [
     { name = "maturin" },
     { name = "mypy" },
-    { name = "polars" },
     { name = "pytest" },
     { name = "ruff" },
 ]
+
+[package.metadata]
+requires-dist = [{ name = "polars" }]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "h3", specifier = ">=4.1.2" },
     { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "maturin" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "ruff" },
 ]
 
 [[package]]

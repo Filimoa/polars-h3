@@ -107,3 +107,62 @@ def test_cell_to_latlng(test_params):
     )
     assert pytest.approx(df["lat"][0], 0.00001) == test_params["output_lat"]
     assert pytest.approx(df["lng"][0], 0.00001) == test_params["output_lng"]
+
+
+@pytest.mark.parametrize(
+    "test_params",
+    [
+        pytest.param(
+            {
+                "input": "8a1fb464492ffff",
+                "output_boundary": [
+                    (48.853925897310056, 2.3725526996968154),
+                    (48.853762357995556, 2.371650760662443),
+                    (48.85311886121302, 2.3714610612212152),
+                    (48.85263890985581, 2.3721732876265516),
+                    (48.85280245093953, 2.3730752066146477),
+                    (48.85344594161119, 2.3732649192433906),
+                ],
+            },
+            id="case_string_paris",
+        ),
+        pytest.param(
+            {
+                "input": "812bbffffffffff",
+                "output_boundary": [
+                    (50.99021068384578, -76.05772874399094),
+                    (48.295316381881364, -81.91962699890831),
+                    (43.86011974432308, -80.98225290216081),
+                    (42.02956371225369, -75.33345172379178),
+                    (44.27784933847793, -69.95506755076666),
+                    (48.757431677563375, -69.71947899952944),
+                ],
+            },
+            id="case_string_large",
+        ),
+        pytest.param(
+            {
+                "input": 581734010070237183,
+                "output_boundary": [
+                    (50.99021068384578, -76.05772874399094),
+                    (48.295316381881364, -81.91962699890831),
+                    (43.86011974432308, -80.98225290216081),
+                    (42.02956371225369, -75.33345172379178),
+                    (44.27784933847793, -69.95506755076666),
+                    (48.757431677563375, -69.71947899952944),
+                ],
+            },
+            id="case_int_large",
+        ),
+    ],
+)
+def test_cell_to_boundary_known(test_params):
+    df = pl.DataFrame({"cell": [test_params["input"]]}).with_columns(
+        boundary=polars_h3.cell_to_boundary("cell")
+    )
+    boundary = df["boundary"][0]
+    for i, (exp_lat, exp_lng) in enumerate(test_params["output_boundary"]):
+        lat = boundary[i * 2]
+        lng = boundary[i * 2 + 1]
+        assert pytest.approx(lat, abs=1e-7) == exp_lat
+        assert pytest.approx(lng, abs=1e-7) == exp_lng

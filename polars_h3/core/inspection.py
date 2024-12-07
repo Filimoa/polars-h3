@@ -487,7 +487,7 @@ def child_pos_to_cell(
 
 def compact_cells(cells: IntoExprColumn) -> pl.Expr:
     """
-    Compact a set of H3 cells into a minimal covering set.
+    Compact a set of H3 cells into a minimal covering set. See [H3 documentation](https://h3geo.org/docs/highlights/indexing) for more details.
 
     #### Parameters
     - `cells`: IntoExprColumn

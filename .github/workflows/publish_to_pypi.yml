@@ -1,21 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
-      - master
-    tags:
-      - '*'
-    paths-ignore:
-      - '**/*.md'
-  pull_request:
-  workflow_dispatch:
+  release:
+    types: [published]
 
-concurrency:
-  
+concurrency: 
   group: ${{ github.workflow }}-${{ github.ref }}
-  
   cancel-in-progress: true
 
 permissions:

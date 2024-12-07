@@ -107,3 +107,26 @@ pub fn cell_to_latlng(cell_series: &Series) -> PolarsResult<Series> {
 
     Ok(coords.into_series())
 }
+
+pub fn cell_to_boundary(cell_series: &Series) -> PolarsResult<Series> {
+    use crate::engine::utils::parse_cell_indices;
+    let cells = parse_cell_indices(cell_series)?;
+
+    let coords: ListChunked = cells
+        .into_par_iter()
+        .map(|cell| {
+            cell.map(|idx| {
+                let boundary = idx.boundary();
+                // Convert boundary vertices into a flat Vec<f64> of [lat, lng, lat, lng, ...]
+                let mut latlngs = Vec::with_capacity(boundary.len() * 2);
+                for vertex in boundary.iter() {
+                    latlngs.push(vertex.lat());
+                    latlngs.push(vertex.lng());
+                }
+                Series::new(PlSmallStr::from(""), &latlngs)
+            })
+        })
+        .collect();
+
+    Ok(coords.into_series())
+}

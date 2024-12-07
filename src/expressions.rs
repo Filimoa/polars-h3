@@ -102,6 +102,12 @@ fn cell_to_latlng(inputs: &[Series]) -> PolarsResult<Series> {
     crate::engine::indexing::cell_to_latlng(cell_series)
 }
 
+#[polars_expr(output_type_func=boundary_list_dtype)]
+fn cell_to_boundary(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::indexing::cell_to_boundary(cell_series)
+}
+
 // ===== Inspection ===== //
 
 #[polars_expr(output_type=UInt8)]

@@ -372,3 +372,44 @@ def local_ij_to_cell(
         plugin_path=LIB,
         function_name="local_ij_to_cell",
     )
+
+
+def cell_to_boundary(cell: IntoExprColumn) -> pl.Expr:
+    """
+    Retrieve the polygon boundary coordinates of the given H3 cell.
+
+    This function computes the vertices of the H3 cell's polygon boundary and returns them as a list of alternating latitude and longitude values. The coordinate list is structured as: `[lat0, lng0, lat1, lng1, ..., latN, lngN]`.
+
+    #### Parameters
+    - `cell`: IntoExprColumn
+        Column or expression containing H3 cell indices (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
+
+    #### Returns
+    Expr
+        A `pl.Expr` returning a list of `Float64` values representing the boundary vertices
+        of the cell in latitude-longitude pairs.
+
+    #### Examples
+    ```python
+    >>> df = pl.DataFrame({
+    ...     "cell": ["8a1fb464492ffff"]
+    ... })
+    >>> df.select(polars_h3.cell_to_boundary("cell"))
+    shape: (1, 1)
+    ┌────────────────────────────────────┐
+    │ cell_to_boundary                   │
+    │ ---                                │
+    │ list[f64]                          │
+    ╞════════════════════════════════════╡
+    │ [[50.99, -76.05], [48.29, -81.91...│
+    └────────────────────────────────────┘
+
+    #### Errors
+    - `ComputeError`: If null or invalid H3 cell indices are encountered.
+    """
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="cell_to_boundary",
+        is_elementwise=True,
+    )
