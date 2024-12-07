@@ -1,7 +1,8 @@
-use super::utils::parse_cell_indices;
 use h3o::{LatLng, Vertex, VertexIndex};
 use polars::prelude::*;
 use rayon::prelude::*;
+
+use super::utils::parse_cell_indices;
 
 pub fn cell_to_vertex(cell_series: &Series, vertex_num: u8) -> PolarsResult<Series> {
     // Try to create vertex first to validate the number

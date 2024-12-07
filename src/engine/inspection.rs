@@ -1,7 +1,8 @@
-use super::utils::parse_cell_indices;
 use h3o::CellIndex;
 use polars::prelude::*;
 use rayon::prelude::*;
+
+use super::utils::parse_cell_indices;
 
 pub fn get_resolution(cell_series: &Series) -> PolarsResult<Series> {
     // Convert input to u64 regardless of input type

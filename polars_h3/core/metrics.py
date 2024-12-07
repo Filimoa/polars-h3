@@ -31,6 +31,22 @@ def great_circle_distance(
     Haversine distance calculation using polars.
 
     The error can be up to about 0.5% on distances of 1000km, but is much smaller for smaller distances.
+
+    #### Parameters
+    - `s_lat_deg`: IntoExprColumn
+        Column or expression containing the starting latitude in degrees (as `pl.Float64`).
+    - `s_lng_deg`: IntoExprColumn
+        Column or expression containing the starting longitude in degrees (as `pl.Float64`).
+    - `e_lat_deg`: IntoExprColumn
+        Column or expression containing the ending latitude in degrees (as `pl.Float64`).
+    - `e_lng_deg`: IntoExprColumn
+        Column or expression containing the ending longitude in degrees (as `pl.Float64`).
+    - `unit`: str
+        Unit of the distance. `km` or `m`.
+
+    #### Returns
+    Expr
+        Expression returning the great circle distance between the two points.
     """
     EARTH_RADIUS_KM = 6373.0
 
@@ -57,6 +73,38 @@ def great_circle_distance(
 
 
 def average_hexagon_area(resolution: IntoExprColumn, unit: str = "km^2") -> pl.Expr:
+    """
+    Return the average area of an H3 hexagon at a given resolution.
+
+    The H3 grid is hierarchical; as resolution increases, the hexagons become
+    smaller. This function provides the average area of a hexagon cell at the specified resolution.
+
+    #### Parameters
+    - `resolution`: IntoExprColumn
+        Column or expression with the H3 resolution (0 to 15).
+    - `unit`: {"km^2", "m^2"}
+        Unit of the returned area. Defaults to square kilometers.
+
+    #### Returns
+    Expr
+        Expression returning the average area as a float.
+
+    #### Examples
+    ```python
+    >>> df = pl.DataFrame({"resolution": [5]}, schema={"resolution": pl.UInt64})
+    >>> df.with_columns(
+    ...     area=polars_h3.average_hexagon_area("resolution", "km^2")
+    ... )
+    shape: (1, 2)
+    ┌─────────────┬──────────┐
+    │ resolution  │ area     │
+    │ ---          │ ---      │
+    │ u64          │ f64      │
+    ╞══════════════╪══════════╡
+    │ 5            │ 252.903858│
+    └─────────────┴──────────┘
+    ```
+    """
     if unit not in ["km^2", "m^2"]:
         raise ValueError("Unit must be either 'km^2' or 'm^2'")
 
@@ -102,19 +150,72 @@ def cell_area(cell: IntoExprColumn, unit: AreaUnit = "km^2") -> pl.Expr:
 
 def edge_length(cell: IntoExprColumn, unit: EdgeLengthUnit = "km") -> pl.Expr:
     """
-    Get the length of an edge for a specific H3 cell.
+    Determine the length of an H3 edge cell.
+
+    For cells that represent edges (directed edges), this returns the edge length.
+
+    #### Parameters
+    - `cell`: IntoExprColumn
+        Column or expression with the H3 cell index representing an edge.
+    - `unit`: {"km", "m"}
+        Unit of the returned length. Defaults to kilometers.
+
+    #### Returns
+    Expr
+        Expression returning the edge length as a float, or `None` if invalid.
+
+    #### Examples
+    ```python
+    >>> df = pl.DataFrame({"h3_cell": [1608492358964346879]}, schema={"h3_cell": pl.UInt64})
+    >>> df.with_columns(length=polars_h3.edge_length("h3_cell", "km"))
+    shape: (1, 2)
+    ┌─────────────────────┬─────────┐
+    │ h3_cell             │ length  │
+    │ ---                 │ ---     │
+    │ u64                 │ f64     │
+    ╞═════════════════════╪═════════╡
+    │ 1608492358964346879 │ 10.3029 │
+    └─────────────────────┴─────────┘
+    ```
     """
-    return register_plugin_function(
-        args=[cell],
-        plugin_path=LIB,
-        function_name="edge_length",
-        kwargs={"unit": unit},
-    )
+    raise NotImplementedError("Not implemented")
 
 
 def average_hexagon_edge_length(
     resolution: IntoExprColumn, unit: str = "km"
 ) -> pl.Expr:
+    """
+    Get the average edge length of H3 hexagons at a specific resolution.
+
+    Each hexagon cell at the same resolution has roughly the same edge length.
+    This function provides the average edge length for a given resolution.
+
+    #### Parameters
+    - `resolution`: IntoExprColumn
+        Column or expression with the H3 resolution (0 to 15).
+    - `unit`: {"km", "m"}
+        Unit of the returned length. Defaults to kilometers.
+
+    #### Returns
+    Expr
+        Expression returning the average edge length as a float.
+
+    #### Examples
+    ```python
+    >>> df = pl.DataFrame({"resolution": [1]})
+    >>> df.with_columns(
+    ...     length=polars_h3.average_hexagon_edge_length("resolution", "km")
+    ... )
+    shape: (1, 2)
+    ┌─────────────┬─────────┐
+    │ resolution  │ length  │
+    │ ---          │ ---     │
+    │ u64          │ f64     │
+    ╞══════════════╪═════════╡
+    │ 1            │ 418.676 │
+    └─────────────┴─────────┘
+    ```
+    """
     if unit not in ["km", "m"]:
         raise ValueError("Unit must be either 'km' or 'm'")
 
@@ -149,7 +250,32 @@ def average_hexagon_edge_length(
 
 def get_num_cells(resolution: IntoExprColumn) -> pl.Expr:
     """
-    Get the number of unique cells at the given resolution.
+    Get the number of unique H3 cells at a given resolution.
+
+    The number of cells grows significantly with resolution. This function
+    returns the total count of cells for the specified resolution.
+
+    #### Parameters
+    - `resolution`: IntoExprColumn
+        Column or expression with the H3 resolution (0 to 15).
+
+    #### Returns
+    Expr
+        Expression returning the number of cells as an integer.
+
+    #### Examples
+    ```python
+    >>> df = pl.DataFrame({"resolution": [5]}, schema={"resolution": pl.UInt64})
+    >>> df.with_columns(count=polars_h3.get_num_cells("resolution"))
+    shape: (1, 2)
+    ┌─────────────┬──────────┐
+    │ resolution  │ count    │
+    │ ---          │ ---      │
+    │ u64          │ i64      │
+    ╞══════════════╪══════════╡
+    │ 5            │ 2016842  │
+    └─────────────┴──────────┘
+    ```
     """
     num_cells = {
         0: 122,

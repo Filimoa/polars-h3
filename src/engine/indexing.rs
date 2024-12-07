@@ -1,7 +1,8 @@
-use super::utils::parse_cell_indices;
 use h3o::{CellIndex, LatLng, Resolution};
 use polars::prelude::*;
 use rayon::prelude::*;
+
+use super::utils::parse_cell_indices;
 
 fn parse_latlng_to_cells(
     lat_series: &Series,

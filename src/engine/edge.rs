@@ -1,7 +1,8 @@
-use super::utils::parse_cell_indices;
 use h3o::DirectedEdgeIndex;
 use polars::prelude::*;
 use rayon::prelude::*;
+
+use super::utils::parse_cell_indices;
 
 pub fn are_neighbor_cells(
     origin_series: &Series,

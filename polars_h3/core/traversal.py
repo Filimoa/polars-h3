@@ -12,20 +12,44 @@ if TYPE_CHECKING:
 
 LIB = Path(__file__).parent.parent
 
-# ===== Traversal ===== #
-
 
 def grid_distance(origin: IntoExprColumn, destination: IntoExprColumn) -> pl.Expr:
     """
-    Provides the grid distance between two cells, which is defined as the minimum number of "hops" needed across adjacent cells to get from one cell to the other.
+    Compute the grid distance between two H3 cells.
 
-    Note that finding the grid distance may fail for a few reasons:
+    The grid distance is the minimum number of steps ("hops") needed to move from `origin` to `destination` by traversing neighboring cells. Note, the exact path may change slightly between library versions due to h3o.
 
-    - the cells are not comparable (different resolutions),
-    - the cells are too far apart, or
-    - the cells are separated by pentagonal distortion.
+    #### Parameters
+    - `origin`: IntoExprColumn
+        Column or expression with the origin H3 cell index (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
+    - `destination`: IntoExprColumn
+        Column or expression with the destination H3 cell index (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
 
-    This is the same set of limitations as the local IJ coordinate space functions.
+    #### Returns
+    Expr
+        Expression returning the grid distance as an integer, or `None` if it
+        cannot be computed.
+
+    #### Examples
+    ```python
+    >>> df = pl.DataFrame({
+    ...     "start": [605035864166236159],
+    ...     "end": [605034941150920703],
+    ... })
+    >>> df.select(polars_h3.grid_distance("start", "end"))
+    shape: (1, 1)
+    ┌─────────────┐
+    │ grid_distance│
+    │ ---          │
+    │ i64          │
+    ╞══════════════╡
+    │ 5            │
+    └─────────────┘
+    ```
+
+    #### Errors
+    - `ComputeError`: If inputs are invalid (e.g. different resolutions or pentagon issues).
+    - Returns `None`: If no valid distance can be computed.
     """
     return register_plugin_function(
         args=[origin, destination],
@@ -36,9 +60,40 @@ def grid_distance(origin: IntoExprColumn, destination: IntoExprColumn) -> pl.Exp
 
 def grid_ring(cell: IntoExprColumn, k: int) -> pl.Expr:
     """
-    Produces the "hollow ring" of cells which are exactly grid distance k from the origin cell. This function fails (i.e. returns a None item) when a pentagon (or a pentagon distortion) is encountered.
+    Produce a "hollow ring" of cells at exactly grid distance `k` from the origin cell.
 
-    This function may fail if pentagonal distortion is encountered.
+    For `k=0`, this returns just the origin cell.
+    For `k>0`, it returns all cells that are exactly `k` steps away.
+
+    This function may return None items if pentagonal distortion is encountered.
+
+    #### Parameters
+    - `cell`: IntoExprColumn
+        Column or expression with the H3 cell index (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
+    - `k`: int
+        The ring distance. Must be non-negative.
+
+    #### Returns
+    Expr
+        Expression returning a list of H3 cells at distance `k`. May return `None` if pentagonal distortion is encountered.
+
+    #### Examples
+    ```python
+    >>> df = pl.DataFrame({"input": [622054503267303423]})
+    >>> df.select(polars_h3.grid_ring("input", 1))
+    shape: (1, 1)
+    ┌───────────────────────────────────┐
+    │ grid_ring                         │
+    │ ---                               │
+    │ list[u64]                         │
+    ╞═══════════════════════════════════╡
+    │ [622054502770606079, 622054502770…]│
+    └───────────────────────────────────┘
+    ```
+
+    #### Errors
+    - `ValueError`: If `k < 0`.
+    - `ComputeError`: If pentagonal distortion or invalid inputs prevent computation.
     """
     if k < 0:
         raise ValueError("k must be non-negative")
@@ -52,9 +107,40 @@ def grid_ring(cell: IntoExprColumn, k: int) -> pl.Expr:
 
 def grid_disk(cell: IntoExprColumn, k: int) -> pl.Expr:
     """
-    Produces the "filled-in disk" of cells which are at most grid distance k from the origin cell.  This function fails (i.e. returns a None item) when a pentagon (or a pentagon distortion) is encountered.
+    Produce a "filled-in disk" of cells within grid distance `k` of the origin cell.
 
-    Output order is not guaranteed.
+    This includes the origin cell (distance 0) and all cells up to distance `k`.
+    The returned list's order is not guaranteed.
+
+    If pentagonal distortion is encountered, this function may return None items.
+
+    #### Parameters
+    - `cell`: IntoExprColumn
+        Column or expression with the H3 cell index (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
+    - `k`: int
+        The maximum distance from the origin. Must be non-negative.
+
+    #### Returns
+    Expr
+        Expression returning a list of H3 cells representing all cells within distance `k`.
+
+    #### Examples
+    ```python
+    >>> df = pl.DataFrame({"input": [622054503267303423]})
+    >>> df.select(polars_h3.grid_disk("input", 1))
+    shape: (1, 1)
+    ┌───────────────────────────────────┐
+    │ grid_disk                         │
+    │ ---                               │
+    │ list[u64]                         │
+    ╞═══════════════════════════════════╡
+    │ [622054503267303423, 622054502770…]│
+    └───────────────────────────────────┘
+    ```
+
+    #### Errors
+    - `ValueError`: If `k < 0`.
+    - `ComputeError`: If pentagonal distortion or invalid inputs prevent computation.
     """
     if k < 0:
         raise ValueError("k must be non-negative")
@@ -68,15 +154,45 @@ def grid_disk(cell: IntoExprColumn, k: int) -> pl.Expr:
 
 def grid_path_cells(origin: IntoExprColumn, destination: IntoExprColumn) -> pl.Expr:
     """
-    Given two H3 cells, return a minimal-length contiguous path of cells between them (inclusive of the endpoint cells).
+    Find a minimal contiguous path of cells from `origin` to `destination`.
 
-    This function may fail if the cells are very far apart, or if the cells are on opposite sides of a pentagon.
+    The path includes the starting and ending cells. Each cell in the path is a neighbor
+    of the previous cell.
 
-    Notes:
+    This function may fail (return None) if:
+    - The cells are extremely far apart.
+    - The cells lie across a pentagonal distortion.
+    - The resolution or input values are invalid.
 
-    The output of this function should not be considered stable across library versions. The only guarantees are that the path length will be gridDistance(start, end) + 1 and that every cell in the path will be a neighbor of the preceding cell.
+    #### Parameters
+    - `origin`: IntoExprColumn
+        Column or expression with the start H3 cell index.
+    - `destination`: IntoExprColumn
+        Column or expression with the end H3 cell index.
 
-    Paths exist in the H3 grid of cells, and may not align closely with either Cartesian lines or great arcs.
+    #### Returns
+    Expr
+        Expression returning a list of H3 cells forming a minimal path, or None if not possible.
+
+    #### Examples
+    ```python
+    >>> df = pl.DataFrame({
+    ...     "start": [605035864166236159],
+    ...     "end": [605034941150920703],
+    ... })
+    >>> df.select(polars_h3.grid_path_cells("start", "end"))
+    shape: (1, 1)
+    ┌───────────────────────────────────┐
+    │ grid_path_cells                   │
+    │ ---                               │
+    │ list[u64]                         │
+    ╞═══════════════════════════════════╡
+    │ [605035864166236159, 605035861750…]│
+    └───────────────────────────────────┘
+    ```
+
+    #### Errors
+    - `ComputeError`: If no valid path can be computed, due to invalid inputs or pentagon issues.
     """
     return register_plugin_function(
         args=[origin, destination],

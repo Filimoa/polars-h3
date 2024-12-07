@@ -1,7 +1,8 @@
-use super::utils::parse_cell_indices;
 use h3o::CellIndex;
 use polars::prelude::*;
 use rayon::prelude::*;
+
+use super::utils::parse_cell_indices;
 
 pub fn get_num_cells(resolution: u8) -> PolarsResult<Series> {
     let count = h3o::Resolution::try_from(resolution)
