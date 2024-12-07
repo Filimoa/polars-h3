@@ -58,10 +58,7 @@ Check out the [quickstart notebook](notebooks/quickstart.ipynb) for more example
 
 This extension implements most of the [H3 API](https://h3geo.org/docs/api/indexing). The full list of functions is below.
 
-**Performance Note:** All functions support H3 indexes specified as `pl.UInt64` or `pl.Int64`,
-but the unsigned one is preferred and is returned when the extension can't detect which
-one to use. The unsigned and signed APIs are identical. All functions also support
-`pl.Utf8` H3 index input and output.
+> ⚠️ **Performance Note:** When possible, prefer using `pl.UInt64` for H3 indices instead of the UTF-8 hex string representation. String representations require casting operations which impact performance. Working directly with the native 64-bit integer format provides better computational efficiency.
 
 We are unable to support the functions that work with geometries. 
 
@@ -121,14 +118,3 @@ We are unable to support the functions that work with geometries.
 | `cell_to_boundary_wkt` | Convert cell ID to cell boundary | 🛑 |
 | `directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | 🛑 |
 
-
-> ⚠️ **Performance Note:** When possible, prefer using `pl.UInt64` for H3 indices instead of the UTF-8 hex string representation. String representations require casting operations which impact performance. Working directly with the native 64-bit integer format provides better computational efficiency.
-
-Example:
-```python
-# Preferred: Using UInt64 representation
-h3_indices = pl.Series([553270469932032, 553270469932033], dtype=pl.UInt64)
-
-# Less performant: Using string representation
-h3_indices = pl.Series(["85283473fffffff", "85283473fffffff"], dtype=pl.Utf8)
-```
