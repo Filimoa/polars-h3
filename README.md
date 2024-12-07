@@ -13,9 +13,7 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 
 - 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, covering almost everything the standard H3 library provides, excluding geometric functions.
 
-- 🧩 **Seamless Integration:** Fully integrates with Polars.
-
-- 📋 **Fully Tested:** Rigorously tested to ensure correctness.
+- 📋 **Fully Tested:** Accurately tested against the standard H3 library.
 
 # Get started
 
