@@ -7,6 +7,7 @@ homepage = "https://github.com/Filimonov/polars-h3"
 
 [project]
 name = "polars-h3"  
+version = "0.3.0"  
 description = "H3 bindings for Polars"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -23,10 +24,6 @@ authors = [
 
 dependencies = [
     "polars",
-    "maturin",
-    "ruff",
-    "pytest",
-    "mypy",
 ]
 
 [[tool.mypy.overrides]]
@@ -35,6 +32,10 @@ ignore_missing_imports = true
 
 [dependency-groups]
 dev = [
+    "maturin",
+    "ruff",
+    "pytest",
+    "mypy",
     "h3>=4.1.2",
     "jupyter>=1.1.1",
 ]
