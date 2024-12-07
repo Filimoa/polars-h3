@@ -84,8 +84,8 @@ We are unable to support the functions that work with geometries.
 | `cell_to_parent` | Get coarser cell for a cell | ✅ |
 | `cell_to_children` | Get finer cells for a cell | ✅ |
 | `cell_to_center_child` | Provides the center child (finer) cell contained by cell at resolution childRes. | ✅ |
-| `cell_to_child_pos` | Provides the position of the child cell within an ordered list of all children of the cell's parent at the specified resolution parentRes. The order of the ordered list is the same as that returned by cellToChildren. This is the complement of childPosToCell. | ✅ |
-| `child_pos_to_cell` | Provides the child cell at a given position within an ordered list of all children of parent at the specified resolution childRes. The order of the ordered list is the same as that returned by cellToChildren. This is the complement of cellToChildPos. | ✅ |
+| `cell_to_child_pos` | Provides the position of the child cell within an ordered list of all children of the cell's parent at the specified resolution parentRes. | ✅ |
+| `child_pos_to_cell` | Provides the child cell at a given position within an ordered list of all children of parent at the specified resolution childRes. | ✅ |
 | `compact_cells` | Compacts a collection of H3 cells by recursively replacing children cells with their parents if all children are present. Input cells must all share the same resolution. | ✅ |
 | `uncompact_cells` | Uncompacts the set compactedSet of indexes to the resolution res. h3Set must be at least of size uncompactCellsSize(compactedSet, numHexes, res). | ✅ |
 | `grid_ring` | Produces the "hollow ring" of cells which are exactly grid distance k from the origin cell | ✅ |
