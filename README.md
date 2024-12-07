@@ -27,7 +27,7 @@ pip install polars-h3
 You can use the extension as a drop-in replacement for the standard H3 functions.
 
 ```python
-import polars_h3
+import polars_h3 as pl_h3
  
 >>> df = pl.DataFrame(
 ...     {
@@ -35,7 +35,7 @@ import polars_h3
 ...         "long": [-122.4194],
 ...     }
 ... ).with_columns(
-...     polars_h3.latlng_to_cell_string(
+...     pl_h3.latlng_to_cell_string(
 ...         "lat",
 ...         "long",
 ...         7,
