@@ -117,3 +117,21 @@ We are unable to support the functions that work with geometries.
 | `polygon_wkt_to_cells` | Convert polygon WKT to a set of cells | 🛑 |
 | `directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | 🛑 |
 
+
+### Plotting
+
+The library also comes with helper functions to plot hexes on a Folium map.
+
+
+```python
+import polars_h3 as pl_h3
+import polars as pl
+
+hex_map = pl_h3.graphing.plot_hex_outlines(df, "h3_cell")
+display(hex_map)
+
+# or if you have a metric to plot
+
+hex_map = pl_h3.graphing.plot_hex_fills(df, "h3_cell", "metric_col")
+display(hex_map)
+```

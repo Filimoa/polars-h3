@@ -162,7 +162,6 @@ def test_cell_to_boundary_known(test_params):
     )
     boundary = df["boundary"][0]
     for i, (exp_lat, exp_lng) in enumerate(test_params["output_boundary"]):
-        lat = boundary[i * 2]
-        lng = boundary[i * 2 + 1]
+        lat, lng = boundary[i]
         assert pytest.approx(lat, abs=1e-7) == exp_lat
         assert pytest.approx(lng, abs=1e-7) == exp_lng
