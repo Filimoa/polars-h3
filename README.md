@@ -6,7 +6,7 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 
 <div align="left">
   <a href="https://pypi.org/project/polars-h3/">
-    <img src="https://img.shields.io/pypi/v/polars.svg" alt="PyPi Latest Release"/>
+    <img src="https://img.shields.io/pypi/v/polars-h3.svg" alt="PyPi Latest Release"/>
   </a>
 </div>
 
