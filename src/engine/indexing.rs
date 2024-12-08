@@ -109,7 +109,6 @@ pub fn cell_to_latlng(cell_series: &Series) -> PolarsResult<Series> {
 }
 
 pub fn cell_to_boundary(cell_series: &Series) -> PolarsResult<Series> {
-    use crate::engine::utils::parse_cell_indices;
     let cells = parse_cell_indices(cell_series)?;
 
     let coords: ListChunked = cells
@@ -117,13 +116,20 @@ pub fn cell_to_boundary(cell_series: &Series) -> PolarsResult<Series> {
         .map(|cell| {
             cell.map(|idx| {
                 let boundary = idx.boundary();
-                // Convert boundary vertices into a flat Vec<f64> of [lat, lng, lat, lng, ...]
-                let mut latlngs = Vec::with_capacity(boundary.len() * 2);
-                for vertex in boundary.iter() {
-                    latlngs.push(vertex.lat());
-                    latlngs.push(vertex.lng());
-                }
-                Series::new(PlSmallStr::from(""), &latlngs)
+
+                // Create a Vec<Vec<f64>> for the boundary: each inner vec is [lat, lng]
+                let latlng_pairs: Vec<Vec<f64>> = boundary
+                    .iter()
+                    .map(|vertex| vec![vertex.lat(), vertex.lng()])
+                    .collect();
+
+                // Convert each [lat, lng] pair into its own Series
+                let inner_series: Vec<Series> = latlng_pairs
+                    .into_iter()
+                    .map(|coords| Series::new(PlSmallStr::from(""), coords))
+                    .collect();
+
+                Series::new(PlSmallStr::from(""), inner_series)
             })
         })
         .collect();

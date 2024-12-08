@@ -1,3 +1,4 @@
+from . import graphing
 from .core.edge import (
     are_neighbor_cells,
     cells_to_directed_edge,
@@ -100,4 +101,5 @@ __all__ = [
     "edge_length",
     "average_hexagon_edge_length",
     "get_num_cells",
+    "graphing",
 ]

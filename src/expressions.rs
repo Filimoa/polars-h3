@@ -312,7 +312,7 @@ fn is_valid_vertex(inputs: &[Series]) -> PolarsResult<Series> {
 fn boundary_list_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
     Ok(Field::new(
         input_fields[0].name.clone(),
-        DataType::List(Box::new(DataType::Float64)),
+        DataType::List(Box::new(DataType::List(Box::new(DataType::Float64)))),
     ))
 }
 
