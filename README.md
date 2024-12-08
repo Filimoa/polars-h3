@@ -135,3 +135,4 @@ display(hex_map)
 hex_map = pl_h3.graphing.plot_hex_fills(df, "h3_cell", "metric_col")
 display(hex_map)
 ```
+![CleanShot 2024-12-08 at 00 26 22](https://github.com/user-attachments/assets/2e707bfc-1a29-43b5-9260-723d776e5dad)
