@@ -20,6 +20,8 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 
 - 📋 **Fully Tested:** Accurately tested against the standard H3 library.
 
+- 🔍 Data Type Agnostic: Supports string and integer H3 indexes natively, eliminating format conversion hassles.
+
 # Get started
 
 You can get started by installing it with pip (or [uv](https://github.com/astral-sh/uv)):
