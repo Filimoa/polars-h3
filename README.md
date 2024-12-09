@@ -13,6 +13,8 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 # Highlights
 
 - 🚀 **Blazing Fast:** Built entirely in Rust, offering lightning-fast, multi-core H3 operations within Polars. Ideal for high-performance data processing.
+  - 10 - 100X faster than h3-py
+  - 2 - 10X faster than H3 DuckDB *(Preliminary Benchmark)*
 
 - 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, covering almost everything the standard H3 library provides, excluding geometric functions.
 
