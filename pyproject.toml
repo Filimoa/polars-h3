@@ -7,7 +7,7 @@ homepage = "https://github.com/Filimonov/polars-h3"
 
 [project]
 name = "polars-h3"  
-version = "0.3.0"  
+version = "0.4.0"  
 description = "H3 bindings for Polars"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -38,6 +38,16 @@ dev = [
     "mypy",
     "h3>=4.1.2",
     "jupyter>=1.1.1",
+]
+
+benchmarking = [
+  "pandas",
+  "h3pandas",
+  "h3ronpy",
+  "duckdb",
+  "pyarrow",
+  "pandas",
+  "h3>=4.1.2",
 ]
 
 [tool.ruff.lint]

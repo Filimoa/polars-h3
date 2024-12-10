@@ -1,19 +1,26 @@
-
-
 <p align="center">
  <img src="https://sergey-filimonov.nyc3.cdn.digitaloceanspaces.com/polars-h3/polars-h3-logo.webp"  />
 </p>
 
-
 This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H3 discrete global grid system](https://github.com/uber/h3/), so you can index points and geometries to hexagons directly in Polars. All credits goes to the [h3o](https://github.com/HydroniumLabs/h3o) for doing the heavy lifting.
+
+<div align="left">
+  <a href="https://pypi.org/project/polars-h3/">
+    <img src="https://img.shields.io/pypi/v/polars-h3.svg" alt="PyPi Latest Release"/>
+  </a>
+</div>
 
 # Highlights
 
-- 🚀 **Blazing Fast:** Built entirely in Rust, offering lightning-fast, multi-core H3 operations within Polars. Ideal for high-performance data processing.
+- 🚀 **Blazing Fast:** Built entirely in Rust, offering vectorized, multi-core H3 operations within Polars. Ideal for high-performance data processing.
+  - 25X faster than [h3-py](https://github.com/uber/h3-py)
+  - 5X faster than [H3 DuckDB](https://github.com/isaacbrodsky/h3-duckdb) *(See [notebook](notebooks/benchmarking.ipynb) for more details)*
 
 - 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, covering almost everything the standard H3 library provides, excluding geometric functions.
 
 - 📋 **Fully Tested:** Accurately tested against the standard H3 library.
+
+- 🔍 **Data Type Agnostic:** Supports string and integer H3 indexes natively, eliminating format conversion hassles.
 
 # Get started
 
@@ -25,7 +32,7 @@ pip install polars-h3
 You can use the extension as a drop-in replacement for the standard H3 functions.
 
 ```python
-import polars_h3 as pl_h3
+import polars_h3 as plh3
 import polars as pl
  
 >>> df = pl.DataFrame(
@@ -34,7 +41,7 @@ import polars as pl
 ...         "long": [-122.4194],
 ...     }
 ... ).with_columns(
-...     pl_h3.latlng_to_cell(
+...     plh3.latlng_to_cell(
 ...         "lat",
 ...         "long",
 ...         resolution=7,
@@ -75,8 +82,8 @@ We are unable to support the functions that work with geometries.
 | `cell_to_lng` | Convert cell ID to longitude | ✅ |
 | `cell_to_latlng` | Convert cell ID to latitude/longitude | ✅ |
 | `get_resolution` | Get resolution number of cell ID | ✅ |
-| `str_to_int` | Convert VARCHAR cell ID to UBIGINT | ✅ |
-| `int_to_str` | Convert BIGINT or UBIGINT cell ID to VARCHAR | ✅ |
+| `str_to_int` | Convert pl.Utf8 cell ID to pl.UInt64 | ✅ |
+| `int_to_str` | Convert pl.UInt64 or pl.Int64 cell ID to pl.Utf8 | ✅ |
 | `is_valid_cell` | True if this is a valid cell ID | ✅ |
 | `is_res_class_iii` | True if the cell's resolution is class III | ✅ |
 | `is_pentagon` | True if the cell is a pentagon | ✅ |
@@ -116,4 +123,29 @@ We are unable to support the functions that work with geometries.
 | `cells_to_multi_polygon_wkt` | Convert a set of cells to multipolygon WKT | 🛑 |
 | `polygon_wkt_to_cells` | Convert polygon WKT to a set of cells | 🛑 |
 | `directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | 🛑 |
+
+
+### Plotting
+
+The library also comes with helper functions to plot hexes on a Folium map.
+
+
+```python
+import polars_h3 as pl_h3
+import polars as pl
+
+hex_map = pl_h3.graphing.plot_hex_outlines(df, "h3_cell")
+display(hex_map)
+
+# or if you have a metric to plot
+
+hex_map = pl_h3.graphing.plot_hex_fills(df, "h3_cell", "metric_col")
+display(hex_map)
+```
+![CleanShot 2024-12-08 at 00 26 22](https://github.com/user-attachments/assets/2e707bfc-1a29-43b5-9260-723d776e5dad)
+
+
+### Development
+
+It's recommended to use [uv](https://github.com/astral-sh/uv) to manage the extension dependencies. If you modify rust code, you will need to run  `uv run maturin develop --uv` to see changes. If you're looking to benchmark the performance of the extension, build the release version with `maturin develop --release --uv` and then run `uv run -m benchmarks.engine` (assuming you have the benchmark dependencies installed). Benchmarking with the development version will lead to misleading results.
 

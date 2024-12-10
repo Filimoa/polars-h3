@@ -26,42 +26,45 @@ pub fn grid_distance(origin_series: &Series, destination_series: &Series) -> Pol
 pub fn grid_ring(cell_series: &Series, k: u32) -> PolarsResult<Series> {
     let original_dtype = cell_series.dtype().clone();
     let cells = parse_cell_indices(cell_series)?;
+    let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
 
-    let rings: ListChunked = cells
+    let ring_results: Vec<Option<Vec<u64>>> = cells
         .into_par_iter()
-        .map(|cell| {
-            cell.map(|idx| {
-                let ring_cells: Vec<u64> = idx
-                    .grid_ring_fast(k)
-                    .filter_map(|opt_cell| opt_cell.map(Into::into))
-                    .collect();
-                Series::new(PlSmallStr::from(""), ring_cells.as_slice())
-            })
-        })
+        .map(|cell| cell.map(|idx| idx.grid_ring_fast(k).flatten().map(Into::into).collect()))
+        .collect();
+
+    let rings: ListChunked = ring_results
+        .into_iter()
+        .map(|opt| opt.map(|rings| Series::new(PlSmallStr::from(""), rings.as_slice())))
         .collect();
 
     let rings_series = rings.into_series();
-    let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
     cast_list_u64_to_dtype(&rings_series, &DataType::UInt64, Some(&target_inner_dtype))
 }
 
 pub fn grid_disk(cell_series: &Series, k: u32) -> PolarsResult<Series> {
     let original_dtype = cell_series.dtype().clone();
     let cells = parse_cell_indices(cell_series)?;
-    let disks: ListChunked = cells
+    let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
+
+    let disk_results: Vec<Option<Vec<u64>>> = cells
         .into_par_iter()
         .map(|cell| {
             cell.map(|idx| {
-                let disk_cells: Vec<_> = CellIndex::grid_disks_fast(vec![idx], k)
-                    .flatten() // Flatten the Option<CellIndex>
-                    .map(Into::<u64>::into) // Convert CellIndex to u64
-                    .collect();
-                Series::new(PlSmallStr::from(""), disk_cells.as_slice())
+                CellIndex::grid_disks_fast(vec![idx], k)
+                    .flatten()
+                    .map(Into::into)
+                    .collect::<Vec<u64>>()
             })
         })
         .collect();
+
+    let disks: ListChunked = disk_results
+        .into_iter()
+        .map(|opt| opt.map(|disk| Series::new(PlSmallStr::from(""), disk.as_slice())))
+        .collect();
+
     let disks_series = disks.into_series();
-    let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
     cast_list_u64_to_dtype(&disks_series, &DataType::UInt64, Some(&target_inner_dtype))
 }
 

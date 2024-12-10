@@ -312,7 +312,7 @@ fn is_valid_vertex(inputs: &[Series]) -> PolarsResult<Series> {
 fn boundary_list_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
     Ok(Field::new(
         input_fields[0].name.clone(),
-        DataType::List(Box::new(DataType::Float64)),
+        DataType::List(Box::new(DataType::List(Box::new(DataType::Float64)))),
     ))
 }
 
@@ -393,11 +393,8 @@ fn get_res0_cells(_inputs: &[Series]) -> PolarsResult<Series> {
 }
 
 #[polars_expr(output_type_func=list_uint64_dtype)]
-fn get_pentagons(_inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
-    let resolution = kwargs
-        .resolution
-        .ok_or_else(|| PolarsError::ComputeError("Resolution required for get_pentagons".into()))?;
-    crate::engine::metrics::get_pentagons(resolution)
+fn get_pentagons(inputs: &[Series]) -> PolarsResult<Series> {
+    crate::engine::metrics::get_pentagons(inputs)
 }
 
 // ADD-ME
