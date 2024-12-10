@@ -393,11 +393,8 @@ fn get_res0_cells(_inputs: &[Series]) -> PolarsResult<Series> {
 }
 
 #[polars_expr(output_type_func=list_uint64_dtype)]
-fn get_pentagons(_inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
-    let resolution = kwargs
-        .resolution
-        .ok_or_else(|| PolarsError::ComputeError("Resolution required for get_pentagons".into()))?;
-    crate::engine::metrics::get_pentagons(resolution)
+fn get_pentagons(inputs: &[Series]) -> PolarsResult<Series> {
+    crate::engine::metrics::get_pentagons(inputs)
 }
 
 // ADD-ME

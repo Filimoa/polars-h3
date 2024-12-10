@@ -18,12 +18,32 @@ pub fn get_res0_cells() -> PolarsResult<Series> {
     Ok(Series::new(PlSmallStr::from(""), cells))
 }
 
-pub fn get_pentagons(resolution: u8) -> PolarsResult<Series> {
-    let pentagons: Vec<u64> = h3o::Resolution::try_from(resolution)
-        .map(|res| res.pentagons().map(|cell| cell.into()).collect())
-        .map_err(|e| PolarsError::ComputeError(format!("Error getting pentagons: {}", e).into()))?;
+pub fn get_pentagons(inputs: &[Series]) -> PolarsResult<Series> {
+    let resolutions = inputs[0].u8()?;
+    let mut builder = ListPrimitiveChunkedBuilder::<UInt64Type>::new(
+        PlSmallStr::from("pentagons"),
+        resolutions.len(),
+        resolutions.len() * 12,
+        DataType::UInt64,
+    );
 
-    Ok(Series::new(PlSmallStr::from(""), pentagons))
+    for res_opt in resolutions.into_iter() {
+        match res_opt {
+            Some(res) => {
+                let pentagons: Vec<u64> = h3o::Resolution::try_from(res)
+                    .map_err(|e| {
+                        PolarsError::ComputeError(format!("Error getting pentagons: {}", e).into())
+                    })?
+                    .pentagons()
+                    .map(|cell| cell.into())
+                    .collect();
+                builder.append_slice(&pentagons);
+            },
+            None => builder.append_null(),
+        }
+    }
+
+    Ok(builder.finish().into_series())
 }
 
 pub fn cell_area(cell_series: &Series, unit: &str) -> PolarsResult<Series> {
