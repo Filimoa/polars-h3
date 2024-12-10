@@ -82,8 +82,8 @@ We are unable to support the functions that work with geometries.
 | `cell_to_lng` | Convert cell ID to longitude | ✅ |
 | `cell_to_latlng` | Convert cell ID to latitude/longitude | ✅ |
 | `get_resolution` | Get resolution number of cell ID | ✅ |
-| `str_to_int` | Convert VARCHAR cell ID to UBIGINT | ✅ |
-| `int_to_str` | Convert BIGINT or UBIGINT cell ID to VARCHAR | ✅ |
+| `str_to_int` | Convert pl.Utf8 cell ID to pl.UInt64 | ✅ |
+| `int_to_str` | Convert pl.UInt64 or pl.Int64 cell ID to pl.Utf8 | ✅ |
 | `is_valid_cell` | True if this is a valid cell ID | ✅ |
 | `is_res_class_iii` | True if the cell's resolution is class III | ✅ |
 | `is_pentagon` | True if the cell is a pentagon | ✅ |
