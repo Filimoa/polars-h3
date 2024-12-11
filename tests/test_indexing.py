@@ -45,6 +45,14 @@ def test_latlng_to_cell_invalid_resolution(input_lat, input_lng, resolution):
         )
 
 
+def test_latlng_to_cell_missing_lat_lng():
+    df = pl.DataFrame({"lat": [None], "lng": [None]})
+    with pytest.raises(pl.exceptions.ComputeError):
+        df.with_columns(
+            h3_cell=polars_h3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64)
+        )
+
+
 @pytest.mark.parametrize(
     "input_lat,input_lng",
     [

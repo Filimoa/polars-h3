@@ -7,10 +7,11 @@ Utility script to benchmark the performance of the H3 Polars extension.
 - Attempted to also benchmark H3-Pandas, but project appears to be abandoned and doesn't work with h3 >= 4.0.0.
 """
 
-import json
 import random
+import statistics
 import time
-from dataclasses import asdict, dataclass, field
+from collections import defaultdict
+from dataclasses import dataclass, field
 from typing import Literal
 
 import duckdb
@@ -33,8 +34,10 @@ Difficulty = Literal[
 class BenchmarkResult:
     library: Library
     name: str
-    seconds: float
+    avg_seconds: float
     num_rows: int
+    num_iterations: int
+    std_seconds: float = 0.0
 
     @property
     def num_rows_human(self) -> str:
@@ -46,9 +49,10 @@ class BenchmarkResult:
             return f"{self.num_rows / 1_000_000:,.0f}M"
 
     def __repr__(self) -> str:
-        return (
-            f"{self.library}::{self.name}::{self.num_rows_human} = {self.seconds:.2f}s"
-        )
+        if self.num_iterations == 0:
+            return f"{self.library}::{self.name}::{self.num_rows_human} = {self.avg_seconds:.2f}s"
+        else:
+            return f"{self.library}::{self.name}::{self.num_rows_human} = {self.avg_seconds:.2f}s ± {self.std_seconds:.2f}s"
 
 
 @dataclass
@@ -276,10 +280,11 @@ class Benchmark:
             for library in libraries:
                 func = config["funcs"][library]
 
-                start = time.perf_counter()
+                perf_times = []
                 for _ in range(self.config.num_iterations):
+                    start = time.perf_counter()
                     result_df = func(df.head(num_rows))
-                end = time.perf_counter()
+                    perf_times.append(time.perf_counter() - start)
 
                 if self.config.verbose:
                     print(f"Library: {library}")
@@ -290,8 +295,12 @@ class Benchmark:
                     BenchmarkResult(
                         name=func_name,
                         library=library,  # type: ignore
-                        seconds=(end - start),
+                        avg_seconds=statistics.mean(perf_times),
+                        std_seconds=statistics.stdev(perf_times)
+                        if len(perf_times) > 1
+                        else 0,
                         num_rows=num_rows,
+                        num_iterations=self.config.num_iterations,
                     )
                 )
             print("done...")
@@ -644,19 +653,45 @@ class Benchmark:
         )
 
 
+def _pretty_print_avg_results(results: list[BenchmarkResult]):
+    by_name = defaultdict(list)
+
+    for d in results:
+        by_name[d.name].append(d)
+
+    multiples = []
+    for speeds in by_name.values():
+        fastest = min(v.avg_seconds for v in speeds)
+        for v in speeds:
+            multiples.append((v.library, v.avg_seconds / fastest))
+
+    by_lib = defaultdict(list)
+    for lib, mult in multiples:
+        by_lib[lib].append(mult)
+
+    median_by_lib = {lib: round(statistics.median(ms), 2) for lib, ms in by_lib.items()}
+    avg_by_lib = {lib: round(sum(ms) / len(ms), 2) for lib, ms in by_lib.items()}
+
+    print("\n\n======= Benchmark Final Results =======\n")
+    print(f"{'Library':<10} {'Median':<8} {'Average':<8}")
+    print("-" * 26)
+    for lib in median_by_lib:
+        print(f"{lib:<10} {median_by_lib[lib]:<8} {avg_by_lib[lib]:<8}")
+
+
 if __name__ == "__main__":
     fast_factor = 1
     param_config = ParamConfig(
         resolution=9,
         grid_ring_distance=3,
-        num_iterations=1,
+        num_iterations=3,
         libraries="all",
         difficulty_to_num_rows={
             "basic": 10_000_000 // fast_factor,
             "medium": 10_000_000 // fast_factor,
             "complex": 100_000 // fast_factor,
         },
-        functions=["latlng_to_cell"],
+        # functions=["latlng_to_cell"],
         # verbose=True,
     )
     benchmark = Benchmark(config=param_config)
@@ -664,9 +699,14 @@ if __name__ == "__main__":
     prev_func = None
     for result in results:
         if prev_func != result.name:
-            print(f"\n{result.name}")
+            print(f"\n{result.name} (num_iterations={param_config.num_iterations})")
             prev_func = result.name
         print(result)
+
+    _pretty_print_avg_results(results)
+
+    import json
+    from dataclasses import asdict
 
     if param_config.functions == "all":
         with open("benchmarks/benchmarks-results.json", "w") as f:

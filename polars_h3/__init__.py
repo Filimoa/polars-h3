@@ -41,6 +41,7 @@ from .core.metrics import (
     cell_area,
     edge_length,
     get_num_cells,
+    get_pentagons,
     great_circle_distance,
 )
 from .core.traversal import (
@@ -97,6 +98,7 @@ __all__ = [
     "directed_edge_to_boundary",
     "great_circle_distance",
     "average_hexagon_area",
+    "get_pentagons",
     "cell_area",
     "edge_length",
     "average_hexagon_edge_length",
