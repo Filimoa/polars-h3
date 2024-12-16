@@ -13,3 +13,4 @@ playground.ipynb
 *.vscode
 
 benchmarks/benchmarks-results.json
+notebooks/sample-data

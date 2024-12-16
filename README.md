@@ -61,6 +61,8 @@ shape: (1, 3)
 
 Check out the [quickstart notebook](notebooks/quickstart.ipynb) for more examples.
 
+You can also find the advanced notebooks [here](notebooks/).
+
 # Implemented functions
 
 This extension implements most of the [H3 API](https://h3geo.org/docs/api/indexing). The full list of functions is below.

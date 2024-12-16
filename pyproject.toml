@@ -33,7 +33,7 @@ ignore_missing_imports = true
 [dependency-groups]
 dev = [
     "maturin",
-    "ruff",
+    "ruff==0.8.3",
     "pytest",
     "mypy",
     "h3>=4.1.2",
