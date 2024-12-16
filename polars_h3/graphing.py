@@ -80,11 +80,15 @@ def plot_hex_outlines(
             height="50%" if map_size == "medium" else "100%",
         )
 
-    df = df.with_columns(
-        [
-            cell_to_boundary(pl.col(hex_id_col)).alias("boundary"),
-        ]
-    ).filter(pl.col("boundary").is_not_null())
+    df = (
+        df.drop_nulls(subset=[hex_id_col])
+        .with_columns(
+            [
+                cell_to_boundary(pl.col(hex_id_col)).alias("boundary"),
+            ]
+        )
+        .filter(pl.col("boundary").is_not_null())
+    )
 
     for hex_cord in df["boundary"].to_list():
         folium.Polygon(locations=hex_cord, weight=5, color=outline_color).add_to(map)
@@ -141,12 +145,16 @@ def plot_hex_fills(
             height="50%" if map_size == "medium" else "100%",
         )
 
-    df = df.with_columns(
-        [
-            cell_to_boundary(pl.col(hex_id_col)).alias("boundary"),
-            pl.col(metric_col).log1p().alias("normalized_metric"),
-        ]
-    ).filter(pl.col("boundary").is_not_null())
+    df = (
+        df.drop_nulls(subset=[hex_id_col, metric_col])
+        .with_columns(
+            [
+                cell_to_boundary(pl.col(hex_id_col)).alias("boundary"),
+                pl.col(metric_col).log1p().alias("normalized_metric"),
+            ]
+        )
+        .filter(pl.col("boundary").is_not_null())
+    )
 
     hexagons = df[hex_id_col].to_list()
     metrics = df[metric_col].to_list()
@@ -180,7 +188,7 @@ def plot_hex_fills(
             fill_color=color,
             color=color,
             weight=1,
-            tooltip=f"{hexagon}<br>Value: {metric}",
+            tooltip=f"Hex: {hexagon}<br>{metric_col}: {metric}",
         ).add_to(map)
 
     map_bounds = _hex_bounds(df, "boundary")
