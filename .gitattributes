@@ -1,2 +1,2 @@
 *.ipynb linguist-detectable=false
-*test_*.py linguist-documentation=false
+**/tests/** linguist-documentation=false
