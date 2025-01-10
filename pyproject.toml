@@ -19,12 +19,9 @@ classifiers = [
 ]
 authors = [
   {name = "Sergey Filimonov", email = "hello@sergey.fyi"}, 
-  { name="Lev Ostatnigrosh", email="levostatnigrosh@gmail.com" }
 ]
 
-dependencies = [
-    "polars",
-]
+dependencies = []
 
 [[tool.mypy.overrides]]
 module = "polars.utils.udfs"
