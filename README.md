@@ -18,7 +18,7 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 
 - 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, covering almost everything the standard H3 library provides, excluding geometric functions.
 
-- 📋 **Fully Tested:** Accurately tested against the standard H3 library.
+- 📋 **Fully Tested:** Thoroughly tested against the standard H3 library.
 
 - 🔍 **Data Type Agnostic:** Supports string and integer H3 indexes natively, eliminating format conversion hassles.
 
@@ -61,7 +61,7 @@ shape: (1, 3)
 
 Check out the [quickstart notebook](notebooks/quickstart.ipynb) for more examples.
 
-You can also find the advanced notebooks [here](notebooks/).
+🌟 You can also find the advanced notebooks [here](notebooks/).
 
 # Implemented functions
 
@@ -133,15 +133,15 @@ The library also comes with helper functions to plot hexes on a Folium map.
 
 
 ```python
-import polars_h3 as pl_h3
+import polars_h3 as plh3
 import polars as pl
 
-hex_map = pl_h3.graphing.plot_hex_outlines(df, "h3_cell")
+hex_map = plh3.graphing.plot_hex_outlines(df, "h3_cell")
 display(hex_map)
 
 # or if you have a metric to plot
 
-hex_map = pl_h3.graphing.plot_hex_fills(df, "h3_cell", "metric_col")
+hex_map = plh3.graphing.plot_hex_fills(df, "h3_cell", "metric_col")
 display(hex_map)
 ```
 ![CleanShot 2024-12-08 at 00 26 22](https://github.com/user-attachments/assets/2e707bfc-1a29-43b5-9260-723d776e5dad)
