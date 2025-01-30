@@ -65,7 +65,7 @@ Check out the [quickstart notebook](notebooks/quickstart.ipynb) for more example
 
 # Implemented functions
 
-This extension implements most of the [H3 API](https://h3geo.org/docs/api/indexing). The full list of functions is below.
+This extension implements most of the [H3 API](https://h3geo.org/docs/api/indexing). The full list of functions is below - you can find full docs [here](https://filimoa.github.io/open-parse).
 
 > ⚠️ **Performance Note:** When possible, prefer using `pl.UInt64` for H3 indices instead of the `pl.Utf8` representation. String representations require casting operations which impact performance. Working directly with the native 64-bit integer format provides better computational efficiency.
 
@@ -125,7 +125,6 @@ We are unable to support the functions that work with geometries.
 | `cells_to_multi_polygon_wkt` | Convert a set of cells to multipolygon WKT | 🛑 |
 | `polygon_wkt_to_cells` | Convert polygon WKT to a set of cells | 🛑 |
 | `directed_edge_to_boundary_wkt` | Convert directed edge ID to linestring WKT | 🛑 |
-
 
 ### Plotting
 
