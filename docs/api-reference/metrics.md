@@ -7,7 +7,7 @@
 Compute the Haversine distance between two latitude/longitude pairs.
 
 ```python
-polars_h3.great_circle_distance(
+plh3.great_circle_distance(
     s_lat_deg: IntoExprColumn,
     s_lng_deg: IntoExprColumn,
     e_lat_deg: IntoExprColumn,
@@ -47,7 +47,7 @@ df = pl.DataFrame({
     "end_lng": [-74.0060],
 })
 df.with_columns(
-    distance=polars_h3.great_circle_distance(
+    distance=plh3.great_circle_distance(
         "start_lat", "start_lng", "end_lat", "end_lng", unit="km"
     )
 )
@@ -60,7 +60,7 @@ df.with_columns(
 Return the average area of an H3 hexagon at a given resolution.
 
 ```python
-polars_h3.average_hexagon_area(
+plh3.average_hexagon_area(
     resolution: IntoExprColumn,
     unit: Literal["km^2", "m^2"] = "km^2"
 ) -> pl.Expr
@@ -83,7 +83,7 @@ polars_h3.average_hexagon_area(
 ```python
 df = pl.DataFrame({"resolution": [5]})
 df.with_columns(
-    area=polars_h3.average_hexagon_area("resolution", "km^2")
+    area=plh3.average_hexagon_area("resolution", "km^2")
 )
 ```
 
@@ -94,7 +94,7 @@ df.with_columns(
 Get the area of a specific H3 cell.
 
 ```python
-polars_h3.cell_area(
+plh3.cell_area(
     cell: IntoExprColumn,
     unit: Literal["km^2", "m^2"] = "km^2"
 ) -> pl.Expr
@@ -121,7 +121,7 @@ _Note:_ This function calls into a plugin that is elementwise. For invalid input
 Determine the length of an H3 edge cell.
 
 ```python
-polars_h3.edge_length(
+plh3.edge_length(
     cell: IntoExprColumn,
     unit: Literal["km", "m"] = "km"
 ) -> pl.Expr
@@ -148,7 +148,7 @@ polars_h3.edge_length(
 Get the average edge length of H3 hexagons at a specific resolution.
 
 ```python
-polars_h3.average_hexagon_edge_length(
+plh3.average_hexagon_edge_length(
     resolution: IntoExprColumn,
     unit: Literal["km", "m"] = "km"
 ) -> pl.Expr
@@ -171,7 +171,7 @@ polars_h3.average_hexagon_edge_length(
 ```python
 df = pl.DataFrame({"resolution": [1]})
 df.with_columns(
-    length=polars_h3.average_hexagon_edge_length("resolution", "km")
+    length=plh3.average_hexagon_edge_length("resolution", "km")
 )
 ```
 
@@ -182,7 +182,7 @@ df.with_columns(
 Get the total number of H3 cells at a given resolution.
 
 ```python
-polars_h3.get_num_cells(
+plh3.get_num_cells(
     resolution: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -202,7 +202,7 @@ polars_h3.get_num_cells(
 ```python
 df = pl.DataFrame({"resolution": [5]})
 df.with_columns(
-    count=polars_h3.get_num_cells("resolution")
+    count=plh3.get_num_cells("resolution")
 )
 ```
 
@@ -213,7 +213,7 @@ df.with_columns(
 Get the number of pentagons at a given resolution.
 
 ```python
-polars_h3.get_pentagons(
+plh3.get_pentagons(
     resolution: IntoExprColumn
 ) -> pl.Expr
 ```

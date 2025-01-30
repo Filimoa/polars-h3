@@ -9,7 +9,7 @@ These functions are used for finding the H3 cell index containing coordinates, a
 Convert latitude/longitude coordinates to H3 cell indices.
 
 ```python
-polars_h3.latlng_to_cell(
+plh3.latlng_to_cell(
     lat: IntoExprColumn,
     lng: IntoExprColumn,
     resolution: HexResolution,
@@ -41,7 +41,7 @@ polars_h3.latlng_to_cell(
 ...     "lng": [-122.418307270836]
 ... })
 >>> df.with_columns(
-...     h3_cell=polars_h3.latlng_to_cell("lat", "lng", resolution=9, return_dtype=pl.Utf8)
+...     h3_cell=plh3.latlng_to_cell("lat", "lng", resolution=9, return_dtype=pl.Utf8)
 ... )
 shape: (1, 3)
 ┌──────────────────┬────────────────────┬──────────────────┐
@@ -54,7 +54,7 @@ shape: (1, 3)
 
 >>> # Using integer output
 >>> df.with_columns(
-...     h3_cell=polars_h3.latlng_to_cell("lat", "lng", resolution=1, return_dtype=pl.UInt64)
+...     h3_cell=plh3.latlng_to_cell("lat", "lng", resolution=1, return_dtype=pl.UInt64)
 ... )
 shape: (1, 3)
 ┌─────────┬──────────┬─────────────────────┐
@@ -78,7 +78,7 @@ shape: (1, 3)
 Extract the latitude coordinate from H3 cell indices.
 
 ```python
-polars_h3.cell_to_lat(
+plh3.cell_to_lat(
     cell: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -100,8 +100,8 @@ polars_h3.cell_to_lat(
 ...     "h3_cell": ["85283473fffffff"]
 ... })
 >>> df.with_columns(
-...     lat=polars_h3.cell_to_lat("h3_cell"),
-...     lng=polars_h3.cell_to_lng("h3_cell")
+...     lat=plh3.cell_to_lat("h3_cell"),
+...     lng=plh3.cell_to_lng("h3_cell")
 ... )
 shape: (1, 3)
 ┌──────────────────┬─────────────────┬───────────────────┐
@@ -115,8 +115,8 @@ shape: (1, 3)
 >>> # Works with integer representation too
 >>> df = pl.DataFrame({"h3_cell": [599686042433355775]}, schema={"h3_cell": pl.UInt64})
 >>> df.with_columns(
-...     lat=polars_h3.cell_to_lat("h3_cell"),
-...     lng=polars_h3.cell_to_lng("h3_cell")
+...     lat=plh3.cell_to_lat("h3_cell"),
+...     lng=plh3.cell_to_lng("h3_cell")
 ... )
 shape: (1, 3)
 ┌─────────────────────┬─────────────────┬───────────────────┐
@@ -135,7 +135,7 @@ shape: (1, 3)
 Extract the longitude coordinate from H3 cell indices.
 
 ```python
-polars_h3.cell_to_lng(
+plh3.cell_to_lng(
     cell: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -157,8 +157,8 @@ polars_h3.cell_to_lng(
 ...     "h3_cell": ["85283473fffffff"]
 ... })
 >>> df.with_columns(
-...     lat=polars_h3.cell_to_lat("h3_cell"),
-...     lng=polars_h3.cell_to_lng("h3_cell")
+...     lat=plh3.cell_to_lat("h3_cell"),
+...     lng=plh3.cell_to_lng("h3_cell")
 ... )
 shape: (1, 3)
 ┌──────────────────┬─────────────────┬───────────────────┐
@@ -172,8 +172,8 @@ shape: (1, 3)
 >>> # Works with integer representation too
 >>> df = pl.DataFrame({"h3_cell": [599686042433355775]}, schema={"h3_cell": pl.UInt64})
 >>> df.with_columns(
-...     lat=polars_h3.cell_to_lat("h3_cell"),
-...     lng=polars_h3.cell_to_lng("h3_cell")
+...     lat=plh3.cell_to_lat("h3_cell"),
+...     lng=plh3.cell_to_lng("h3_cell")
 ... )
 shape: (1, 3)
 ┌─────────────────────┬─────────────────┬───────────────────┐
@@ -192,7 +192,7 @@ shape: (1, 3)
 Convert H3 cells into a list of `[latitude, longitude]`.
 
 ```python
-polars_h3.cell_to_latlng(
+plh3.cell_to_latlng(
     cell: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -211,7 +211,7 @@ polars_h3.cell_to_latlng(
 
 ```python
 >>> df = pl.DataFrame({"cell": ["85283473fffffff"]})
->>> df.select(polars_h3.cell_to_latlng("cell"))
+>>> df.select(plh3.cell_to_latlng("cell"))
 shape: (1, 1)
 ┌─────────────────────────┐
 │ cell_to_latlng          │
@@ -223,8 +223,8 @@ shape: (1, 1)
 
 >>> # Easily extract lat/lng as separate columns:
 >>> df.select([
-...     polars_h3.cell_to_latlng("cell").arr.get(0).alias("lat"),
-...     polars_h3.cell_to_latlng("cell").arr.get(1).alias("lng"),
+...     plh3.cell_to_latlng("cell").arr.get(0).alias("lat"),
+...     plh3.cell_to_latlng("cell").arr.get(1).alias("lng"),
 ... ])
 shape: (1, 2)
 ┌───────────┬───────────┐
@@ -247,7 +247,7 @@ shape: (1, 2)
 Convert an H3 cell index into its local IJ coordinates relative to a given origin.
 
 ```python
-polars_h3.cell_to_local_ij(
+plh3.cell_to_local_ij(
     cell: IntoExprColumn,
     origin: IntoExprColumn
 ) -> pl.Expr
@@ -272,7 +272,7 @@ polars_h3.cell_to_local_ij(
 ...     "origin": [599686042433355775],
 ...     "cell": [599686042433355776]
 ... })
->>> df.select(polars_h3.cell_to_local_ij("cell", "origin"))
+>>> df.select(plh3.cell_to_local_ij("cell", "origin"))
 shape: (1, 1)
 ┌────────────────┐
 │ cell_to_local_ij│
@@ -294,7 +294,7 @@ shape: (1, 1)
 Convert local IJ coordinates back into an H3 cell index using a given origin.
 
 ```python
-polars_h3.local_ij_to_cell(
+plh3.local_ij_to_cell(
     origin: IntoExprColumn,
     i: IntoExprColumn,
     j: IntoExprColumn
@@ -323,7 +323,7 @@ polars_h3.local_ij_to_cell(
 ...     "i": [0],
 ...     "j": [1]
 ... })
->>> df.select(polars_h3.local_ij_to_cell("origin", "i", "j"))
+>>> df.select(plh3.local_ij_to_cell("origin", "i", "j"))
 shape: (1, 1)
 ┌─────────────────┐
 │ local_ij_to_cell│
@@ -345,7 +345,7 @@ shape: (1, 1)
 Retrieve the polygon boundary coordinates of the given H3 cell.
 
 ```python
-polars_h3.cell_to_boundary(
+plh3.cell_to_boundary(
     cell: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -366,7 +366,7 @@ polars_h3.cell_to_boundary(
 >>> df = pl.DataFrame({
 ...     "cell": ["8a1fb464492ffff"]
 ... })
->>> df.select(polars_h3.cell_to_boundary("cell"))
+>>> df.select(plh3.cell_to_boundary("cell"))
 shape: (1, 1)
 ┌────────────────────────────────────┐
 │ cell_to_boundary                  │

@@ -16,9 +16,6 @@ jobs:
       # Install uv and enable caching
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          cache-dependency-glob: "requirements-docs.txt"
 
       - name: Configure Git Credentials
         run: |

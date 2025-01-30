@@ -9,7 +9,7 @@ These functions provide metadata about an H3 index, such as its resolution or ba
 Retrieve the resolution of H3 indices (cells, edges, or vertices).
 
 ```python
-polars_h3.get_resolution(
+plh3.get_resolution(
     expr: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -31,7 +31,7 @@ polars_h3.get_resolution(
 ...     "h3_cell": [599686042433355775]
 ... })
 >>> df.with_columns(
-...     resolution=polars_h3.get_resolution("h3_cell")
+...     resolution=plh3.get_resolution("h3_cell")
 ... )
 shape: (1, 2)
 ┌─────────────────────┬────────────┐
@@ -50,7 +50,7 @@ shape: (1, 2)
 Convert string H3 indices into their unsigned 64-bit integer representation.
 
 ```python
-polars_h3.str_to_int(
+plh3.str_to_int(
     expr: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -72,7 +72,7 @@ polars_h3.str_to_int(
 ...     "h3_str": ["85283473fffffff", "invalid_index"]
 ... })
 >>> df.with_columns(
-...     h3_int=polars_h3.str_to_int("h3_str")
+...     h3_int=plh3.str_to_int("h3_str")
 ... )
 shape: (2, 2)
 ┌──────────────────┬─────────────────────┐
@@ -92,7 +92,7 @@ shape: (2, 2)
 Convert integer H3 indices into their string representation.
 
 ```python
-polars_h3.int_to_str(
+plh3.int_to_str(
     expr: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -114,7 +114,7 @@ polars_h3.int_to_str(
 ...     "h3_int": [599686042433355775, -1]
 ... })
 >>> df.with_columns(
-...     h3_str=polars_h3.int_to_str("h3_int")
+...     h3_str=plh3.int_to_str("h3_int")
 ... )
 shape: (2, 2)
 ┌─────────────────────┬──────────────────┐
@@ -134,7 +134,7 @@ shape: (2, 2)
 Check if H3 cell indices are valid.
 
 ```python
-polars_h3.is_valid_cell(
+plh3.is_valid_cell(
     expr: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -156,7 +156,7 @@ polars_h3.is_valid_cell(
 ...     "h3_cell": ["85283473fffffff", "invalid_cell"]
 ... })
 >>> df.with_columns(
-...     valid=polars_h3.is_valid_cell("h3_cell")
+...     valid=plh3.is_valid_cell("h3_cell")
 ... )
 shape: (2, 2)
 ┌─────────────────────┬───────┐
@@ -176,7 +176,7 @@ shape: (2, 2)
 Determine if H3 cells are pentagons.
 
 ```python
-polars_h3.is_pentagon(
+plh3.is_pentagon(
     expr: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -198,7 +198,7 @@ polars_h3.is_pentagon(
 ...     "h3_cell": [585961082523222015, 599686042433355775]
 ... })
 >>> df.with_columns(
-...     is_pent=polars_h3.is_pentagon("h3_cell")
+...     is_pent=plh3.is_pentagon("h3_cell")
 ... )
 shape: (2, 2)
 ┌─────────────────────┬─────────┐
@@ -218,7 +218,7 @@ shape: (2, 2)
 Check if H3 cells belong to the Class III resolution set.
 
 ```python
-polars_h3.is_res_class_III(
+plh3.is_res_class_III(
     expr: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -240,7 +240,7 @@ polars_h3.is_res_class_III(
 ...     "h3_cell": [582692784209657855, 586265647244115967]
 ... })
 >>> df.with_columns(
-...     is_class_3=polars_h3.is_res_class_III("h3_cell")
+...     is_class_3=plh3.is_res_class_III("h3_cell")
 ... )
 shape: (2, 2)
 ┌─────────────────────┬────────────┐
@@ -260,7 +260,7 @@ shape: (2, 2)
 Retrieve the icosahedron faces intersected by an H3 cell.
 
 ```python
-polars_h3.get_icosahedron_faces(
+plh3.get_icosahedron_faces(
     expr: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -282,7 +282,7 @@ polars_h3.get_icosahedron_faces(
 ...     "h3_cell": [599686042433355775]
 ... })
 >>> df.with_columns(
-...     faces=polars_h3.get_icosahedron_faces("h3_cell")
+...     faces=plh3.get_icosahedron_faces("h3_cell")
 ... )
 shape: (1, 2)
 ┌─────────────────────┬─────────┐
@@ -301,7 +301,7 @@ shape: (1, 2)
 Retrieve the parent cell of a given H3 cell at a specified resolution.
 
 ```python
-polars_h3.cell_to_parent(
+plh3.cell_to_parent(
     cell: IntoExprColumn,
     resolution: HexResolution
 ) -> pl.Expr
@@ -324,7 +324,7 @@ polars_h3.cell_to_parent(
 ```python
 >>> df = pl.DataFrame({"h3_cell": [599686042433355775]})
 >>> df.with_columns(
-...     parent=polars_h3.cell_to_parent("h3_cell", 1)
+...     parent=plh3.cell_to_parent("h3_cell", 1)
 ... )
 shape: (1, 2)
 ┌─────────────────────┬─────────────────────┐
@@ -343,7 +343,7 @@ shape: (1, 2)
 Retrieve the center child cell of an H3 cell at a specified resolution.
 
 ```python
-polars_h3.cell_to_center_child(
+plh3.cell_to_center_child(
     cell: IntoExprColumn,
     resolution: HexResolution
 ) -> pl.Expr
@@ -365,7 +365,7 @@ polars_h3.cell_to_center_child(
 ```python
 >>> df = pl.DataFrame({"h3_cell": [582692784209657855]})
 >>> df.with_columns(
-...     center_child=polars_h3.cell_to_center_child("h3_cell", 2)
+...     center_child=plh3.cell_to_center_child("h3_cell", 2)
 ... )
 shape: (1, 2)
 ┌─────────────────────┬─────────────────┐
@@ -384,7 +384,7 @@ shape: (1, 2)
 Get the number of children cells at a specified resolution.
 
 ```python
-polars_h3.cell_to_children_size(
+plh3.cell_to_children_size(
     cell: IntoExprColumn,
     resolution: HexResolution
 ) -> pl.Expr
@@ -406,7 +406,7 @@ polars_h3.cell_to_children_size(
 ```python
 >>> df = pl.DataFrame({"h3_cell": [582692784209657855]})
 >>> df.with_columns(
-...     num_children=polars_h3.cell_to_children_size("h3_cell", 2)
+...     num_children=plh3.cell_to_children_size("h3_cell", 2)
 ... )
 shape: (1, 2)
 ┌─────────────────────┬──────────────┐
@@ -425,7 +425,7 @@ shape: (1, 2)
 Retrieve all children cells of an H3 cell at a specified resolution.
 
 ```python
-polars_h3.cell_to_children(
+plh3.cell_to_children(
     cell: IntoExprColumn,
     resolution: HexResolution
 ) -> pl.Expr
@@ -447,7 +447,7 @@ polars_h3.cell_to_children(
 ```python
 >>> df = pl.DataFrame({"h3_cell": [582692784209657855]})
 >>> df.with_columns(
-...     children=polars_h3.cell_to_children("h3_cell", 2)
+...     children=plh3.cell_to_children("h3_cell", 2)
 ... )
 shape: (1, 2)
 ┌─────────────────────┬───────────────────────────────────┐
@@ -455,7 +455,7 @@ shape: (1, 2)
 │ ---                 │ ---                               │
 │ u64                 │ list[u64]                         │
 ╞═════════════════════╪═══════════════════════════════════╡
-│ 582692784209657855  │ [...]                             │
+│ 582692784209657855  │ [587192535546331135, ...]         │
 └─────────────────────┴───────────────────────────────────┘
 ```
 
@@ -466,7 +466,7 @@ shape: (1, 2)
 Get the position index of a child cell within its parent cell hierarchy.
 
 ```python
-polars_h3.cell_to_child_pos(
+plh3.cell_to_child_pos(
     cell: IntoExprColumn,
     resolution: HexResolution
 ) -> pl.Expr
@@ -486,9 +486,9 @@ polars_h3.cell_to_child_pos(
 **Examples**
 
 ```python
->>> df = pl.DataFrame({"h3_cell": [599686042433355776]})
+>>> df = pl.DataFrame({"h3_cell": [582692784209657855]})
 >>> df.with_columns(
-...     child_pos=polars_h3.cell_to_child_pos("h3_cell", 2)
+...     child_pos=plh3.cell_to_child_pos("h3_cell", 2)
 ... )
 shape: (1, 2)
 ┌─────────────────────┬───────────┐
@@ -496,7 +496,7 @@ shape: (1, 2)
 │ ---                 │ ---       │
 │ u64                 │ u64       │
 ╞═════════════════════╪═══════════╡
-│ 599686042433355776  │ ...       │
+│ 582692784209657855  │ 0       │
 └─────────────────────┴───────────┘
 ```
 
@@ -507,7 +507,7 @@ shape: (1, 2)
 Obtain the child cell at a given position index for a specified parent cell and resolution.
 
 ```python
-polars_h3.child_pos_to_cell(
+plh3.child_pos_to_cell(
     parent: IntoExprColumn,
     pos: IntoExprColumn,
     resolution: HexResolution
@@ -535,7 +535,7 @@ polars_h3.child_pos_to_cell(
 ...     "pos": [0]
 ... })
 >>> df.with_columns(
-...     child=polars_h3.child_pos_to_cell("parent", "pos", 2)
+...     child=plh3.child_pos_to_cell("parent", "pos", 2)
 ... )
 shape: (1, 2)
 ┌─────────────────────┬──────────┐
@@ -554,7 +554,7 @@ shape: (1, 2)
 Compact a set of H3 cells into a minimal covering set.
 
 ```python
-polars_h3.compact_cells(
+plh3.compact_cells(
     cells: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -576,16 +576,16 @@ polars_h3.compact_cells(
 ...     "h3_cells": [[599686042433355775, 599686042433355776]]
 ... })
 >>> df.with_columns(
-...     compact=polars_h3.compact_cells("h3_cells")
+...     compact=plh3.compact_cells("h3_cells")
 ... )
 shape: (1, 2)
-┌────────────────────────────────────┬────────────────────────────────┐
-│ h3_cells                         │ compact                        │
+┌───────────────────────────────────┬────────────────────────────────┐
+│ h3_cells                          │ compact                        │
 │ ---                               │ ---                            │
 │ list[u64]                         │ list[u64]                      │
 ╞═══════════════════════════════════╪════════════════════════════════╡
-│ [599686042433355775, 5996860424…]│ [...]                          │
-└────────────────────────────────────┴────────────────────────────────┘
+│ [599686042433355775, 5996860424…] │ [599686042433355775]           │
+└───────────────────────────────────┴────────────────────────────────┘
 ```
 
 ---
@@ -595,7 +595,7 @@ shape: (1, 2)
 Uncompact a set of H3 cells to the specified resolution.
 
 ```python
-polars_h3.uncompact_cells(
+plh3.uncompact_cells(
     cells: IntoExprColumn,
     resolution: HexResolution
 ) -> pl.Expr
@@ -619,7 +619,7 @@ polars_h3.uncompact_cells(
 ...     "compact_cells": [[582692784209657855]]
 ... })
 >>> df.with_columns(
-...     full_set=polars_h3.uncompact_cells("compact_cells", 2)
+...     full_set=plh3.uncompact_cells("compact_cells", 2)
 ... )
 shape: (1, 2)
 ┌──────────────────────┬────────────────────────────────┐
@@ -627,7 +627,7 @@ shape: (1, 2)
 │ ---                  │ ---                            │
 │ list[u64]            │ list[u64]                      │
 ╞══════════════════════╪════════════════════════════════╡
-│ [582692784209657855] │ [...]                          │
+│ [582692784209657855] │ [587192535546331135, ...]      │
 └──────────────────────┴────────────────────────────────┘
 ```
 

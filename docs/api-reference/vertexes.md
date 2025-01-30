@@ -9,7 +9,7 @@ Vertex mode allows encoding the topological vertexes of H3 cells.
 Retrieve the H3 vertex index for a specific vertex of a given cell.
 
 ```python
-polars_h3.cell_to_vertex(
+plh3.cell_to_vertex(
     cell: IntoExprColumn,
     vertex_num: int
 ) -> pl.Expr
@@ -31,7 +31,7 @@ polars_h3.cell_to_vertex(
 
 ```python
 >>> df = pl.DataFrame({"h3_cell": [599686042433355775]})
->>> df.with_columns(vertex=polars_h3.cell_to_vertex("h3_cell", 0))
+>>> df.with_columns(vertex=plh3.cell_to_vertex("h3_cell", 0))
 shape: (1, 2)
 ┌─────────────────────┬─────────────────────┐
 │ h3_cell             │ vertex              │
@@ -53,7 +53,7 @@ shape: (1, 2)
 Retrieve all vertex indices for a given H3 cell.
 
 ```python
-polars_h3.cell_to_vertexes(
+plh3.cell_to_vertexes(
     cell: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -72,7 +72,7 @@ polars_h3.cell_to_vertexes(
 
 ```python
 >>> df = pl.DataFrame({"h3_cell": [599686042433355775]})
->>> df.with_columns(vertexes=polars_h3.cell_to_vertexes("h3_cell"))
+>>> df.with_columns(vertexes=plh3.cell_to_vertexes("h3_cell"))
 shape: (1, 2)
 ┌─────────────────────┬────────────────────────────────────────────────┐
 │ h3_cell             │ vertexes                                       │
@@ -90,7 +90,7 @@ shape: (1, 2)
 Convert an H3 vertex index into its latitude and longitude coordinates.
 
 ```python
-polars_h3.vertex_to_latlng(
+plh3.vertex_to_latlng(
     vertex: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -109,7 +109,7 @@ polars_h3.vertex_to_latlng(
 
 ```python
 >>> df = pl.DataFrame({"vertex": [2459626752788398079]})
->>> df.with_columns(coords=polars_h3.vertex_to_latlng("vertex"))
+>>> df.with_columns(coords=plh3.vertex_to_latlng("vertex"))
 shape: (1, 2)
 ┌──────────────────────┬─────────────────────────┐
 │ vertex               │ coords                  │
@@ -127,7 +127,7 @@ shape: (1, 2)
 Check whether an H3 index represents a valid H3 vertex.
 
 ```python
-polars_h3.is_valid_vertex(
+plh3.is_valid_vertex(
     vertex: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -146,7 +146,7 @@ polars_h3.is_valid_vertex(
 
 ```python
 >>> df = pl.DataFrame({"vertex": [2459626752788398079]})
->>> df.with_columns(valid=polars_h3.is_valid_vertex("vertex"))
+>>> df.with_columns(valid=plh3.is_valid_vertex("vertex"))
 shape: (1, 2)
 ┌──────────────────────┬──────────┐
 │ vertex               │ valid    │

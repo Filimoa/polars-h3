@@ -9,7 +9,7 @@ Directed edges allow encoding the directed (that is, which cell is the origin an
 Determine whether two H3 cells are neighbors.
 
 ```python
-polars_h3.are_neighbor_cells(
+plh3.are_neighbor_cells(
     origin: IntoExprColumn,
     destination: IntoExprColumn
 ) -> pl.Expr
@@ -34,7 +34,7 @@ polars_h3.are_neighbor_cells(
 ...     "cell1": [599686042433355775],
 ...     "cell2": [599686030622195711],
 ... })
->>> df.with_columns(neighbors=polars_h3.are_neighbor_cells("cell1", "cell2"))
+>>> df.with_columns(neighbors=plh3.are_neighbor_cells("cell1", "cell2"))
 shape: (1, 3)
 ┌─────────────────────┬─────────────────────┬───────────┐
 │ cell1               │ cell2               │ neighbors │
@@ -56,7 +56,7 @@ shape: (1, 3)
 Create a directed H3 edge from two neighboring cells.
 
 ```python
-polars_h3.cells_to_directed_edge(
+plh3.cells_to_directed_edge(
     origin: IntoExprColumn,
     destination: IntoExprColumn
 ) -> pl.Expr
@@ -81,7 +81,7 @@ polars_h3.cells_to_directed_edge(
 ...     "origin": [599686042433355775],
 ...     "destination": [599686030622195711],
 ... })
->>> df.with_columns(edge=polars_h3.cells_to_directed_edge("origin", "destination"))
+>>> df.with_columns(edge=plh3.cells_to_directed_edge("origin", "destination"))
 shape: (1, 3)
 ┌─────────────────────┬─────────────────────┬─────────────────────┐
 │ origin              │ destination         │ edge                │
@@ -103,7 +103,7 @@ shape: (1, 3)
 Check if an H3 index is a valid directed edge.
 
 ```python
-polars_h3.is_valid_directed_edge(
+plh3.is_valid_directed_edge(
     edge: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -122,7 +122,7 @@ polars_h3.is_valid_directed_edge(
 
 ```python
 >>> df = pl.DataFrame({"edge": ["115283473fffffff"]})
->>> df.with_columns(valid=polars_h3.is_valid_directed_edge("edge"))
+>>> df.with_columns(valid=plh3.is_valid_directed_edge("edge"))
 shape: (1, 2)
 ┌───────────────────────┬──────────┐
 │ edge                  │ valid    │
@@ -144,7 +144,7 @@ shape: (1, 2)
 Extract the origin cell from a directed H3 edge.
 
 ```python
-polars_h3.get_directed_edge_origin(
+plh3.get_directed_edge_origin(
     edge: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -163,7 +163,7 @@ polars_h3.get_directed_edge_origin(
 
 ```python
 >>> df = pl.DataFrame({"edge": [1608492358964346879]})
->>> df.with_columns(origin=polars_h3.get_directed_edge_origin("edge"))
+>>> df.with_columns(origin=plh3.get_directed_edge_origin("edge"))
 shape: (1, 2)
 ┌─────────────────────┬─────────────────────┐
 │ edge                │ origin              │
@@ -185,7 +185,7 @@ shape: (1, 2)
 Extract the destination cell from a directed H3 edge.
 
 ```python
-polars_h3.get_directed_edge_destination(
+plh3.get_directed_edge_destination(
     edge: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -204,7 +204,7 @@ polars_h3.get_directed_edge_destination(
 
 ```python
 >>> df = pl.DataFrame({"edge": [1608492358964346879]})
->>> df.with_columns(destination=polars_h3.get_directed_edge_destination("edge"))
+>>> df.with_columns(destination=plh3.get_directed_edge_destination("edge"))
 shape: (1, 2)
 ┌─────────────────────┬─────────────────────┐
 │ edge                │ destination         │
@@ -226,7 +226,7 @@ shape: (1, 2)
 Retrieve the origin-destination cell pair from a directed edge.
 
 ```python
-polars_h3.directed_edge_to_cells(
+plh3.directed_edge_to_cells(
     edge: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -245,7 +245,7 @@ polars_h3.directed_edge_to_cells(
 
 ```python
 >>> df = pl.DataFrame({"edge": [1608492358964346879]})
->>> df.with_columns(cells=polars_h3.directed_edge_to_cells("edge"))
+>>> df.with_columns(cells=plh3.directed_edge_to_cells("edge"))
 shape: (1, 2)
 ┌─────────────────────┬─────────────────────┐
 │ edge                │ cells               │
@@ -267,7 +267,7 @@ shape: (1, 2)
 List all directed edges originating from a given cell.
 
 ```python
-polars_h3.origin_to_directed_edges(
+plh3.origin_to_directed_edges(
     cell: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -286,7 +286,7 @@ polars_h3.origin_to_directed_edges(
 
 ```python
 >>> df = pl.DataFrame({"h3_cell": [599686042433355775]})
->>> df.with_columns(edges=polars_h3.origin_to_directed_edges("h3_cell"))
+>>> df.with_columns(edges=plh3.origin_to_directed_edges("h3_cell"))
 shape: (1, 2)
 ┌─────────────────────┬─────────────────────────────────┐
 │ h3_cell             │ edges                           │
@@ -308,7 +308,7 @@ shape: (1, 2)
 Retrieve the geographic boundary (list of lat/lng pairs) defining a directed edge.
 
 ```python
-polars_h3.directed_edge_to_boundary(
+plh3.directed_edge_to_boundary(
     edge: IntoExprColumn
 ) -> pl.Expr
 ```
@@ -327,7 +327,7 @@ polars_h3.directed_edge_to_boundary(
 
 ```python
 >>> df = pl.DataFrame({"edge": [1608492358964346879]})
->>> df.with_columns(boundary=polars_h3.directed_edge_to_boundary("edge"))
+>>> df.with_columns(boundary=plh3.directed_edge_to_boundary("edge"))
 shape: (1, 2)
 ┌─────────────────────┬───────────────────────────────┐
 │ edge                │ boundary                      │

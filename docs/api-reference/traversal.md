@@ -9,7 +9,7 @@ Grid traversal allows finding cells in the vicinity of an origin cell, and deter
 Compute the grid distance between two H3 cells.
 
 ```python
-polars_h3.grid_distance(
+plh3.grid_distance(
     origin: IntoExprColumn,
     destination: IntoExprColumn
 ) -> pl.Expr
@@ -34,7 +34,7 @@ polars_h3.grid_distance(
 ...     "start": [605035864166236159],
 ...     "end": [605034941150920703],
 ... })
->>> df.select(polars_h3.grid_distance("start", "end"))
+>>> df.select(plh3.grid_distance("start", "end"))
 shape: (1, 1)
 ┌───────────────┐
 │ grid_distance │
@@ -57,7 +57,7 @@ shape: (1, 1)
 Produce a "hollow ring" of cells at exactly grid distance `k` from the origin cell.
 
 ```python
-polars_h3.grid_ring(
+plh3.grid_ring(
     cell: IntoExprColumn,
     k: int
 ) -> pl.Expr
@@ -79,7 +79,7 @@ polars_h3.grid_ring(
 
 ```python
 >>> df = pl.DataFrame({"input": [622054503267303423]})
->>> df.select(polars_h3.grid_ring("input", 1))
+>>> df.select(plh3.grid_ring("input", 1))
 shape: (1, 1)
 ┌───────────────────────────────────┐
 │ grid_ring                         │
@@ -102,7 +102,7 @@ shape: (1, 1)
 Produce a “filled-in disk” of cells within grid distance `k` of the origin cell.
 
 ```python
-polars_h3.grid_disk(
+plh3.grid_disk(
     cell: IntoExprColumn,
     k: int
 ) -> pl.Expr
@@ -125,7 +125,7 @@ polars_h3.grid_disk(
 
 ```python
 >>> df = pl.DataFrame({"input": [622054503267303423]})
->>> df.select(polars_h3.grid_disk("input", 1))
+>>> df.select(plh3.grid_disk("input", 1))
 shape: (1, 1)
 ┌───────────────────────────────────┐
 │ grid_disk                         │
@@ -148,7 +148,7 @@ shape: (1, 1)
 Find a minimal contiguous path of cells from `origin` to `destination`.
 
 ```python
-polars_h3.grid_path_cells(
+plh3.grid_path_cells(
     origin: IntoExprColumn,
     destination: IntoExprColumn
 ) -> pl.Expr
@@ -173,7 +173,7 @@ polars_h3.grid_path_cells(
 ...     "start": [605035864166236159],
 ...     "end": [605034941150920703],
 ... })
->>> df.select(polars_h3.grid_path_cells("start", "end"))
+>>> df.select(plh3.grid_path_cells("start", "end"))
 shape: (1, 1)
 ┌───────────────────────────────────┐
 │ grid_path_cells                   │
