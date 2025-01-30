@@ -27,7 +27,7 @@ jobs:
 
       # Install your docs requirements via uv
       - name: Install docs requirements
-        run: uv run --only-group docs --no-install-project
+        run: uv sync --only-group docs
 
       # Run mkdocs in uv's environment
       - name: Publish docs
