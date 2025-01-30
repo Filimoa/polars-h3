@@ -130,9 +130,9 @@ We are unable to support the functions that work with geometries.
 | [`get_num_cells`](https://filimoa.github.io/polars-h3/api-reference/metrics/#get_num_cells)                              | Get the number of cells at a resolution                                                                                  | ✅        |
 | [`get_pentagons`](https://filimoa.github.io/polars-h3/api-reference/metrics/#get_pentagons)                              | Get all pentagons at a resolution (currently raises `NotImplementedError`)                                               | 🚧        |
 | [`great_circle_distance`](https://filimoa.github.io/polars-h3/api-reference/metrics/#great_circle_distance)              | Compute the great circle distance between two points (haversine)                                                         | ✅        |
-| _`cells_to_multi_polygon_wkt`_                                                                                           | Convert a set of cells to multipolygon WKT                                                                               | 🛑        |
-| _`polygon_wkt_to_cells`_                                                                                                 | Convert polygon WKT to a set of cells                                                                                    | 🛑        |
-| _`directed_edge_to_boundary_wkt`_                                                                                        | Convert directed edge ID to linestring WKT                                                                               | 🛑        |
+| `cells_to_multi_polygon_wkt`                                                                                             | Convert a set of cells to multipolygon WKT                                                                               | 🛑        |
+| `polygon_wkt_to_cells`                                                                                                   | Convert polygon WKT to a set of cells                                                                                    | 🛑        |
+| `directed_edge_to_boundary_wkt`                                                                                          | Convert directed edge ID to linestring WKT                                                                               | 🛑        |
 
 ### Plotting
 
