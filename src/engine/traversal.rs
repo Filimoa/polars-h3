@@ -23,39 +23,84 @@ pub fn grid_distance(origin_series: &Series, destination_series: &Series) -> Pol
     Ok(distances.into_series())
 }
 
-pub fn grid_ring(cell_series: &Series, k: u32) -> PolarsResult<Series> {
-    let original_dtype = cell_series.dtype().clone();
-    let cells = parse_cell_indices(cell_series)?;
-    let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
+pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    let k_series = &inputs[1];
 
-    let ring_results: Vec<Option<Vec<u64>>> = cells
+    let cells = super::utils::parse_cell_indices(cell_series)?;
+    let k_cast = k_series.cast(&DataType::Int32)?;
+    let k_i32 = k_cast.i32()?;
+
+    // Convert both to Vec for parallel iteration
+    let cells_vec: Vec<_> = cells.into_iter().collect();
+    let k_vec: Vec<_> = k_i32.into_iter().collect();
+
+    let ring_results: Vec<Option<Vec<u64>>> = cells_vec
         .into_par_iter()
-        .map(|cell| cell.map(|idx| idx.grid_ring_fast(k).flatten().map(Into::into).collect()))
+        .zip(k_vec.into_par_iter())
+        .map(|(maybe_cell, maybe_k)| {
+            match (maybe_cell, maybe_k) {
+                (Some(cell), Some(k_val)) if k_val >= 0 => {
+                    // do the ring
+                    let k_u32 = k_val as u32;
+                    Some(
+                        cell.grid_ring_fast(k_u32)
+                            .flatten()
+                            .map(Into::into)
+                            .collect(),
+                    )
+                },
+                _ => None,
+            }
+        })
         .collect();
 
+    // turn the results into a ListChunked
     let rings: ListChunked = ring_results
         .into_iter()
         .map(|opt| opt.map(|rings| Series::new(PlSmallStr::from(""), rings.as_slice())))
+        .collect::<Vec<_>>()
+        .into_iter()
         .collect();
 
-    let rings_series = rings.into_series();
-    cast_list_u64_to_dtype(&rings_series, &DataType::UInt64, Some(&target_inner_dtype))
+    let target_inner_dtype = super::utils::resolve_target_inner_dtype(cell_series.dtype())?;
+    super::utils::cast_list_u64_to_dtype(
+        &rings.into_series(),
+        &DataType::UInt64,
+        Some(&target_inner_dtype),
+    )
 }
 
-pub fn grid_disk(cell_series: &Series, k: u32) -> PolarsResult<Series> {
+pub fn grid_disk(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    let k_series = &inputs[1];
+
     let original_dtype = cell_series.dtype().clone();
     let cells = parse_cell_indices(cell_series)?;
     let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
 
-    let disk_results: Vec<Option<Vec<u64>>> = cells
+    // Ensure k_series is an integer column (we allow Int32 for example)
+    let k_cast = k_series.cast(&DataType::Int32)?;
+    let k_i32 = k_cast.i32()?;
+
+    // Convert both Series into vectors for parallel iteration.
+    let cells_vec: Vec<_> = cells.into_iter().collect();
+    let k_vec: Vec<_> = k_i32.into_iter().collect();
+
+    let disk_results: Vec<Option<Vec<u64>>> = cells_vec
         .into_par_iter()
-        .map(|cell| {
-            cell.map(|idx| {
-                CellIndex::grid_disks_fast(vec![idx], k)
-                    .flatten()
-                    .map(Into::into)
-                    .collect::<Vec<u64>>()
-            })
+        .zip(k_vec.into_par_iter())
+        .map(|(maybe_cell, maybe_k)| match (maybe_cell, maybe_k) {
+            (Some(cell), Some(k_val)) if k_val >= 0 => {
+                let k_u32 = k_val as u32;
+                Some(
+                    cell.grid_disk::<Vec<_>>(k_u32)
+                        .into_iter()
+                        .map(Into::into)
+                        .collect::<Vec<u64>>(),
+                )
+            },
+            _ => None,
         })
         .collect();
 

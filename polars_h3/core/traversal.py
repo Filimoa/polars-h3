@@ -58,7 +58,7 @@ def grid_distance(origin: IntoExprColumn, destination: IntoExprColumn) -> pl.Exp
     )
 
 
-def grid_ring(cell: IntoExprColumn, k: int) -> pl.Expr:
+def grid_ring(cell: IntoExprColumn, k: int | IntoExprColumn) -> pl.Expr:
     """
     Produce a "hollow ring" of cells at exactly grid distance `k` from the origin cell.
 
@@ -70,7 +70,7 @@ def grid_ring(cell: IntoExprColumn, k: int) -> pl.Expr:
     #### Parameters
     - `cell`: IntoExprColumn
         Column or expression with the H3 cell index (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
-    - `k`: int
+    - `k`: int | IntoExprColumn
         The ring distance. Must be non-negative.
 
     #### Returns
@@ -95,17 +95,20 @@ def grid_ring(cell: IntoExprColumn, k: int) -> pl.Expr:
     - `ValueError`: If `k < 0`.
     - `ComputeError`: If pentagonal distortion or invalid inputs prevent computation.
     """
-    if k < 0:
-        raise ValueError("k must be non-negative")
+    if isinstance(k, int):
+        if k < 0:
+            raise ValueError("k must be non-negative")
+        k_expr = pl.lit(k)
+    else:
+        k_expr = k
     return register_plugin_function(
-        args=[cell],
+        args=[cell, k_expr],
         plugin_path=LIB,
         function_name="grid_ring",
-        kwargs={"k": k},
     )
 
 
-def grid_disk(cell: IntoExprColumn, k: int) -> pl.Expr:
+def grid_disk(cell: IntoExprColumn, k: int | IntoExprColumn) -> pl.Expr:
     """
     Produce a "filled-in disk" of cells within grid distance `k` of the origin cell.
 
@@ -117,7 +120,7 @@ def grid_disk(cell: IntoExprColumn, k: int) -> pl.Expr:
     #### Parameters
     - `cell`: IntoExprColumn
         Column or expression with the H3 cell index (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
-    - `k`: int
+    - `k`: int | IntoExprColumn
         The maximum distance from the origin. Must be non-negative.
 
     #### Returns
@@ -142,13 +145,16 @@ def grid_disk(cell: IntoExprColumn, k: int) -> pl.Expr:
     - `ValueError`: If `k < 0`.
     - `ComputeError`: If pentagonal distortion or invalid inputs prevent computation.
     """
-    if k < 0:
-        raise ValueError("k must be non-negative")
+    if isinstance(k, int):
+        if k < 0:
+            raise ValueError("k must be non-negative")
+        k_expr = pl.lit(k)
+    else:
+        k_expr = k
     return register_plugin_function(
-        args=[cell],
+        args=[cell, k_expr],
         plugin_path=LIB,
         function_name="grid_disk",
-        kwargs={"k": k},
     )
 
 

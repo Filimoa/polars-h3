@@ -493,3 +493,47 @@ def test_local_ij_to_cell(test_params):
     )
 
     assert df["cell"].to_list()[0] == test_params["output"]
+
+
+def test_grid_ring_and_disk_with_column_k():
+    df = pl.DataFrame(
+        {
+            "cell": [622054503267303423, 622054503267303423, 622054503267303423],
+            "k": [0, 1, 2],
+        },
+        schema={"cell": pl.UInt64, "k": pl.UInt32},
+    )
+
+    result = df.with_columns(
+        polars_h3.grid_ring("cell", "k").list.sort().alias("ring"),
+        polars_h3.grid_disk("cell", "k").list.sort().alias("disk"),
+    )
+
+    # Expected results for grid_ring
+    assert result["ring"].to_list()[0] == [622054503267303423]  # k=0: just the origin
+    assert result["ring"].to_list()[1] == sorted(
+        [
+            622054502770606079,
+            622054502770835455,
+            622054502770900991,
+            622054503267205119,
+            622054503267237887,
+            622054503267270655,
+        ]
+    )  # k=1: ring of neighbors
+    assert len(result["ring"].to_list()[2]) == 12
+
+    # Expected results for grid_disk
+    assert result["disk"].to_list()[0] == [622054503267303423]  # k=0: just the origin
+    assert result["disk"].to_list()[1] == sorted(
+        [
+            622054502770606079,
+            622054502770835455,
+            622054502770900991,
+            622054503267205119,
+            622054503267237887,
+            622054503267270655,
+            622054503267303423,  # includes origin
+        ]
+    )  # k=1: disk including origin
+    assert len(result["disk"].to_list()[2]) == 19

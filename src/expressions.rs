@@ -13,11 +13,6 @@ struct ResolutionKwargs {
     resolution: Option<u8>,
 }
 
-#[derive(Deserialize)]
-struct GridKwargs {
-    k: u32,
-}
-
 fn latlng_list_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
     let field = Field::new(
         input_fields[0].name.clone(),
@@ -235,16 +230,28 @@ fn grid_distance(inputs: &[Series]) -> PolarsResult<Series> {
     crate::engine::traversal::grid_distance(origin_series, destination_series)
 }
 
-#[polars_expr(output_type_func=dynamic_list_output_dtype)]
-fn grid_ring(inputs: &[Series], kwargs: GridKwargs) -> PolarsResult<Series> {
-    let cell_series = &inputs[0];
-    crate::engine::traversal::grid_ring(cell_series, kwargs.k)
+#[polars_expr(output_type_func = dynamic_list_output_dtype)]
+fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
+    if inputs.len() != 2 {
+        polars_bail!(
+            ComputeError:
+            "grid_ring expects exactly 2 inputs: got {}",
+            inputs.len()
+        );
+    }
+    crate::engine::traversal::grid_ring(inputs)
 }
 
 #[polars_expr(output_type_func=dynamic_list_output_dtype)]
-fn grid_disk(inputs: &[Series], kwargs: GridKwargs) -> PolarsResult<Series> {
-    let cell_series = &inputs[0];
-    crate::engine::traversal::grid_disk(cell_series, kwargs.k)
+fn grid_disk(inputs: &[Series]) -> PolarsResult<Series> {
+    if inputs.len() != 2 {
+        polars_bail!(
+            ComputeError:
+            "grid_disk expects exactly 2 inputs (cell and k); got {}",
+            inputs.len()
+        );
+    }
+    crate::engine::traversal::grid_disk(inputs)
 }
 
 #[polars_expr(output_type_func=dynamic_list_output_dtype)]

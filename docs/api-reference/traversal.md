@@ -59,7 +59,7 @@ Produce a "hollow ring" of cells at exactly grid distance `k` from the origin ce
 ```python
 plh3.grid_ring(
     cell: IntoExprColumn,
-    k: int
+    k: int | IntoExprColumn
 ) -> pl.Expr
 ```
 
@@ -67,7 +67,7 @@ plh3.grid_ring(
 
 - **cell** : IntoExprColumn  
   H3 cell index (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
-- **k** : int  
+- **k** : int | IntoExprColumn  
   The ring distance. Must be non-negative.
 
 **Returns**
@@ -80,6 +80,19 @@ plh3.grid_ring(
 ```python
 >>> df = pl.DataFrame({"input": [622054503267303423]})
 >>> df.select(plh3.grid_ring("input", 1))
+shape: (1, 1)
+┌───────────────────────────────────┐
+│ grid_ring                         │
+│ ---                               │
+│ list[u64]                         │
+╞═══════════════════════════════════╡
+│ [622054502770606079, 622054502770…]│
+└───────────────────────────────────┘
+```
+
+```python
+>>> df = pl.DataFrame({"input": [622054503267303423], "k": [1]})
+>>> df.select(plh3.grid_ring("input", "k"))
 shape: (1, 1)
 ┌───────────────────────────────────┐
 │ grid_ring                         │
@@ -104,7 +117,7 @@ Produce a “filled-in disk” of cells within grid distance `k` of the origin c
 ```python
 plh3.grid_disk(
     cell: IntoExprColumn,
-    k: int
+    k: int | IntoExprColumn
 ) -> pl.Expr
 ```
 
@@ -112,7 +125,7 @@ plh3.grid_disk(
 
 - **cell** : IntoExprColumn  
   H3 cell index (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
-- **k** : int  
+- **k** : int | IntoExprColumn  
   The maximum distance from the origin. Must be non-negative.
 
 **Returns**
@@ -126,6 +139,19 @@ plh3.grid_disk(
 ```python
 >>> df = pl.DataFrame({"input": [622054503267303423]})
 >>> df.select(plh3.grid_disk("input", 1))
+shape: (1, 1)
+┌───────────────────────────────────┐
+│ grid_disk                         │
+│ ---                               │
+│ list[u64]                         │
+╞═══════════════════════════════════╡
+│ [622054503267303423, 622054502770…]│
+└───────────────────────────────────┘
+```
+
+```python
+>>> df = pl.DataFrame({"input": [622054503267303423], "k": [1]})
+>>> df.select(plh3.grid_disk("input", "k"))
 shape: (1, 1)
 ┌───────────────────────────────────┐
 │ grid_disk                         │
