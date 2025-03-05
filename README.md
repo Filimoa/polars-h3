@@ -79,12 +79,6 @@ We are unable to support the functions that work with geometries.
 🚧 = Pending
 🛑 = Not supported
 
-### Full list of functions
-
-✅ = Supported  
-🚧 = Pending  
-🛑 = Not supported
-
 | Function                                                                                                                 | Description                                                                                                              | Supported |
 | :----------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- | :-------- |
 | [`latlng_to_cell`](https://filimoa.github.io/polars-h3/api-reference/indexing/#latlng_to_cell)                           | Convert latitude/longitude coordinate to cell ID                                                                         | ✅        |
