@@ -537,3 +537,17 @@ def test_grid_ring_and_disk_with_column_k():
         ]
     )  # k=1: disk including origin
     assert len(result["disk"].to_list()[2]) == 19
+
+
+def test_grid_ring_k_supplied_as_int():
+    df = pl.DataFrame(
+        {
+            "cell": [622054503267303423, 622054503267303423, 622054503267303423],
+        },
+        schema={"cell": pl.UInt64},
+    )
+
+    df.with_columns(
+        polars_h3.grid_ring("cell", 1).list.sort().alias("ring"),
+        polars_h3.grid_disk("cell", 1).list.sort().alias("disk"),
+    )

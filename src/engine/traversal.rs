@@ -1,4 +1,5 @@
 use h3o::CellIndex;
+use h3o::CoordIJ;
 use polars::prelude::*;
 use rayon::prelude::*;
 
@@ -31,17 +32,20 @@ pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
     let k_cast = k_series.cast(&DataType::Int32)?;
     let k_i32 = k_cast.i32()?;
 
-    // Convert both to Vec for parallel iteration
     let cells_vec: Vec<_> = cells.into_iter().collect();
-    let k_vec: Vec<_> = k_i32.into_iter().collect();
-
-    let ring_results: Vec<Option<Vec<u64>>> = cells_vec
-        .into_par_iter()
-        .zip(k_vec.into_par_iter())
-        .map(|(maybe_cell, maybe_k)| {
-            match (maybe_cell, maybe_k) {
-                (Some(cell), Some(k_val)) if k_val >= 0 => {
-                    // do the ring
+    let is_scalar_k = k_series.len() == 1 && !matches!(k_series.dtype(), DataType::List(_));
+    let ring_results: Vec<Option<Vec<u64>>> = if is_scalar_k {
+        // Scalar case: broadcast the single k value across all cells
+        let k_val = k_i32
+            .get(0)
+            .ok_or_else(|| polars_err!(ComputeError: "k_series is empty or invalid"))?;
+        if k_val < 0 {
+            return Err(polars_err!(ComputeError: "k must be non-negative"));
+        }
+        cells_vec
+            .into_par_iter()
+            .map(|maybe_cell| match maybe_cell {
+                Some(cell) => {
                     let k_u32 = k_val as u32;
                     Some(
                         cell.grid_ring_fast(k_u32)
@@ -51,11 +55,36 @@ pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
                     )
                 },
                 _ => None,
-            }
-        })
-        .collect();
+            })
+            .collect()
+    } else {
+        // Column case: zip with k values
+        let k_vec: Vec<_> = k_i32.into_iter().collect();
+        if k_vec.len() != cells_vec.len() {
+            return Err(polars_err!(
+                ComputeError: "Length of k_series ({}) must match cell_series ({})",
+                k_vec.len(),
+                cells_vec.len()
+            ));
+        }
+        cells_vec
+            .into_par_iter()
+            .zip(k_vec.into_par_iter())
+            .map(|(maybe_cell, maybe_k)| match (maybe_cell, maybe_k) {
+                (Some(cell), Some(k_val)) if k_val >= 0 => {
+                    let k_u32 = k_val as u32;
+                    Some(
+                        cell.grid_ring_fast(k_u32)
+                            .flatten()
+                            .map(Into::into)
+                            .collect(),
+                    )
+                },
+                _ => None,
+            })
+            .collect()
+    };
 
-    // turn the results into a ListChunked
     let rings: ListChunked = ring_results
         .into_iter()
         .map(|opt| opt.map(|rings| Series::new(PlSmallStr::from(""), rings.as_slice())))
@@ -79,31 +108,65 @@ pub fn grid_disk(inputs: &[Series]) -> PolarsResult<Series> {
     let cells = parse_cell_indices(cell_series)?;
     let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
 
-    // Ensure k_series is an integer column (we allow Int32 for example)
+    // Cast k_series to Int32 to handle various integer inputs
     let k_cast = k_series.cast(&DataType::Int32)?;
     let k_i32 = k_cast.i32()?;
 
-    // Convert both Series into vectors for parallel iteration.
     let cells_vec: Vec<_> = cells.into_iter().collect();
-    let k_vec: Vec<_> = k_i32.into_iter().collect();
 
-    let disk_results: Vec<Option<Vec<u64>>> = cells_vec
-        .into_par_iter()
-        .zip(k_vec.into_par_iter())
-        .map(|(maybe_cell, maybe_k)| match (maybe_cell, maybe_k) {
-            (Some(cell), Some(k_val)) if k_val >= 0 => {
-                let k_u32 = k_val as u32;
-                Some(
-                    cell.grid_disk::<Vec<_>>(k_u32)
-                        .into_iter()
-                        .map(Into::into)
-                        .collect::<Vec<u64>>(),
-                )
-            },
-            _ => None,
-        })
-        .collect();
+    let is_scalar_k = k_series.len() == 1 && !matches!(k_series.dtype(), DataType::List(_));
 
+    let disk_results: Vec<Option<Vec<u64>>> = if is_scalar_k {
+        // Scalar case: broadcast the single k value
+        let k_val = k_i32
+            .get(0)
+            .ok_or_else(|| polars_err!(ComputeError: "k_series is empty"))?;
+        if k_val >= 0 {
+            let k_u32 = k_val as u32;
+            cells_vec
+                .into_par_iter()
+                .map(|maybe_cell| {
+                    maybe_cell.map(|cell| {
+                        cell.grid_disk::<Vec<_>>(k_u32)
+                            .into_iter()
+                            .map(Into::into)
+                            .collect()
+                    })
+                })
+                .collect()
+        } else {
+            // If k < 0, return None for all rows
+            vec![None; cells_vec.len()]
+        }
+    } else {
+        // Non-scalar case: k_series should match cell_series length
+        let k_vec: Vec<_> = k_i32.into_iter().collect();
+        if k_vec.len() != cells_vec.len() {
+            return Err(polars_err!(
+                ComputeError: "k_series length ({}) must match cell_series length ({})",
+                k_vec.len(),
+                cells_vec.len()
+            ));
+        }
+        cells_vec
+            .into_par_iter()
+            .zip(k_vec.into_par_iter())
+            .map(|(maybe_cell, maybe_k)| match (maybe_cell, maybe_k) {
+                (Some(cell), Some(k_val)) if k_val >= 0 => {
+                    let k_u32 = k_val as u32;
+                    Some(
+                        cell.grid_disk::<Vec<_>>(k_u32)
+                            .into_iter()
+                            .map(Into::into)
+                            .collect(),
+                    )
+                },
+                _ => None,
+            })
+            .collect()
+    };
+
+    // Convert results to a ListChunked series
     let disks: ListChunked = disk_results
         .into_iter()
         .map(|opt| opt.map(|disk| Series::new(PlSmallStr::from(""), disk.as_slice())))
@@ -156,19 +219,14 @@ pub fn cell_to_local_ij(cell_series: &Series, origin_series: &Series) -> PolarsR
     let coords: ListChunked = cells
         .into_par_iter()
         .zip(origin_vec.into_par_iter())
-        .map(|(cell, origin)| {
-            match (cell, origin) {
-                (Some(cell), Some(origin)) => {
-                    cell.to_local_ij(origin).ok().map(|local_ij| {
-                        // Convert to [i, j] coordinates
-                        Series::new(
-                            PlSmallStr::from(""),
-                            &[local_ij.i() as f64, local_ij.j() as f64],
-                        )
-                    })
-                },
-                _ => None,
-            }
+        .map(|(cell, origin)| match (cell, origin) {
+            (Some(cell), Some(origin)) => cell.to_local_ij(origin).ok().map(|local_ij| {
+                Series::new(
+                    PlSmallStr::from(""),
+                    &[local_ij.coord.i as f64, local_ij.coord.j as f64],
+                )
+            }),
+            _ => None,
         })
         .collect();
 
@@ -182,7 +240,6 @@ pub fn local_ij_to_cell(
 ) -> PolarsResult<Series> {
     let origins = parse_cell_indices(origin_series)?;
 
-    // Convert inputs to i32, handling errors appropriately
     let i_coords = i_series.cast(&DataType::Int32)?;
     let j_coords = j_series.cast(&DataType::Int32)?;
 
@@ -194,9 +251,8 @@ pub fn local_ij_to_cell(
         .zip(i_values.into_iter().zip(j_values))
         .map(|(origin, (i, j))| match (origin, i, j) {
             (Some(origin), Some(i), Some(j)) => {
-                // Create LocalIJ directly from coordinates
-                let local_ij = h3o::LocalIJ::new_unchecked(origin, i, j);
-                // Convert to cell index
+                let coord = CoordIJ { i, j };
+                let local_ij = h3o::LocalIJ::new(origin, coord);
                 CellIndex::try_from(local_ij).ok().map(Into::into)
             },
             _ => None,

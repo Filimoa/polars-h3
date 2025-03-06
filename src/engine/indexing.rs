@@ -3,20 +3,36 @@ use polars::prelude::*;
 use rayon::prelude::*;
 
 use super::utils::parse_cell_indices;
-
 fn parse_latlng_to_cells(
     lat_series: &Series,
     lng_series: &Series,
     resolution: u8,
 ) -> PolarsResult<Vec<Option<CellIndex>>> {
+    let lat_series = match lat_series.dtype() {
+        DataType::Float64 => lat_series.clone(),
+        DataType::Float32 => lat_series.cast(&DataType::Float64)?,
+        _ => {
+            return Err(PolarsError::ComputeError(
+                "lat column must be Float32 or Float64".into(),
+            ))
+        },
+    };
+    let lng_series = match lng_series.dtype() {
+        DataType::Float64 => lng_series.clone(),
+        DataType::Float32 => lng_series.cast(&DataType::Float64)?,
+        _ => {
+            return Err(PolarsError::ComputeError(
+                "lng column must be Float32 or Float64".into(),
+            ))
+        },
+    };
+
     let lat_ca = lat_series.f64()?;
     let lng_ca = lng_series.f64()?;
     let res = Resolution::try_from(resolution).map_err(|_| {
         PolarsError::ComputeError(format!("Invalid resolution: {}", resolution).into())
     })?;
 
-    // If the data is guaranteed to have no nulls, you can unwrap safely.
-    // Otherwise, you'd handle nulls before here or use `zip()` over iterators that handle nulls gracefully.
     let lat_values = lat_ca
         .cont_slice()
         .expect("No nulls expected in lat_series");
@@ -24,16 +40,12 @@ fn parse_latlng_to_cells(
         .cont_slice()
         .expect("No nulls expected in lng_series");
 
-    // Parallel iterate directly over slices
     let cells: Vec<Option<CellIndex>> = lat_values
         .par_iter()
         .zip(lng_values.par_iter())
-        .map(|(&lat, &lng)| {
-            // If LatLng::new can fail, handle the error or assume validity.
-            match LatLng::new(lat, lng) {
-                Ok(coord) => Some(coord.to_cell(res)),
-                Err(_) => None,
-            }
+        .map(|(&lat, &lng)| match LatLng::new(lat, lng) {
+            Ok(coord) => Some(coord.to_cell(res)),
+            Err(_) => None,
         })
         .collect();
 

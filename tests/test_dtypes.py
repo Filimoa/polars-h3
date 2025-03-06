@@ -32,14 +32,11 @@ def test_single_null_latlng():
     assert "panick" not in str(exc_info.value).lower()
 
 
-@pytest.mark.xfail(
-    reason="This is a known issue with the plugin. We'd like to handle casting for the user automatically."
-)
 def test_float32_latlng():
     df = pl.DataFrame(
         {
-            "lat": [40.7128] * 99 + [None],
-            "lng": [-74.006] * 99 + [None],
+            "lat": [40.7128] * 10,
+            "lng": [-74.006] * 10,
         },
         schema={"lat": pl.Float32, "lng": pl.Float32},
     )

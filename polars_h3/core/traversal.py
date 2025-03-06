@@ -58,7 +58,7 @@ def grid_distance(origin: IntoExprColumn, destination: IntoExprColumn) -> pl.Exp
     )
 
 
-def grid_ring(cell: IntoExprColumn, k: int | IntoExprColumn) -> pl.Expr:
+def grid_ring(cell: IntoExprColumn, k: IntoExprColumn | int) -> pl.Expr:
     """
     Produce a "hollow ring" of cells at exactly grid distance `k` from the origin cell.
 
@@ -70,7 +70,7 @@ def grid_ring(cell: IntoExprColumn, k: int | IntoExprColumn) -> pl.Expr:
     #### Parameters
     - `cell`: IntoExprColumn
         Column or expression with the H3 cell index (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
-    - `k`: int | IntoExprColumn
+    - `k`: IntoExprColumn | int
         The ring distance. Must be non-negative.
 
     #### Returns
@@ -108,7 +108,7 @@ def grid_ring(cell: IntoExprColumn, k: int | IntoExprColumn) -> pl.Expr:
     )
 
 
-def grid_disk(cell: IntoExprColumn, k: int | IntoExprColumn) -> pl.Expr:
+def grid_disk(cell: IntoExprColumn, k: IntoExprColumn | int) -> pl.Expr:
     """
     Produce a "filled-in disk" of cells within grid distance `k` of the origin cell.
 
@@ -120,7 +120,7 @@ def grid_disk(cell: IntoExprColumn, k: int | IntoExprColumn) -> pl.Expr:
     #### Parameters
     - `cell`: IntoExprColumn
         Column or expression with the H3 cell index (as `pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
-    - `k`: int | IntoExprColumn
+    - `k`: IntoExprColumn | int
         The maximum distance from the origin. Must be non-negative.
 
     #### Returns

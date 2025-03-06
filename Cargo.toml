@@ -1,6 +1,6 @@
 [package]
 name = "polars-h3"
-version = "0.5.3"  
+version = "0.5.4"  
 edition = "2021"
 
 [lib]
@@ -12,7 +12,7 @@ pyo3 = { version = "0.21.2", features = ["extension-module", "abi3-py38"] }
 pyo3-polars = { version = "0.18.0", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 polars = { version = "0.44.2", default-features = false }
-h3o = "0.4.0"
+h3o = "0.7.1"
 rayon = "1.10.0"
 
 [profile.release]
