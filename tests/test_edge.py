@@ -1,7 +1,7 @@
 import polars as pl
 import pytest
 
-import polars_h3
+import polars_h3 as plh3
 
 
 @pytest.mark.parametrize(
@@ -45,7 +45,7 @@ def test_is_valid_directed_edge(test_params):
     df = pl.DataFrame(
         {"edge": [test_params["input"]]},
         schema=test_params["schema"],
-    ).with_columns(valid=polars_h3.is_valid_directed_edge("edge"))
+    ).with_columns(valid=plh3.is_valid_directed_edge("edge"))
     assert df["valid"][0] == test_params["output"]
 
 
@@ -82,7 +82,7 @@ def test_origin_to_directed_edges(test_params):
     df = pl.DataFrame(
         {"h3_cell": [test_params["input"]]},
         schema=test_params["schema"],
-    ).with_columns(edges=polars_h3.origin_to_directed_edges("h3_cell"))
+    ).with_columns(edges=plh3.origin_to_directed_edges("h3_cell"))
     assert len(df["edges"][0]) == test_params["output_length"]
 
 
@@ -92,8 +92,8 @@ def test_directed_edge_operations():
         {"edge": [1608492358964346879], "edge_str": ["165283473fffffff"]}
     ).with_columns(
         [
-            polars_h3.directed_edge_to_cells("edge").alias("cells_int"),
-            polars_h3.directed_edge_to_cells("edge_str").alias("cells_str"),
+            plh3.directed_edge_to_cells("edge").alias("cells_int"),
+            plh3.directed_edge_to_cells("edge_str").alias("cells_str"),
         ]
     )
 
@@ -102,15 +102,15 @@ def test_directed_edge_operations():
 
     # Test invalid edge
     df_invalid = pl.DataFrame({"edge": [0]}).with_columns(
-        cells=polars_h3.directed_edge_to_cells("edge")
+        cells=plh3.directed_edge_to_cells("edge")
     )
     assert df_invalid["cells"][0] is None
 
     # Test origin and destination
     df_endpoints = pl.DataFrame({"edge": [1608492358964346879]}).with_columns(
         [
-            polars_h3.get_directed_edge_origin("edge").alias("origin"),
-            polars_h3.get_directed_edge_destination("edge").alias("destination"),
+            plh3.get_directed_edge_origin("edge").alias("origin"),
+            plh3.get_directed_edge_destination("edge").alias("destination"),
         ]
     )
     assert df_endpoints["origin"][0] == 599686042433355775
@@ -165,7 +165,7 @@ def test_are_neighbor_cells(test_params):
             "cell2": [test_params["input_2"]],
         },
         schema=test_params["schema"],
-    ).with_columns(neighbors=polars_h3.are_neighbor_cells("cell1", "cell2"))
+    ).with_columns(neighbors=plh3.are_neighbor_cells("cell1", "cell2"))
     assert df["neighbors"][0] == test_params["output"]
 
 
@@ -199,5 +199,5 @@ def test_cells_to_directed_edge(test_params):
             "destination": [test_params["input_2"]],
         },
         schema=test_params["schema"],
-    ).with_columns(edge=polars_h3.cells_to_directed_edge("origin", "destination"))
+    ).with_columns(edge=plh3.cells_to_directed_edge("origin", "destination"))
     assert df["edge"][0] == test_params["output"]

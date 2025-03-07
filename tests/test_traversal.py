@@ -1,7 +1,7 @@
 import polars as pl
 import pytest
 
-import polars_h3
+import polars_h3 as plh3
 
 
 @pytest.mark.parametrize(
@@ -64,9 +64,9 @@ def test_grid_disk(test_params):
     df = pl.DataFrame(
         {"input": [test_params["input"]]}, schema=test_params["schema"]
     ).with_columns(
-        polars_h3.grid_disk("input", 0).list.sort().alias("disk_radius_0"),
-        polars_h3.grid_disk("input", 1).list.sort().alias("disk_radius_1"),
-        polars_h3.grid_disk("input", 2).list.sort().alias("disk_radius_2"),
+        plh3.grid_disk("input", 0).list.sort().alias("disk_radius_0"),
+        plh3.grid_disk("input", 1).list.sort().alias("disk_radius_1"),
+        plh3.grid_disk("input", 2).list.sort().alias("disk_radius_2"),
     )
 
     assert df["disk_radius_0"].to_list()[0] == test_params["output_disk_radius_0"]
@@ -78,7 +78,7 @@ def test_grid_disk(test_params):
 def test_grid_disk_raises_invalid_k():
     with pytest.raises(ValueError):
         pl.DataFrame({"h3_cell": ["8a1fb46622dffff"]}).with_columns(
-            polars_h3.grid_disk("h3_cell", -1).alias("disk")
+            plh3.grid_disk("h3_cell", -1).alias("disk")
         )
 
 
@@ -140,9 +140,7 @@ def test_grid_disk_raises_invalid_k():
 def test_grid_ring(test_params):
     df = pl.DataFrame(
         {"input": [test_params["input"]]}, schema=test_params["schema"]
-    ).with_columns(
-        polars_h3.grid_ring("input", test_params["k"]).list.sort().alias("ring")
-    )
+    ).with_columns(plh3.grid_ring("input", test_params["k"]).list.sort().alias("ring"))
 
     assert df["ring"].to_list()[0] == sorted(test_params["output"])
 
@@ -252,9 +250,7 @@ def test_grid_path_cells(test_params):
             "input_2": [test_params["input_2"]],
         },
         schema=test_params["schema"],
-    ).with_columns(
-        polars_h3.grid_path_cells("input_1", "input_2").list.sort().alias("path")
-    )
+    ).with_columns(plh3.grid_path_cells("input_1", "input_2").list.sort().alias("path"))
     sorted_output = sorted(test_params["output"]) if test_params["output"] else None
     assert df["path"].to_list()[0] == sorted_output
 
@@ -334,7 +330,7 @@ def test_grid_distance(test_params):
             "input_2": [test_params["input_2"]],
         },
         schema=test_params["schema"],
-    ).with_columns(polars_h3.grid_distance("input_1", "input_2").alias("distance"))
+    ).with_columns(plh3.grid_distance("input_1", "input_2").alias("distance"))
 
     assert df["distance"].to_list()[0] == test_params["output"]
 
@@ -414,7 +410,7 @@ def test_cell_to_local_ij(test_params):
             "dest": [test_params["dest"]],
         },
         schema=test_params["schema"],
-    ).with_columns(coords=polars_h3.cell_to_local_ij("origin", "dest"))
+    ).with_columns(coords=plh3.cell_to_local_ij("origin", "dest"))
 
     assert df["coords"].to_list()[0] == test_params["output"]
 
@@ -489,7 +485,7 @@ def test_local_ij_to_cell(test_params):
         {"origin": [test_params["input"]]},
         schema=test_params["schema"],
     ).with_columns(
-        cell=polars_h3.local_ij_to_cell("origin", test_params["i"], test_params["j"])
+        cell=plh3.local_ij_to_cell("origin", test_params["i"], test_params["j"])
     )
 
     assert df["cell"].to_list()[0] == test_params["output"]
@@ -505,8 +501,8 @@ def test_grid_ring_and_disk_with_column_k():
     )
 
     result = df.with_columns(
-        polars_h3.grid_ring("cell", "k").list.sort().alias("ring"),
-        polars_h3.grid_disk("cell", "k").list.sort().alias("disk"),
+        plh3.grid_ring("cell", "k").list.sort().alias("ring"),
+        plh3.grid_disk("cell", "k").list.sort().alias("disk"),
     )
 
     # Expected results for grid_ring
@@ -548,6 +544,6 @@ def test_grid_ring_k_supplied_as_int():
     )
 
     df.with_columns(
-        polars_h3.grid_ring("cell", 1).list.sort().alias("ring"),
-        polars_h3.grid_disk("cell", 1).list.sort().alias("disk"),
+        plh3.grid_ring("cell", 1).list.sort().alias("ring"),
+        plh3.grid_disk("cell", 1).list.sort().alias("disk"),
     )

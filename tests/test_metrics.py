@@ -1,7 +1,10 @@
+from typing import Union
+
 import polars as pl
 import pytest
 
-import polars_h3
+import polars_h3 as plh3
+from polars_h3.core.metrics import EdgeLengthUnit
 
 
 @pytest.mark.parametrize(
@@ -73,7 +76,7 @@ def test_great_circle_distance(test_params):
             "lng2": [test_params["input_lng2"]],
         }
     ).with_columns(
-        distance=polars_h3.great_circle_distance(
+        distance=plh3.great_circle_distance(
             "lat1", "lng1", "lat2", "lng2", test_params["unit"]
         )
     )
@@ -130,7 +133,7 @@ def test_great_circle_distance(test_params):
 )
 def test_average_hexagon_area(test_params):
     df = pl.DataFrame({"resolution": [test_params["input"]]}).with_columns(
-        polars_h3.average_hexagon_area(pl.col("resolution"), test_params["unit"]).alias(
+        plh3.average_hexagon_area(pl.col("resolution"), test_params["unit"]).alias(
             "area"
         )
     )
@@ -194,7 +197,7 @@ def test_hexagon_area(test_params):
     df = pl.DataFrame(
         {"h3_cell": [test_params["input"]]},
         schema=test_params["schema"],
-    ).with_columns(area=polars_h3.cell_area(pl.col("h3_cell"), test_params["unit"]))
+    ).with_columns(area=plh3.cell_area(pl.col("h3_cell"), test_params["unit"]))
     if test_params["output"] is None:
         assert df["area"][0] is None
     else:
@@ -248,7 +251,7 @@ def test_hexagon_area(test_params):
 )
 def test_average_hexagon_edge_length(test_params):
     df = pl.DataFrame({"resolution": [test_params["input"]]}).with_columns(
-        length=polars_h3.average_hexagon_edge_length(
+        length=plh3.average_hexagon_edge_length(
             pl.col("resolution"), test_params["unit"]
         )
     )
@@ -281,13 +284,13 @@ def test_average_hexagon_edge_length(test_params):
     ],
 )
 def test_edge_length(
-    h3_cell: str | int,
-    schema: dict[str, pl.DataType] | None,
-    unit: str,
-    expected_length: float | None,
+    h3_cell: Union[str, int],
+    schema: Union[dict[str, pl.DataType], None],
+    unit: EdgeLengthUnit,
+    expected_length: Union[float, None],
 ):
     df = pl.DataFrame({"h3_cell": [h3_cell]}, schema=schema).with_columns(
-        length=polars_h3.edge_length(pl.col("h3_cell"), unit)
+        length=plh3.edge_length(pl.col("h3_cell"), unit)
     )
     if expected_length is None:
         assert df["length"][0] is None
@@ -304,9 +307,9 @@ def test_edge_length(
         # pytest.param(-1, None, id="invalid_res"),
     ],
 )
-def test_get_num_cells(resolution: int, expected_count: int | None):
+def test_get_num_cells(resolution: int, expected_count: Union[int, None]):
     df = pl.DataFrame({"resolution": [resolution]}).with_columns(
-        count=polars_h3.get_num_cells("resolution")
+        count=plh3.get_num_cells("resolution")
     )
     assert df["count"].to_list()[0] == expected_count
 
@@ -315,7 +318,7 @@ def test_get_pentagons():
     dicts = (
         pl.DataFrame({"h3_resolution": list(range(0, 16))})
         .with_columns(
-            pentagons=polars_h3.get_pentagons(pl.col("h3_resolution")).list.sort(),
+            pentagons=plh3.get_pentagons(pl.col("h3_resolution")).list.sort(),
         )
         .to_dicts()
     )

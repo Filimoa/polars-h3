@@ -1,7 +1,7 @@
 import polars as pl
 import pytest
 
-import polars_h3
+import polars_h3 as plh3
 
 
 @pytest.mark.parametrize(
@@ -14,9 +14,7 @@ import polars_h3
 )
 def test_latlng_to_cell_valid(input_lat, input_lng, resolution, return_dtype, expected):
     df = pl.DataFrame({"lat": [input_lat], "lng": [input_lng]}).with_columns(
-        h3_cell=polars_h3.latlng_to_cell(
-            "lat", "lng", resolution, return_dtype=return_dtype
-        )
+        h3_cell=plh3.latlng_to_cell("lat", "lng", resolution, return_dtype=return_dtype)
     )
     assert df["h3_cell"][0] == expected
 
@@ -33,15 +31,13 @@ def test_latlng_to_cell_invalid_resolution(input_lat, input_lng, resolution):
     df = pl.DataFrame({"lat": [input_lat], "lng": [input_lng]})
     with pytest.raises(ValueError):
         df.with_columns(
-            h3_cell=polars_h3.latlng_to_cell(
+            h3_cell=plh3.latlng_to_cell(
                 "lat", "lng", resolution, return_dtype=pl.UInt64
             )
         )
     with pytest.raises(ValueError):
         df.with_columns(
-            h3_cell=polars_h3.latlng_to_cell(
-                "lat", "lng", resolution, return_dtype=pl.Utf8
-            )
+            h3_cell=plh3.latlng_to_cell("lat", "lng", resolution, return_dtype=pl.Utf8)
         )
 
 
@@ -49,7 +45,7 @@ def test_latlng_to_cell_missing_lat_lng():
     df = pl.DataFrame({"lat": [None], "lng": [None]})
     with pytest.raises(pl.exceptions.ComputeError):
         df.with_columns(
-            h3_cell=polars_h3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64)
+            h3_cell=plh3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64)
         )
 
 
@@ -66,11 +62,11 @@ def test_latlng_to_cell_null_inputs(input_lat, input_lng):
     df = pl.DataFrame({"lat": [input_lat], "lng": [input_lng]})
     with pytest.raises(pl.exceptions.ComputeError):
         df.with_columns(
-            h3_cell=polars_h3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64)
+            h3_cell=plh3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64)
         )
     with pytest.raises(pl.exceptions.ComputeError):
         df.with_columns(
-            h3_cell=polars_h3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.Utf8)
+            h3_cell=plh3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.Utf8)
         )
 
 
@@ -110,8 +106,8 @@ def test_cell_to_latlng(test_params):
     df = pl.DataFrame(
         {"input": [test_params["input"]]}, schema=test_params["schema"]
     ).with_columns(
-        lat=polars_h3.cell_to_lat("input"),
-        lng=polars_h3.cell_to_lng("input"),
+        lat=plh3.cell_to_lat("input"),
+        lng=plh3.cell_to_lng("input"),
     )
     assert pytest.approx(df["lat"][0], 0.00001) == test_params["output_lat"]
     assert pytest.approx(df["lng"][0], 0.00001) == test_params["output_lng"]
@@ -166,7 +162,7 @@ def test_cell_to_latlng(test_params):
 )
 def test_cell_to_boundary_known(test_params):
     df = pl.DataFrame({"cell": [test_params["input"]]}).with_columns(
-        boundary=polars_h3.cell_to_boundary("cell")
+        boundary=plh3.cell_to_boundary("cell")
     )
     boundary = df["boundary"][0]
     for i, (exp_lat, exp_lng) in enumerate(test_params["output_boundary"]):

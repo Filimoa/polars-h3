@@ -5,7 +5,7 @@ FIXME: uncompact stuff
 import polars as pl
 import pytest
 
-import polars_h3
+import polars_h3 as plh3
 
 
 @pytest.mark.parametrize(
@@ -40,7 +40,7 @@ import polars_h3
 def test_cell_to_parent_valid(test_params):
     df = pl.DataFrame(
         {"input": [test_params["input"]]}, schema=test_params["schema"]
-    ).with_columns(parent=polars_h3.cell_to_parent("input", 1))
+    ).with_columns(parent=plh3.cell_to_parent("input", 1))
     assert df["parent"].to_list()[0] == test_params["output"]
 
 
@@ -76,7 +76,7 @@ def test_cell_to_parent_valid(test_params):
 def test_cell_to_center_child_valid(test_params):
     df = pl.DataFrame(
         {"input": [test_params["input"]]}, schema=test_params["schema"]
-    ).with_columns(child=polars_h3.cell_to_center_child("input", 4))
+    ).with_columns(child=plh3.cell_to_center_child("input", 4))
     assert df["child"].to_list()[0] == test_params["output"]
 
 
@@ -136,7 +136,7 @@ def test_cell_to_center_child_valid(test_params):
 def test_cell_to_children_valid(test_params):
     df = pl.DataFrame(
         {"input": [test_params["input"]]}, schema=test_params["schema"]
-    ).with_columns(children=polars_h3.cell_to_children("input", 3))
+    ).with_columns(children=plh3.cell_to_children("input", 3))
     assert df["children"].to_list()[0] == test_params["output"]
 
 
@@ -151,13 +151,13 @@ def test_invalid_resolutions(resolution: int):
     df = pl.DataFrame({"h3_cell": [586265647244115967]})
 
     with pytest.raises(ValueError):
-        df.with_columns(parent=polars_h3.cell_to_parent("h3_cell", resolution))
+        df.with_columns(parent=plh3.cell_to_parent("h3_cell", resolution))
 
     with pytest.raises(ValueError):
-        df.with_columns(child=polars_h3.cell_to_center_child("h3_cell", resolution))
+        df.with_columns(child=plh3.cell_to_center_child("h3_cell", resolution))
 
     with pytest.raises(ValueError):
-        df.with_columns(children=polars_h3.cell_to_children("h3_cell", resolution))
+        df.with_columns(children=plh3.cell_to_children("h3_cell", resolution))
 
 
 def test_compact_cells_valid():
@@ -175,7 +175,7 @@ def test_compact_cells_valid():
                 ]
             ]
         }
-    ).with_columns(polars_h3.compact_cells("h3_cells").list.sort().alias("compacted"))
+    ).with_columns(plh3.compact_cells("h3_cells").list.sort().alias("compacted"))
     assert df["compacted"].to_list()[0] == sorted(
         [
             586265647244115967,
@@ -191,7 +191,7 @@ def test_compact_cells_valid():
 
 def test_uncompact_cells_valid():
     df = pl.DataFrame({"h3_cells": [[581764796395814911]]}).with_columns(
-        uncompacted=polars_h3.uncompact_cells("h3_cells", 2)
+        uncompacted=plh3.uncompact_cells("h3_cells", 2)
     )
     assert df["uncompacted"].to_list()[0] == [
         586264547732488191,
@@ -207,5 +207,5 @@ def test_uncompact_cells_valid():
 def test_uncompact_cells_empty():
     with pytest.raises(pl.exceptions.ComputeError):
         pl.DataFrame({"h3_cells": [[]]}).with_columns(
-            uncompacted=polars_h3.uncompact_cells("h3_cells", 2)
+            uncompacted=plh3.uncompact_cells("h3_cells", 2)
         )

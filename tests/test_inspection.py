@@ -1,7 +1,7 @@
 import polars as pl
 import pytest
 
-import polars_h3
+import polars_h3 as plh3
 
 
 @pytest.mark.parametrize(
@@ -37,7 +37,7 @@ def test_get_resolution(test_params):
     df = pl.DataFrame(
         {"h3_cell": [test_params["input"]]},
         schema=test_params["schema"],
-    ).with_columns(resolution=polars_h3.get_resolution("h3_cell"))
+    ).with_columns(resolution=plh3.get_resolution("h3_cell"))
     assert df["resolution"][0] == test_params["output"]
 
 
@@ -98,7 +98,7 @@ def test_is_valid_cell(test_params):
     df = pl.DataFrame(
         {"h3_cell": [test_params["input"]]},
         schema=test_params["schema"],
-    ).with_columns(valid=polars_h3.is_valid_cell("h3_cell"))
+    ).with_columns(valid=plh3.is_valid_cell("h3_cell"))
     assert df["valid"][0] == test_params["output"]
 
 
@@ -140,14 +140,14 @@ def test_int_to_str_conversion(test_params):
     df_uint = pl.DataFrame(
         {"h3_cell": [test_params["input"]]},
         schema={"h3_cell": pl.UInt64},
-    ).with_columns(h3_str=polars_h3.int_to_str("h3_cell"))
+    ).with_columns(h3_str=plh3.int_to_str("h3_cell"))
     assert df_uint["h3_str"][0] == test_params["output"]
 
     # Test Int64
     df_int = pl.DataFrame(
         {"h3_cell": [test_params["input"]]},
         schema={"h3_cell": pl.Int64},
-    ).with_columns(h3_str=polars_h3.int_to_str("h3_cell"))
+    ).with_columns(h3_str=plh3.int_to_str("h3_cell"))
     assert df_int["h3_str"][0] == test_params["output"]
 
 
@@ -187,13 +187,13 @@ def test_int_to_str_conversion(test_params):
 def test_str_to_int_conversion(test_params):
     # Test with no schema specified
     df_uint = pl.DataFrame({"h3_cell": [test_params["input"]]}).with_columns(
-        h3_int=polars_h3.str_to_int("h3_cell")
+        h3_int=plh3.str_to_int("h3_cell")
     )
     assert df_uint["h3_int"][0] == test_params["output"]
 
     # Test with Int64 schema
     df_int = pl.DataFrame({"h3_cell": [test_params["input"]]}).with_columns(
-        h3_int=polars_h3.str_to_int("h3_cell")
+        h3_int=plh3.str_to_int("h3_cell")
     )
     assert df_int["h3_int"][0] == test_params["output"]
 
@@ -223,7 +223,7 @@ def test_is_pentagon(test_params):
     df = pl.DataFrame(
         {"h3_cell": test_params["inputs"]},
         schema=test_params["schema"],
-    ).with_columns(is_pent=polars_h3.is_pentagon("h3_cell"))
+    ).with_columns(is_pent=plh3.is_pentagon("h3_cell"))
     assert df["is_pent"].to_list() == test_params["outputs"]
 
 
@@ -260,13 +260,13 @@ def test_is_res_class_III(test_params):
     df = pl.DataFrame(
         {"h3_cell": test_params["inputs"]},
         schema=test_params["schema"],
-    ).with_columns(is_class_3=polars_h3.is_res_class_III("h3_cell"))
+    ).with_columns(is_class_3=plh3.is_res_class_III("h3_cell"))
     assert df["is_class_3"].to_list() == test_params["outputs"]
 
 
 def test_str_to_int_invalid():
     df = pl.DataFrame({"h3_str": [",,,,,"]}).with_columns(
-        h3_int=polars_h3.str_to_int("h3_str")
+        h3_int=plh3.str_to_int("h3_str")
     )
     assert df["h3_int"][0] is None
 
@@ -328,7 +328,7 @@ def test_get_icosahedron_faces(test_params):
     df = pl.DataFrame(
         {"h3_cell": [test_params["input"]]},
         schema=test_params["schema"],
-    ).with_columns(faces=polars_h3.get_icosahedron_faces("h3_cell").list.sort())
+    ).with_columns(faces=plh3.get_icosahedron_faces("h3_cell").list.sort())
     assert df["faces"][0].to_list() == sorted(test_params["output"])
 
 
@@ -362,5 +362,5 @@ def test_get_icosahedron_faces_invalid(test_params):
     df = pl.DataFrame(
         {"h3_cell": [test_params["input"]]},
         schema=test_params["schema"],
-    ).with_columns(faces=polars_h3.get_icosahedron_faces("h3_cell"))
+    ).with_columns(faces=plh3.get_icosahedron_faces("h3_cell"))
     assert df["faces"][0] is None

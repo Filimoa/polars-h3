@@ -3,7 +3,7 @@ from typing import Union
 import polars as pl
 import pytest
 
-import polars_h3
+import polars_h3 as plh3
 
 
 @pytest.mark.parametrize(
@@ -23,7 +23,7 @@ def test_is_valid_vertex(
     expected_valid: bool,
 ):
     df = pl.DataFrame({"vertex": vertex}, schema=schema).with_columns(
-        valid=polars_h3.is_valid_vertex("vertex")
+        valid=plh3.is_valid_vertex("vertex")
     )
     assert df["valid"][0] == expected_valid
 
@@ -70,7 +70,7 @@ def test_cell_to_vertexes(
     expected_vertexes: Union[list[int], None],
 ):
     df = pl.DataFrame({"h3_cell": h3_cell}, schema=schema).with_columns(
-        vertexes=polars_h3.cell_to_vertexes("h3_cell")
+        vertexes=plh3.cell_to_vertexes("h3_cell")
     )
 
     if expected_vertexes is None:
@@ -90,7 +90,7 @@ def test_cell_to_vertexes(
 )
 def test_cell_to_vertex_valid(h3_cell, vertex_num, expected_vertex):
     df = pl.DataFrame({"h3_cell": h3_cell}).with_columns(
-        vertex=polars_h3.cell_to_vertex("h3_cell", vertex_num)
+        vertex=plh3.cell_to_vertex("h3_cell", vertex_num)
     )
     assert df["vertex"][0] == expected_vertex
 
@@ -98,7 +98,7 @@ def test_cell_to_vertex_valid(h3_cell, vertex_num, expected_vertex):
 def test_cell_to_vertex_invalid_vertex_num():
     df = pl.DataFrame({"h3_cell": "823d6ffffffffff"})
     with pytest.raises(pl.exceptions.ComputeError):
-        df.with_columns(vertex=polars_h3.cell_to_vertex("h3_cell", -1))
+        df.with_columns(vertex=plh3.cell_to_vertex("h3_cell", -1))
 
 
 @pytest.mark.parametrize(
@@ -116,7 +116,7 @@ def test_cell_to_vertex_invalid_vertex_num():
 )
 def test_vertex_to_latlng(vertex, schema, expected_coords):
     df = pl.DataFrame({"vertex": vertex}, schema=schema).with_columns(
-        coords=polars_h3.vertex_to_latlng("vertex")
+        coords=plh3.vertex_to_latlng("vertex")
     )
 
     result = df["coords"].to_list()[0]
