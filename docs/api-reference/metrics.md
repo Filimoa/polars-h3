@@ -127,8 +127,6 @@ plh3.edge_length(
 ) -> pl.Expr
 ```
 
-**Warning:** This function is _not yet implemented_ and will raise `NotImplementedError`.
-
 **Parameters**
 
 - **cell** : IntoExprColumn  
@@ -217,8 +215,6 @@ plh3.get_pentagons(
     resolution: IntoExprColumn
 ) -> pl.Expr
 ```
-
-**Warning:** This function is _not yet implemented_ and will raise `NotImplementedError`.
 
 **Parameters**
 

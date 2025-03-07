@@ -651,7 +651,7 @@ dependencies = [
 
 [[package]]
 name = "polars-h3"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "h3o",
  "polars",

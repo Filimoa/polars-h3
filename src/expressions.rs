@@ -404,9 +404,8 @@ fn get_pentagons(inputs: &[Series]) -> PolarsResult<Series> {
     crate::engine::metrics::get_pentagons(inputs)
 }
 
-// ADD-ME
-// #[polars_expr(output_type=Float64)]
-// fn edge_length(inputs: &[Series], kwargs: UnitKwargs) -> PolarsResult<Series> {
-//     let cell_series = &inputs[0];
-//     crate::engine::metrics::edge_length(cell_series, &kwargs.unit)
-// }
+#[polars_expr(output_type=Float64)]
+fn edge_length(inputs: &[Series], kwargs: UnitKwargs) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::metrics::edge_length(cell_series, &kwargs.unit)
+}

@@ -162,7 +162,13 @@ def edge_length(cell: IntoExprColumn, unit: EdgeLengthUnit = "km") -> pl.Expr:
     └─────────────────────┴─────────┘
     ```
     """
-    raise NotImplementedError("Not implemented")
+    return register_plugin_function(
+        args=[cell],
+        plugin_path=LIB,
+        function_name="edge_length",
+        is_elementwise=True,
+        kwargs={"unit": unit},
+    )
 
 
 def average_hexagon_edge_length(
@@ -273,7 +279,10 @@ def get_pentagons(resolution: IntoExprColumn) -> pl.Expr:
     └─────────────┴──────────┘
     ```
     """
-    raise NotImplementedError("Not implemented")
 
-    # resolution_expr = pl.col(resolution) if isinstance(resolution, str) else resolution
-    # return resolution_expr.replace(_consts.PENTAGONS_BY_RESOLUTION)
+    return register_plugin_function(
+        args=[resolution],
+        plugin_path=LIB,
+        function_name="get_pentagons",
+        is_elementwise=True,
+    )
