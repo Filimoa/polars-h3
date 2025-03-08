@@ -144,6 +144,7 @@ def test_float32_latlng():
             },
             id="cell_to_child_pos_null",
         ),
+        # not sure why this is not crashing?
         # pytest.param(
         #     {
         #         "df": pl.DataFrame(
@@ -158,6 +159,7 @@ def test_float32_latlng():
         #     },
         #     id="child_pos_to_cell_null",
         # ),
+        # not sure why this is not crashing?
         # pytest.param(
         #     {
         #         "df": pl.DataFrame(
