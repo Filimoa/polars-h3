@@ -3,6 +3,8 @@ use polars::prelude::*;
 use pyo3_polars::derive::polars_expr;
 use serde::Deserialize;
 
+use crate::engine::utils::bail_if_null_many;
+
 #[derive(Deserialize)]
 struct LatLngToCellKwargs {
     resolution: u8,
@@ -66,6 +68,11 @@ fn latlng_to_cell(inputs: &[Series], kwargs: LatLngToCellKwargs) -> PolarsResult
     let lat_series = &inputs[0];
     let lng_series = &inputs[1];
     let resolution = kwargs.resolution;
+
+    bail_if_null_many(&[
+        (lat_series, "`lat` column in `latlng_to_cell`"),
+        (lng_series, "`lng` column in `latlng_to_cell`"),
+    ])?;
 
     crate::engine::indexing::latlng_to_cell(lat_series, lng_series, resolution)
 }
