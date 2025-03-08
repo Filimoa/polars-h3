@@ -60,14 +60,17 @@ def test_latlng_to_cell_missing_lat_lng():
 )
 def test_latlng_to_cell_null_inputs(input_lat, input_lng):
     df = pl.DataFrame({"lat": [input_lat], "lng": [input_lng]})
-    with pytest.raises(pl.exceptions.ComputeError):
+    with pytest.raises(pl.exceptions.ComputeError) as exc_info:
         df.with_columns(
             h3_cell=plh3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64)
         )
-    with pytest.raises(pl.exceptions.ComputeError):
+    assert "expected `Float64`" in str(exc_info.value)
+
+    with pytest.raises(pl.exceptions.ComputeError) as exc_info:
         df.with_columns(
             h3_cell=plh3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.Utf8)
         )
+    assert "expected `Float64`" in str(exc_info.value)
 
 
 @pytest.mark.parametrize(

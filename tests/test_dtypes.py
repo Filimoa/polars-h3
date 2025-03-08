@@ -9,12 +9,9 @@ def test_full_null_latlng():
     with pytest.raises(pl.exceptions.ComputeError) as exc_info:
         df.with_columns(plh3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64))
     # Check that the error message does not contain "panick"
-    assert "panick" not in str(exc_info.value).lower()
+    assert "panic" not in str(exc_info.value).lower()
 
 
-@pytest.mark.xfail(
-    reason="This is a known issue with the plugin. Need to provide a better error message."
-)
 def test_single_null_latlng():
     df = pl.DataFrame(
         {
@@ -22,10 +19,8 @@ def test_single_null_latlng():
             "lng": [-74.006] * 99 + [None],
         },
         schema={"lat": pl.Float64, "lng": pl.Float64},
-    )
-    with pytest.raises(pl.exceptions.ComputeError) as exc_info:
-        df.with_columns(plh3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64))
-    assert "panick" not in str(exc_info.value).lower()
+    ).with_columns(h3_cell=plh3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64))
+    assert df["h3_cell"].is_null().sum() == 1
 
 
 def test_float32_latlng():

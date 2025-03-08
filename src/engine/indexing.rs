@@ -2,50 +2,24 @@ use h3o::{CellIndex, LatLng, Resolution};
 use polars::prelude::*;
 use rayon::prelude::*;
 
-use super::utils::parse_cell_indices;
+use super::utils::{parse_cell_indices, parse_multi_f64_columns};
+
 fn parse_latlng_to_cells(
     lat_series: &Series,
     lng_series: &Series,
     resolution: u8,
 ) -> PolarsResult<Vec<Option<CellIndex>>> {
-    let lat_series = match lat_series.dtype() {
-        DataType::Float64 => lat_series.clone(),
-        DataType::Float32 => lat_series.cast(&DataType::Float64)?,
-        _ => {
-            return Err(PolarsError::ComputeError(
-                "lat column must be Float32 or Float64".into(),
-            ))
-        },
-    };
-    let lng_series = match lng_series.dtype() {
-        DataType::Float64 => lng_series.clone(),
-        DataType::Float32 => lng_series.cast(&DataType::Float64)?,
-        _ => {
-            return Err(PolarsError::ComputeError(
-                "lng column must be Float32 or Float64".into(),
-            ))
-        },
-    };
-
     let lat_ca = lat_series.f64()?;
     let lng_ca = lng_series.f64()?;
-    let res = Resolution::try_from(resolution).map_err(|_| {
-        PolarsError::ComputeError(format!("Invalid resolution: {}", resolution).into())
-    })?;
+    let res = Resolution::try_from(resolution)
+        .map_err(|_| PolarsError::ComputeError("Invalid resolution".into()))?;
 
-    let lat_values = lat_ca
-        .cont_slice()
-        .expect("No nulls expected in lat_series");
-    let lng_values = lng_ca
-        .cont_slice()
-        .expect("No nulls expected in lng_series");
-
-    let cells: Vec<Option<CellIndex>> = lat_values
-        .par_iter()
-        .zip(lng_values.par_iter())
-        .map(|(&lat, &lng)| match LatLng::new(lat, lng) {
-            Ok(coord) => Some(coord.to_cell(res)),
-            Err(_) => None,
+    let cells: Vec<Option<CellIndex>> = lat_ca
+        .into_iter()
+        .zip(lng_ca.into_iter())
+        .map(|(lat_opt, lng_opt)| match (lat_opt, lng_opt) {
+            (Some(lat), Some(lng)) => LatLng::new(lat, lng).ok().map(|coord| coord.to_cell(res)),
+            _ => None, // Null if either lat or lng is null
         })
         .collect();
 
@@ -57,12 +31,52 @@ pub fn latlng_to_cell(
     lng_series: &Series,
     resolution: u8,
 ) -> PolarsResult<Series> {
-    let cells = parse_latlng_to_cells(lat_series, lng_series, resolution)?;
+    let lat_series = match lat_series.dtype() {
+        DataType::Float64 | DataType::Null => lat_series.clone(),
+        DataType::Float32 => lat_series.cast(&DataType::Float64)?,
+        _ => {
+            return Err(PolarsError::ComputeError(
+                "lat column must be Float32 or Float64".into(),
+            ));
+        },
+    };
+    let lng_series = match lng_series.dtype() {
+        DataType::Float64 | DataType::Null => lng_series.clone(),
+        DataType::Float32 => lng_series.cast(&DataType::Float64)?,
+        _ => {
+            return Err(PolarsError::ComputeError(
+                "lng column must be Float32 or Float64".into(),
+            ));
+        },
+    };
 
-    let h3_indices: UInt64Chunked = cells
-        .into_par_iter()
-        .map(|cell| cell.map(Into::into))
+    let lat_ca = lat_series.f64()?;
+    let lng_ca = lng_series.f64()?;
+
+    let res = Resolution::try_from(resolution).map_err(|_| {
+        PolarsError::ComputeError(format!("Invalid resolution: {resolution}").into())
+    })?;
+
+    let lat_iter = lat_ca.into_iter();
+    let lng_iter = lng_ca.into_iter();
+
+    // Collect row-by-row into Vec<Option<u64>>
+    let cells: Vec<Option<u64>> = lat_iter
+        .zip(lng_iter)
+        .map(|(opt_lat, opt_lng)| match (opt_lat, opt_lng) {
+            (Some(lat), Some(lng)) => {
+                // If lat/lng out-of-range => LatLng::new(...) returns Err => produce None.
+                match LatLng::new(lat, lng) {
+                    Ok(coord) => Some(coord.to_cell(res).into()),
+                    Err(_) => None,
+                }
+            },
+            // If either lat or lng is null => entire row is null
+            _ => None,
+        })
         .collect();
+
+    let h3_indices: UInt64Chunked = cells.into_par_iter().collect();
 
     Ok(h3_indices.into_series())
 }
