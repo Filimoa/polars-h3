@@ -248,9 +248,12 @@ def get_num_cells(resolution: IntoExprColumn) -> pl.Expr:
     └─────────────┴──────────┘
     ```
     """
-
-    resolution_expr = pl.col(resolution) if isinstance(resolution, str) else resolution
-    return resolution_expr.cast(pl.UInt8).replace(_consts.NUM_CELLS_BY_RESOLUTION)
+    return register_plugin_function(
+        args=[resolution],
+        plugin_path=LIB,
+        function_name="get_num_cells",
+        is_elementwise=True,
+    )
 
 
 def get_pentagons(resolution: IntoExprColumn) -> pl.Expr:

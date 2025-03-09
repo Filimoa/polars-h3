@@ -5,6 +5,70 @@ use std::str::FromStr;
 
 use super::utils::parse_cell_indices;
 
+pub fn get_num_cells_series(resolution_series: &Series) -> PolarsResult<Series> {
+    let resolutions: Vec<Option<u8>> = match resolution_series.dtype() {
+        DataType::UInt8 => resolution_series.u8()?.into_iter().collect(),
+        DataType::UInt16 => resolution_series
+            .u16()?
+            .into_iter()
+            .map(|opt| opt.and_then(|v| v.try_into().ok()))
+            .collect(),
+        DataType::UInt32 => resolution_series
+            .u32()?
+            .into_iter()
+            .map(|opt| opt.and_then(|v| v.try_into().ok()))
+            .collect(),
+        DataType::UInt64 => resolution_series
+            .u64()?
+            .into_iter()
+            .map(|opt| opt.and_then(|v| v.try_into().ok()))
+            .collect(),
+        DataType::Int8 => resolution_series
+            .i8()?
+            .into_iter()
+            .map(|opt| opt.and_then(|v| if v >= 0 { Some(v as u8) } else { None }))
+            .collect(),
+        DataType::Int16 => resolution_series
+            .i16()?
+            .into_iter()
+            .map(|opt| opt.and_then(|v| if v >= 0 { v.try_into().ok() } else { None }))
+            .collect(),
+        DataType::Int32 => resolution_series
+            .i32()?
+            .into_iter()
+            .map(|opt| opt.and_then(|v| if v >= 0 { v.try_into().ok() } else { None }))
+            .collect(),
+        DataType::Int64 => resolution_series
+            .i64()?
+            .into_iter()
+            .map(|opt| opt.and_then(|v| if v >= 0 { v.try_into().ok() } else { None }))
+            .collect(),
+        _ => {
+            return Err(PolarsError::ComputeError(
+                "Resolution must be an integer type".into(),
+            ))
+        },
+    };
+
+    // Compute the cell count for each valid resolution
+    let counts: Vec<Option<u64>> = resolutions
+        .into_iter()
+        .map(|opt_res| {
+            opt_res.and_then(|res| {
+                h3o::Resolution::try_from(res) // Convert to H3 Resolution (0–15)
+                    .ok() // Returns None if out of range
+                    .map(|r| r.cell_count()) // Compute cell count
+            })
+        })
+        .collect();
+
+    // Return a Series of type UInt64 with the results
+    Ok(
+        UInt64Chunked::from_iter_options(PlSmallStr::from("count"), counts.into_iter())
+            .into_series(),
+    )
+}
+
 pub fn get_num_cells(resolution: u8) -> PolarsResult<Series> {
     let count = h3o::Resolution::try_from(resolution)
         .map(|res| res.cell_count())

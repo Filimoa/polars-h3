@@ -298,13 +298,12 @@ def test_edge_length(
         assert pytest.approx(df["length"][0], rel=1e-3) == expected_length
 
 
-@pytest.mark.xfail
 @pytest.mark.parametrize(
     "resolution, expected_count",
     [
         pytest.param(0, 122, id="res0"),
         pytest.param(5, 2016842, id="res5"),
-        # pytest.param(-1, None, id="invalid_res"),
+        pytest.param(-1, None, id="invalid_res"),
     ],
 )
 def test_get_num_cells(resolution: int, expected_count: Union[int, None]):

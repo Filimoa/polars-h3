@@ -116,3 +116,28 @@ pub fn resolve_target_inner_dtype(original_dtype: &DataType) -> PolarsResult<Dat
 
     Ok(target_inner_dtype)
 }
+
+/// Return an error if `series` has any nulls.
+pub fn bail_if_null(series: &Series, context: &str) -> PolarsResult<()> {
+    if series.null_count() > 0 {
+        return Err(PolarsError::ComputeError(
+            format!("Null values not allowed in {}", context).into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Return an error if *any* of the provided Series have nulls.
+///
+/// - `checks` is a slice of `(Series, &str)` pairs,
+///   where each &str is the "context" or name used in error messages.
+pub fn bail_if_null_many(checks: &[(&Series, &str)]) -> PolarsResult<()> {
+    for (series, context) in checks {
+        if series.null_count() > 0 {
+            return Err(PolarsError::ComputeError(
+                format!("Null values not allowed in {}", context).into(),
+            ));
+        }
+    }
+    Ok(())
+}

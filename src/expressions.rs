@@ -387,11 +387,9 @@ fn cell_area(inputs: &[Series], kwargs: UnitKwargs) -> PolarsResult<Series> {
 }
 
 #[polars_expr(output_type=UInt64)]
-fn get_num_cells(_inputs: &[Series], kwargs: ResolutionKwargs) -> PolarsResult<Series> {
-    let resolution = kwargs
-        .resolution
-        .ok_or_else(|| PolarsError::ComputeError("Resolution required for get_num_cells".into()))?;
-    crate::engine::metrics::get_num_cells(resolution)
+fn get_num_cells(inputs: &[Series]) -> PolarsResult<Series> {
+    let resolution_series = &inputs[0];
+    crate::engine::metrics::get_num_cells_series(resolution_series)
 }
 
 #[polars_expr(output_type_func=list_uint64_dtype)]
