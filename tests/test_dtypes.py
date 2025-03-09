@@ -39,9 +39,7 @@ def test_float32_latlng():
                     },
                 ),
                 "func": plh3.latlng_to_cell("lat", "lng", 9, return_dtype=pl.UInt64),
-                "error": {
-                    "error_msg": "null values not allowed in",
-                },
+                "error": None,
             },
             id="latlng_to_cell",
         ),
