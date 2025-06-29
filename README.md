@@ -120,9 +120,9 @@ We are unable to support the functions that work with geometries.
 | [`average_hexagon_area`](https://filimoa.github.io/polars-h3/api-reference/metrics/#average_hexagon_area)                | Get average area of a hexagon cell at resolution                                                                         | ✅        |
 | [`cell_area`](https://filimoa.github.io/polars-h3/api-reference/metrics/#cell_area)                                      | Get the area of a cell ID                                                                                                | ✅        |
 | [`average_hexagon_edge_length`](https://filimoa.github.io/polars-h3/api-reference/metrics/#average_hexagon_edge_length)  | Average hexagon edge length at resolution                                                                                | ✅        |
-| [`edge_length`](https://filimoa.github.io/polars-h3/api-reference/metrics/#edge_length)                                  | Get the length of a directed edge ID                                            | ✅        |
+| [`edge_length`](https://filimoa.github.io/polars-h3/api-reference/metrics/#edge_length)                                  | Get the length of a directed edge ID                                                                                     | ✅        |
 | [`get_num_cells`](https://filimoa.github.io/polars-h3/api-reference/metrics/#get_num_cells)                              | Get the number of cells at a resolution                                                                                  | ✅        |
-| [`get_pentagons`](https://filimoa.github.io/polars-h3/api-reference/metrics/#get_pentagons)                              | Get all pentagons at a resolution                                               | ✅        |
+| [`get_pentagons`](https://filimoa.github.io/polars-h3/api-reference/metrics/#get_pentagons)                              | Get all pentagons at a resolution                                                                                        | ✅        |
 | [`great_circle_distance`](https://filimoa.github.io/polars-h3/api-reference/metrics/#great_circle_distance)              | Compute the great circle distance between two points (haversine)                                                         | ✅        |
 | `cells_to_multi_polygon_wkt`                                                                                             | Convert a set of cells to multipolygon WKT                                                                               | 🛑        |
 | `polygon_wkt_to_cells`                                                                                                   | Convert polygon WKT to a set of cells                                                                                    | 🛑        |
@@ -149,4 +149,21 @@ display(hex_map)
 
 ### Development
 
-It's recommended to use [uv](https://github.com/astral-sh/uv) to manage the extension dependencies. If you modify rust code, you will need to run `uv run maturin develop --uv` to see changes. If you're looking to benchmark the performance of the extension, build the release version with `maturin develop --release --uv` and then run `uv run -m benchmarks.engine` (assuming you have the benchmark dependencies installed). Benchmarking with the development version will lead to misleading results.
+It's recommended to use [uv](https://github.com/astral-sh/uv) to manage the extension's python dependencies.
+
+### Benchmarking
+
+If you modify rust code, you will need to run `uv run maturin develop --uv` to see changes. If you're looking to benchmark the performance of the extension, build the release version with `maturin develop --release --uv` and then run `uv run -m benchmarks.engine` (assuming you have the benchmark dependencies installed). Benchmarking with the development version will lead to misleading results.
+
+```bash
+# 1 – (build) compile the optimized Rust extension
+uv run maturin develop --release --uv
+
+# 2 – (run) execute the benchmark CLI
+uv run h3-bench \
+  --libraries plh3 duckdb h3_py \   # which back-ends to test (or “all”)
+  --functions latlng_to_cell cell_to_parent \  # which functions to time (or “all”)
+  --iterations 3 \                  # repetitions per test
+  --fast-factor 4 \                 # divide default row-counts to speed things up
+  --output results.json             # optional: dump raw results
+```

@@ -7,11 +7,14 @@ Utility script to benchmark the performance of the H3 Polars extension.
 - Attempted to also benchmark H3-Pandas, but project appears to be abandoned and doesn't work with h3 >= 4.0.0.
 """
 
+import argparse
+import json
 import random
 import statistics
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Literal
 
 import duckdb
@@ -679,35 +682,79 @@ def _pretty_print_avg_results(results: list[BenchmarkResult]):
         print(f"{lib:<10} {median_by_lib[lib]:<8} {avg_by_lib[lib]:<8}")
 
 
-if __name__ == "__main__":
-    fast_factor = 1
-    param_config = ParamConfig(
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="h3-bench",
+        description="Benchmark H3 libraries with Polars/DuckDB",
+    )
+
+    parser.add_argument(
+        "--libraries",
+        "-l",
+        nargs="+",
+        default=["all"],
+        choices=["plh3", "duckdb", "h3_py", "all"],
+        help="Which libraries to benchmark",
+    )
+    parser.add_argument(
+        "--functions",
+        "-f",
+        nargs="+",
+        default=["all"],
+        help="Subset of functions to run",
+    )
+    parser.add_argument("--iterations", "-n", type=int, default=3)
+    parser.add_argument(
+        "--fast-factor",
+        type=int,
+        default=1,
+        help="Divide default row counts by this factor",
+    )
+    parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument(
+        "--output", "-o", type=Path, default=None, help="Path to write JSON results"
+    )
+
+    return parser.parse_args()
+
+
+def _build_param_config(args: argparse.Namespace) -> ParamConfig:
+    factor = max(args.fast_factor, 1)
+
+    return ParamConfig(
         resolution=9,
         grid_ring_distance=3,
-        num_iterations=3,
-        libraries="all",
+        num_iterations=args.iterations,
+        libraries=args.libraries if "all" not in args.libraries else "all",
+        functions=args.functions if "all" not in args.functions else "all",
         difficulty_to_num_rows={
-            "basic": 10_000_000 // fast_factor,
-            "medium": 10_000_000 // fast_factor,
-            "complex": 100_000 // fast_factor,
+            "basic": 10_000_000 // factor,
+            "medium": 10_000_000 // factor,
+            "complex": 100_000 // factor,
         },
-        # functions=["latlng_to_cell"],
-        # verbose=True,
+        verbose=args.verbose,
     )
-    benchmark = Benchmark(config=param_config)
+
+
+def main() -> None:
+    args = _parse_args()
+    config = _build_param_config(args)
+
+    benchmark = Benchmark(config=config)
     results = benchmark.run_all()
-    prev_func = None
-    for result in results:
-        if prev_func != result.name:
-            print(f"\n{result.name} (num_iterations={param_config.num_iterations})")
-            prev_func = result.name
-        print(result)
 
-    _pretty_print_avg_results(results)
+    last = None
+    for r in results:
+        if r.name != last:
+            print(f"\n{r.name} (num_iterations={config.num_iterations})")
+            last = r.name
+        print(r)
 
-    import json
-    from dataclasses import asdict
-
-    if param_config.functions == "all":
-        with open("benchmarks/benchmarks-results.json", "w") as f:
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w") as f:
             json.dump([asdict(r) for r in results], f, indent=2)
+
+
+if __name__ == "__main__":
+    main()
