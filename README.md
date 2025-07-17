@@ -19,7 +19,7 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 
 - 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, covering almost everything the standard H3 library provides, excluding geometric functions.
 
-- 📋 **Fully Tested:** Thoroughly tested against the standard H3 library.
+- 📋 **Fully Tested & Used in Production:** Thoroughly tested against the standard H3 library.
 
 - 🔍 **Data Type Agnostic:** Supports string and integer H3 indexes natively, eliminating format conversion hassles.
 
@@ -149,11 +149,13 @@ display(hex_map)
 
 ### Development
 
-It's recommended to use [uv](https://github.com/astral-sh/uv) to manage the extension's python dependencies.
+It's recommended to use [uv](https://github.com/astral-sh/uv) to manage the extension's python dependencies. If you modify rust code, you will need to run `uv run maturin develop --uv` to see changes.
+
+You can run test suite with `uv run pytest`.
 
 ### Benchmarking
 
-If you modify rust code, you will need to run `uv run maturin develop --uv` to see changes. If you're looking to benchmark the performance of the extension, build the release version with `maturin develop --release --uv` and then run `uv run -m benchmarks.engine` (assuming you have the benchmark dependencies installed). Benchmarking with the development version will lead to misleading results.
+If you're looking to benchmark the performance of the extension, build the release version with `maturin develop --release --uv` and then run `uv run -m benchmarks.engine` (assuming you have the benchmark dependencies installed). Benchmarking with the development version will lead to misleading results.
 
 ```bash
 # 1 – (build) compile the optimized Rust extension
