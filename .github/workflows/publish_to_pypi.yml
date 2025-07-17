@@ -1,8 +1,9 @@
-name: CI
+name: Publish to PyPI
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 concurrency: 
   group: ${{ github.workflow }}-${{ github.ref }}
