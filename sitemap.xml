@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://github.com/Filimoa/polars-h3/</loc>
+         <lastmod>2025-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/Filimoa/polars-h3/graphing/</loc>
+         <lastmod>2025-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/Filimoa/polars-h3/api-reference/edge/</loc>
+         <lastmod>2025-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/Filimoa/polars-h3/api-reference/indexing/</loc>
+         <lastmod>2025-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/Filimoa/polars-h3/api-reference/inspection/</loc>
+         <lastmod>2025-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/Filimoa/polars-h3/api-reference/metrics/</loc>
+         <lastmod>2025-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/Filimoa/polars-h3/api-reference/traversal/</loc>
+         <lastmod>2025-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/Filimoa/polars-h3/api-reference/vertexes/</loc>
+         <lastmod>2025-07-17</lastmod>
+    </url>
+</urlset>
