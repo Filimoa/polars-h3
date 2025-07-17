@@ -5,8 +5,11 @@
 This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H3 discrete global grid system](https://github.com/uber/h3/), so you can index points and geometries to hexagons directly in Polars. All credits goes to the [h3o](https://github.com/HydroniumLabs/h3o) for doing the heavy lifting.
 
 <div align="left">
+  <a href="https://opensource.org/licenses/MIT">
+    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"/>
+  </a>
   <a href="https://pypi.org/project/polars-h3/">
-    <img src="https://img.shields.io/pypi/v/polars-h3.svg" alt="PyPi Latest Release"/>
+    <img src="https://img.shields.io/pypi/v/polars-h3.svg" alt="PyPI Latest Release"/>
   </a>
 </div>
 
@@ -37,20 +40,27 @@ You can use the extension as a drop-in replacement for the standard H3 functions
 import polars_h3 as plh3
 import polars as pl
 
->>> df = pl.DataFrame(
-...     {
-...         "lat": [37.7749],
-...         "long": [-122.4194],
-...     }
-... ).with_columns(
-...     plh3.latlng_to_cell(
-...         "lat",
-...         "long",
-...         resolution=7,
-...         return_dtype=pl.Utf8
-...     ).alias("h3_cell"),
-... )
->>> df
+df = (
+    pl.DataFrame(
+        {
+            "lat": [37.7749],
+            "long": [-122.4194],
+        }
+    )
+    .with_columns(
+        plh3.latlng_to_cell(
+            "lat",
+            "long",
+            resolution=7,
+            return_dtype=pl.Utf8,
+        ).alias("h3_cell")
+    )
+)
+
+print(df)
+```
+
+```text
 shape: (1, 3)
 ┌─────────┬───────────┬─────────────────┐
 │ lat     ┆ long      ┆ h3_cell         │
@@ -60,6 +70,7 @@ shape: (1, 3)
 │ 37.7749 ┆ -122.4194 ┆ 872830828ffffff │
 └─────────┴───────────┴─────────────────┘
 ```
+
 
 Check out the [quickstart notebook](notebooks/quickstart.ipynb) for more examples.
 
