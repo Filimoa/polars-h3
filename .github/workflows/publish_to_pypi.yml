@@ -79,7 +79,7 @@ jobs:
           path: dist
 
   macos:
-    runs-on: macOS
+    runs-on: macos-latest
     strategy:
       matrix:
         target: [x86_64, aarch64]
