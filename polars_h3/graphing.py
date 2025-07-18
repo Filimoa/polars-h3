@@ -29,6 +29,7 @@ def _hex_bounds(
 
 def plot_hex_outlines(
     df: pl.DataFrame,
+    *,
     hex_id_col: str,
     map: Union[Any, None] = None,
     outline_color: str = "red",
@@ -100,6 +101,7 @@ def plot_hex_outlines(
 
 def plot_hex_fills(
     df: pl.DataFrame,
+    *,
     hex_id_col: str,
     metric_col: str,
     map: Union[Any, None] = None,
