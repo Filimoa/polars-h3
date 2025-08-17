@@ -71,7 +71,6 @@ shape: (1, 3)
 └─────────┴───────────┴─────────────────┘
 ```
 
-
 Check out the [quickstart notebook](notebooks/quickstart.ipynb) for more examples.
 
 🌟 You can also find the advanced notebooks [here](notebooks/).
@@ -97,8 +96,8 @@ We are unable to support the functions that work with geometries.
 | [`cell_to_lng`](https://filimoa.github.io/polars-h3/api-reference/indexing/#cell_to_lng)                                 | Convert cell ID to longitude                                                                                             | ✅        |
 | [`cell_to_latlng`](https://filimoa.github.io/polars-h3/api-reference/indexing/#cell_to_latlng)                           | Convert cell ID to latitude/longitude                                                                                    | ✅        |
 | [`get_resolution`](https://filimoa.github.io/polars-h3/api-reference/inspection/#get_resolution)                         | Get resolution number of cell ID                                                                                         | ✅        |
-| [`str_to_int`](https://filimoa.github.io/polars-h3/api-reference/inspection/#str_to_int)                                 | Convert `pl.Utf8` cell ID to `pl.UInt64`                                                                                     | ✅        |
-| [`int_to_str`](https://filimoa.github.io/polars-h3/api-reference/inspection/#int_to_str)                                 | Convert `pl.UInt64` or `pl.Int64` cell ID to `pl.Utf8`                                                                         | ✅        |
+| [`str_to_int`](https://filimoa.github.io/polars-h3/api-reference/inspection/#str_to_int)                                 | Convert `pl.Utf8` cell ID to `pl.UInt64`                                                                                 | ✅        |
+| [`int_to_str`](https://filimoa.github.io/polars-h3/api-reference/inspection/#int_to_str)                                 | Convert `pl.UInt64` or `pl.Int64` cell ID to `pl.Utf8`                                                                   | ✅        |
 | [`is_valid_cell`](https://filimoa.github.io/polars-h3/api-reference/inspection/#is_valid_cell)                           | True if this is a valid cell ID                                                                                          | ✅        |
 | [`is_res_class_iii`](https://filimoa.github.io/polars-h3/api-reference/inspection/#is_res_class_iii)                     | True if the cell's resolution is class III                                                                               | ✅        |
 | [`is_pentagon`](https://filimoa.github.io/polars-h3/api-reference/inspection/#is_pentagon)                               | True if the cell is a pentagon                                                                                           | ✅        |
@@ -162,7 +161,7 @@ display(hex_map)
 
 It's recommended to use [uv](https://github.com/astral-sh/uv) to manage the extension's python dependencies. If you modify rust code, you will need to run `uv run maturin develop --uv` to see changes.
 
-You can run test suite with `uv run pytest`.
+You can run test suite with `uv run pytest`. You can also run the docs locally with `uv run mkdocs serve`.
 
 ### Benchmarking
 
