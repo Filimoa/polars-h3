@@ -105,6 +105,7 @@ def grid_ring(cell: IntoExprColumn, k: IntoExprColumn | int) -> pl.Expr:
         args=[cell, k_expr],
         plugin_path=LIB,
         function_name="grid_ring",
+        is_elementwise=True,
     )
 
 
@@ -155,6 +156,7 @@ def grid_disk(cell: IntoExprColumn, k: IntoExprColumn | int) -> pl.Expr:
         args=[cell, k_expr],
         plugin_path=LIB,
         function_name="grid_disk",
+        is_elementwise=True,
     )
 
 
