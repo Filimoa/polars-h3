@@ -1,20 +1,20 @@
-use h3o::CellIndex;
-use h3o::CoordIJ;
+use h3o::{CellIndex, CoordIJ};
 use polars::prelude::*;
 use rayon::prelude::*;
 
-use super::utils::{cast_list_u64_to_dtype, parse_cell_indices, resolve_target_inner_dtype};
+use super::utils::{
+    broadcast_pair, broadcast_triple, cast_list_u64_to_dtype, parse_cell_indices,
+    resolve_target_inner_dtype,
+};
 
 pub fn grid_distance(origin_series: &Series, destination_series: &Series) -> PolarsResult<Series> {
     let origins = parse_cell_indices(origin_series)?;
     let destinations = parse_cell_indices(destination_series)?;
-
-    // Convert to Vec to ensure parallel iteration works
-    let dest_vec: Vec<_> = destinations.into_iter().collect();
+    let (origins, destinations) = broadcast_pair(origins, destinations, "grid_distance")?;
 
     let distances: Int32Chunked = origins
         .into_par_iter()
-        .zip(dest_vec.into_par_iter())
+        .zip(destinations.into_par_iter())
         .map(|(origin, dest)| match (origin, dest) {
             (Some(org), Some(dst)) => org.grid_distance(dst).ok(),
             _ => None,
@@ -32,13 +32,25 @@ pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
     let k_cast = k_series.cast(&DataType::Int32)?;
     let k_i32 = k_cast.i32()?;
 
-    let cells_vec: Vec<_> = cells.into_iter().collect();
     let is_scalar_k = k_series.len() == 1 && !matches!(k_series.dtype(), DataType::List(_));
+    let scalar_k = if is_scalar_k {
+        Some(
+            k_i32
+                .get(0)
+                .ok_or_else(|| polars_err!(ComputeError: "k_series is empty or invalid"))?,
+        )
+    } else {
+        None
+    };
+    let k_values: Vec<_> = k_i32.into_iter().collect();
+    let (cells_vec, k_values) = if is_scalar_k {
+        (cells, k_values)
+    } else {
+        broadcast_pair(cells, k_values, "grid_ring")?
+    };
     let ring_results: Vec<Option<Vec<u64>>> = if is_scalar_k {
         // Scalar case: broadcast the single k value across all cells
-        let k_val = k_i32
-            .get(0)
-            .ok_or_else(|| polars_err!(ComputeError: "k_series is empty or invalid"))?;
+        let k_val = scalar_k.unwrap();
         if k_val < 0 {
             return Err(polars_err!(ComputeError: "k must be non-negative"));
         }
@@ -59,17 +71,9 @@ pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
             .collect()
     } else {
         // Column case: zip with k values
-        let k_vec: Vec<_> = k_i32.into_iter().collect();
-        if k_vec.len() != cells_vec.len() {
-            return Err(polars_err!(
-                ComputeError: "Length of k_series ({}) must match cell_series ({})",
-                k_vec.len(),
-                cells_vec.len()
-            ));
-        }
         cells_vec
             .into_par_iter()
-            .zip(k_vec.into_par_iter())
+            .zip(k_values.into_par_iter())
             .map(|(maybe_cell, maybe_k)| match (maybe_cell, maybe_k) {
                 (Some(cell), Some(k_val)) if k_val >= 0 => {
                     let k_u32 = k_val as u32;
@@ -112,15 +116,26 @@ pub fn grid_disk(inputs: &[Series]) -> PolarsResult<Series> {
     let k_cast = k_series.cast(&DataType::Int32)?;
     let k_i32 = k_cast.i32()?;
 
-    let cells_vec: Vec<_> = cells.into_iter().collect();
-
     let is_scalar_k = k_series.len() == 1 && !matches!(k_series.dtype(), DataType::List(_));
+    let scalar_k = if is_scalar_k {
+        Some(
+            k_i32
+                .get(0)
+                .ok_or_else(|| polars_err!(ComputeError: "k_series is empty"))?,
+        )
+    } else {
+        None
+    };
+    let k_values: Vec<_> = k_i32.into_iter().collect();
+    let (cells_vec, k_values) = if is_scalar_k {
+        (cells, k_values)
+    } else {
+        broadcast_pair(cells, k_values, "grid_disk")?
+    };
 
     let disk_results: Vec<Option<Vec<u64>>> = if is_scalar_k {
         // Scalar case: broadcast the single k value
-        let k_val = k_i32
-            .get(0)
-            .ok_or_else(|| polars_err!(ComputeError: "k_series is empty"))?;
+        let k_val = scalar_k.unwrap();
         if k_val >= 0 {
             let k_u32 = k_val as u32;
             cells_vec
@@ -140,17 +155,9 @@ pub fn grid_disk(inputs: &[Series]) -> PolarsResult<Series> {
         }
     } else {
         // Non-scalar case: k_series should match cell_series length
-        let k_vec: Vec<_> = k_i32.into_iter().collect();
-        if k_vec.len() != cells_vec.len() {
-            return Err(polars_err!(
-                ComputeError: "k_series length ({}) must match cell_series length ({})",
-                k_vec.len(),
-                cells_vec.len()
-            ));
-        }
         cells_vec
             .into_par_iter()
-            .zip(k_vec.into_par_iter())
+            .zip(k_values.into_par_iter())
             .map(|(maybe_cell, maybe_k)| match (maybe_cell, maybe_k) {
                 (Some(cell), Some(k_val)) if k_val >= 0 => {
                     let k_u32 = k_val as u32;
@@ -183,13 +190,11 @@ pub fn grid_path_cells(
     let original_dtype = origin_series.dtype().clone();
     let origins = parse_cell_indices(origin_series)?;
     let destinations = parse_cell_indices(destination_series)?;
-
-    // Convert to Vec to ensure parallel iteration works
-    let dest_vec: Vec<_> = destinations.into_iter().collect();
+    let (origins, destinations) = broadcast_pair(origins, destinations, "grid_path_cells")?;
 
     let paths: ListChunked = origins
         .into_par_iter()
-        .zip(dest_vec.into_par_iter())
+        .zip(destinations.into_par_iter())
         .map(|(origin, dest)| {
             match (origin, dest) {
                 (Some(org), Some(dst)) => {
@@ -213,12 +218,11 @@ pub fn grid_path_cells(
 pub fn cell_to_local_ij(cell_series: &Series, origin_series: &Series) -> PolarsResult<Series> {
     let cells = parse_cell_indices(cell_series)?;
     let origins = parse_cell_indices(origin_series)?;
-
-    let origin_vec: Vec<_> = origins.into_iter().collect();
+    let (cells, origins) = broadcast_pair(cells, origins, "cell_to_local_ij")?;
 
     let coords: ListChunked = cells
         .into_par_iter()
-        .zip(origin_vec.into_par_iter())
+        .zip(origins.into_par_iter())
         .map(|(cell, origin)| match (cell, origin) {
             (Some(cell), Some(origin)) => cell.to_local_ij(origin).ok().map(|local_ij| {
                 Series::new(
@@ -243,8 +247,10 @@ pub fn local_ij_to_cell(
     let i_coords = i_series.cast(&DataType::Int32)?;
     let j_coords = j_series.cast(&DataType::Int32)?;
 
-    let i_values = i_coords.i32()?;
-    let j_values = j_coords.i32()?;
+    let i_values: Vec<_> = i_coords.i32()?.into_iter().collect();
+    let j_values: Vec<_> = j_coords.i32()?.into_iter().collect();
+    let (origins, i_values, j_values) =
+        broadcast_triple(origins, i_values, j_values, "local_ij_to_cell")?;
 
     let cells: UInt64Chunked = origins
         .into_iter()

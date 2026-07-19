@@ -2,7 +2,7 @@ use h3o::DirectedEdgeIndex;
 use polars::prelude::*;
 use rayon::prelude::*;
 
-use super::utils::parse_cell_indices;
+use super::utils::{broadcast_pair, parse_cell_indices};
 
 pub fn are_neighbor_cells(
     origin_series: &Series,
@@ -10,12 +10,11 @@ pub fn are_neighbor_cells(
 ) -> PolarsResult<Series> {
     let origins = parse_cell_indices(origin_series)?;
     let destinations = parse_cell_indices(destination_series)?;
-
-    let dest_vec: Vec<_> = destinations.into_iter().collect();
+    let (origins, destinations) = broadcast_pair(origins, destinations, "are_neighbor_cells")?;
 
     let are_neighbors: BooleanChunked = origins
         .into_par_iter()
-        .zip(dest_vec.into_par_iter())
+        .zip(destinations.into_par_iter())
         .map(|(origin, dest)| match (origin, dest) {
             (Some(org), Some(dst)) => org.is_neighbor_with(dst).ok().unwrap_or(false),
             _ => false,
@@ -31,12 +30,11 @@ pub fn cells_to_directed_edge(
 ) -> PolarsResult<Series> {
     let origins = parse_cell_indices(origin_series)?;
     let destinations = parse_cell_indices(destination_series)?;
-
-    let dest_vec: Vec<_> = destinations.into_iter().collect();
+    let (origins, destinations) = broadcast_pair(origins, destinations, "cells_to_directed_edge")?;
 
     let edges: UInt64Chunked = origins
         .into_par_iter()
-        .zip(dest_vec.into_par_iter())
+        .zip(destinations.into_par_iter())
         .map(|(origin, dest)| match (origin, dest) {
             (Some(org), Some(dst)) => org.edge(dst).map(Into::into),
             _ => None,

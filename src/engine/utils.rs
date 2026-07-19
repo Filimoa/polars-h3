@@ -30,6 +30,77 @@ pub fn parse_cell_indices(cell_series: &Series) -> PolarsResult<Vec<Option<CellI
     })
 }
 
+fn broadcast_length(lengths: &[usize], context: &str) -> PolarsResult<usize> {
+    let mut target_length = None;
+
+    for &length in lengths {
+        if length == 1 {
+            continue;
+        }
+
+        match target_length {
+            Some(target) if target != length => {
+                polars_bail!(
+                    ComputeError:
+                    "Cannot broadcast input lengths {:?} in {}",
+                    lengths,
+                    context
+                );
+            },
+            None => target_length = Some(length),
+            _ => {},
+        }
+    }
+
+    Ok(target_length.unwrap_or(1))
+}
+
+fn broadcast_values<T: Clone>(
+    values: Vec<T>,
+    target_length: usize,
+    context: &str,
+) -> PolarsResult<Vec<T>> {
+    match values.len() {
+        length if length == target_length => Ok(values),
+        1 => Ok(vec![values[0].clone(); target_length]),
+        length => {
+            polars_bail!(
+                ComputeError:
+                "Cannot broadcast input of length {} to {} in {}",
+                length,
+                target_length,
+                context
+            );
+        },
+    }
+}
+
+pub fn broadcast_pair<T: Clone, U: Clone>(
+    left: Vec<T>,
+    right: Vec<U>,
+    context: &str,
+) -> PolarsResult<(Vec<T>, Vec<U>)> {
+    let target_length = broadcast_length(&[left.len(), right.len()], context)?;
+    Ok((
+        broadcast_values(left, target_length, context)?,
+        broadcast_values(right, target_length, context)?,
+    ))
+}
+
+pub fn broadcast_triple<T: Clone, U: Clone, V: Clone>(
+    first: Vec<T>,
+    second: Vec<U>,
+    third: Vec<V>,
+    context: &str,
+) -> PolarsResult<(Vec<T>, Vec<U>, Vec<V>)> {
+    let target_length = broadcast_length(&[first.len(), second.len(), third.len()], context)?;
+    Ok((
+        broadcast_values(first, target_length, context)?,
+        broadcast_values(second, target_length, context)?,
+        broadcast_values(third, target_length, context)?,
+    ))
+}
+
 pub fn cast_u64_to_dtype(
     original_dtype: &DataType,
     target_dtype: Option<&DataType>,
