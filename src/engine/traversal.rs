@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use h3o::{CellIndex, CoordIJ};
 use polars::prelude::*;
 use rayon::prelude::*;
@@ -59,12 +61,7 @@ pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
             .map(|maybe_cell| match maybe_cell {
                 Some(cell) => {
                     let k_u32 = k_val as u32;
-                    Some(
-                        cell.grid_ring_fast(k_u32)
-                            .flatten()
-                            .map(Into::into)
-                            .collect(),
-                    )
+                    Some(safe_grid_ring(cell, k_u32))
                 },
                 _ => None,
             })
@@ -77,12 +74,7 @@ pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
             .map(|(maybe_cell, maybe_k)| match (maybe_cell, maybe_k) {
                 (Some(cell), Some(k_val)) if k_val >= 0 => {
                     let k_u32 = k_val as u32;
-                    Some(
-                        cell.grid_ring_fast(k_u32)
-                            .flatten()
-                            .map(Into::into)
-                            .collect(),
-                    )
+                    Some(safe_grid_ring(cell, k_u32))
                 },
                 _ => None,
             })
@@ -102,6 +94,23 @@ pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
         &DataType::UInt64,
         Some(&target_inner_dtype),
     )
+}
+
+fn safe_grid_ring(cell: CellIndex, k: u32) -> Vec<u64> {
+    if k == 0 {
+        return vec![cell.into()];
+    }
+
+    if let Some(ring) = cell.grid_ring_fast(k).collect::<Option<Vec<_>>>() {
+        return ring.into_iter().map(Into::into).collect();
+    }
+
+    let inner: HashSet<_> = cell.grid_disk::<Vec<_>>(k - 1).into_iter().collect();
+    cell.grid_disk::<Vec<_>>(k)
+        .into_iter()
+        .filter(|candidate| !inner.contains(candidate))
+        .map(Into::into)
+        .collect()
 }
 
 pub fn grid_disk(inputs: &[Series]) -> PolarsResult<Series> {

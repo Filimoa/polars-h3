@@ -30,6 +30,7 @@ fn map_list_dtype(dt: &DataType) -> PolarsResult<DataType> {
         DataType::UInt64 => Ok(DataType::UInt64),
         DataType::Int64 => Ok(DataType::Int64),
         DataType::String => Ok(DataType::String),
+        DataType::Null => Ok(DataType::UInt64),
         other => polars_bail!(
             ComputeError: "Unsupported input type for dynamic list dtype function: {:?}",
             other

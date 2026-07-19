@@ -201,3 +201,27 @@ def test_cells_to_directed_edge(test_params):
         schema=test_params["schema"],
     ).with_columns(edge=plh3.cells_to_directed_edge("origin", "destination"))
     assert df["edge"][0] == test_params["output"]
+
+
+def test_directed_edge_to_boundary_upstream_vector():
+    result = pl.DataFrame({"edge": ["12928308280fffff"]}).select(
+        plh3.directed_edge_to_boundary("edge").alias("boundary")
+    )
+    boundary = result["boundary"].to_list()[0]
+    assert len(boundary) == 2
+    assert boundary[0] == pytest.approx([37.776880448402245, -122.41612835779266])
+    assert boundary[1] == pytest.approx([37.77838500493091, -122.41738797617619])
+
+
+def test_pentagon_has_five_directed_edges():
+    result = pl.DataFrame({"cell": ["821c07fffffffff"]}).select(
+        plh3.origin_to_directed_edges("cell").alias("edges")
+    )
+    assert len(result["edges"].to_list()[0]) == 5
+
+
+def test_cell_is_not_its_own_neighbor():
+    result = pl.DataFrame({"cell": ["85283473fffffff"]}).select(
+        plh3.are_neighbor_cells("cell", "cell").alias("neighbors")
+    )
+    assert result["neighbors"].to_list() == [False]

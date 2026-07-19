@@ -3,8 +3,23 @@ use polars::prelude::*;
 use rayon::prelude::*;
 
 use super::utils::{
-    cast_list_u64_to_dtype, cast_u64_to_dtype, parse_cell_indices, resolve_target_inner_dtype,
+    broadcast_pair, cast_list_u64_to_dtype, cast_u64_to_dtype, parse_cell_indices,
+    resolve_target_inner_dtype,
 };
+
+fn parse_positions(position_series: &Series) -> PolarsResult<Vec<Option<u64>>> {
+    match position_series.dtype() {
+        DataType::UInt64 => Ok(position_series.u64()?.into_iter().collect()),
+        DataType::Int64 => Ok(position_series
+            .i64()?
+            .into_iter()
+            .map(|position| position.and_then(|value| value.try_into().ok()))
+            .collect()),
+        dtype => Err(PolarsError::ComputeError(
+            format!("Unsupported type for child position: {dtype:?}").into(),
+        )),
+    }
+}
 
 fn get_target_resolution(cell: CellIndex, target_res: Option<u8>) -> Option<Resolution> {
     match target_res {
@@ -136,13 +151,12 @@ pub fn child_pos_to_cell(
 ) -> PolarsResult<Series> {
     let original_dtype = parent_series.dtype().clone();
     let parents = parse_cell_indices(parent_series)?;
-    let positions = pos_series.u64()?;
-
-    let pos_vec: Vec<Option<u64>> = positions.into_iter().collect();
+    let positions = parse_positions(pos_series)?;
+    let (parents, positions) = broadcast_pair(parents, positions, "child_pos_to_cell")?;
 
     let children: UInt64Chunked = parents
         .into_par_iter()
-        .zip(pos_vec.into_par_iter())
+        .zip(positions.into_par_iter())
         .map(|(parent, pos)| match (parent, pos) {
             (Some(parent), Some(pos)) => {
                 let child_res = Resolution::try_from(child_res).ok()?;
@@ -171,6 +185,9 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
             .map(|opt_series| {
                 opt_series
                     .map(|series| {
+                        if series.is_empty() {
+                            return Ok(Series::new_empty(PlSmallStr::from(""), &DataType::UInt64));
+                        }
                         let cells = parse_cell_indices(&series)?;
                         let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 
@@ -239,6 +256,9 @@ pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
             .map(|opt_series| {
                 opt_series
                     .map(|series| {
+                        if series.is_empty() {
+                            return Ok(Series::new_empty(PlSmallStr::from(""), &DataType::UInt64));
+                        }
                         let cells = parse_cell_indices(&series)?;
                         let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 

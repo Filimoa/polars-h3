@@ -113,6 +113,15 @@ def test_cell_to_latlng(test_params):
     assert pytest.approx(df["lng"][0], 0.00001) == test_params["output_lng"]
 
 
+def test_cell_to_latlng_combined_output():
+    result = pl.DataFrame({"cell": ["85283473fffffff"]}).select(
+        plh3.cell_to_latlng("cell").alias("latlng")
+    )
+    assert result["latlng"].to_list()[0] == pytest.approx(
+        [37.345793375368, -121.976375972551]
+    )
+
+
 @pytest.mark.parametrize(
     "test_params",
     [

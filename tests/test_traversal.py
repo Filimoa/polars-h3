@@ -82,6 +82,15 @@ def test_grid_disk_raises_invalid_k():
         )
 
 
+def test_pentagon_disk_and_ring_have_deleted_subsequence_sizes():
+    result = pl.DataFrame({"cell": ["821c07fffffffff"]}).select(
+        plh3.grid_disk("cell", 1).alias("disk"),
+        plh3.grid_ring("cell", 1).alias("ring"),
+    )
+    assert len(result["disk"].to_list()[0]) == 6
+    assert len(result["ring"].to_list()[0]) == 5
+
+
 @pytest.mark.parametrize(
     "test_params",
     [

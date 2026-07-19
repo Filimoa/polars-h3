@@ -173,9 +173,11 @@ pub fn directed_edge_to_boundary(edge_series: &Series) -> PolarsResult<Series> {
         .map(|edge| {
             edge.map(|idx| {
                 let boundary = idx.boundary();
-                let coords: Vec<f64> = boundary
+                let coords: Vec<Series> = boundary
                     .iter()
-                    .flat_map(|latlng| vec![latlng.lat(), latlng.lng()])
+                    .map(|latlng| {
+                        Series::new(PlSmallStr::from_str(""), &[latlng.lat(), latlng.lng()])
+                    })
                     .collect();
                 Series::new(PlSmallStr::from_str(""), coords.as_slice())
             })

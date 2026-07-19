@@ -50,6 +50,9 @@ def great_circle_distance(
     Expr
         Expression returning the great circle distance between the two points.
     """
+    if unit not in ["km", "m"]:
+        raise ValueError("Unit must be either 'km' or 'm'")
+
     EARTH_RADIUS_KM = 6373.0
 
     s_lat_rad = _deg_to_rad(s_lat_deg)
@@ -162,6 +165,9 @@ def edge_length(cell: IntoExprColumn, unit: EdgeLengthUnit = "km") -> pl.Expr:
     └─────────────────────┴─────────┘
     ```
     """
+    if unit not in ["km", "m"]:
+        raise ValueError("Unit must be either 'km' or 'm'")
+
     return register_plugin_function(
         args=[cell],
         plugin_path=LIB,

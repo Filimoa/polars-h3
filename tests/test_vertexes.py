@@ -101,6 +101,24 @@ def test_cell_to_vertex_invalid_vertex_num():
         df.with_columns(vertex=plh3.cell_to_vertex("h3_cell", -1))
 
 
+def test_pentagon_has_five_vertices_and_rejects_vertex_five():
+    cell = "814c3ffffffffff"
+    result = pl.DataFrame({"cell": [cell]}).select(
+        plh3.cell_to_vertexes("cell").alias("vertices")
+    )
+    assert result["vertices"].to_list()[0] == [
+        2_311_688_013_026_951_167,
+        2_383_745_607_064_879_103,
+        2_455_803_201_102_807_039,
+        2_527_860_795_140_734_975,
+        2_599_918_389_178_662_911,
+    ]
+    invalid = pl.DataFrame({"cell": [cell]}).select(
+        plh3.cell_to_vertex("cell", 5).alias("vertex")
+    )
+    assert invalid["vertex"].to_list() == [None]
+
+
 @pytest.mark.parametrize(
     "vertex, schema, expected_coords",
     [

@@ -178,6 +178,7 @@ pub fn resolve_target_inner_dtype(original_dtype: &DataType) -> PolarsResult<Dat
         DataType::UInt64 => DataType::UInt64,
         DataType::Int64 => DataType::Int64,
         DataType::String => DataType::String,
+        DataType::Null => DataType::UInt64,
         other => {
             return Err(PolarsError::ComputeError(
                 format!("Unsupported inner dtype: {:?}", other).into(),

@@ -87,6 +87,29 @@ def test_great_circle_distance(test_params):
 
 
 @pytest.mark.parametrize(
+    "function,args",
+    [
+        (plh3.great_circle_distance, ("lat1", "lng1", "lat2", "lng2", "rads")),
+        (plh3.average_hexagon_area, ("resolution", "rads^2")),
+        (plh3.cell_area, ("cell", "rads^2")),
+        (plh3.edge_length, ("edge", "rads")),
+        (plh3.average_hexagon_edge_length, ("resolution", "rads")),
+    ],
+)
+def test_invalid_units_raise_value_error(function, args):
+    with pytest.raises(ValueError):
+        function(*args)
+
+
+def test_num_cells_matches_h3_formula_at_all_resolutions():
+    resolutions = list(range(16))
+    result = pl.DataFrame({"resolution": resolutions}).select(
+        plh3.get_num_cells("resolution").alias("count")
+    )
+    assert result["count"].to_list() == [2 + 120 * 7**res for res in resolutions]
+
+
+@pytest.mark.parametrize(
     "test_params",
     [
         pytest.param(
