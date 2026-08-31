@@ -107,17 +107,30 @@ pub fn cell_to_lng(cell_series: &Series) -> PolarsResult<Series> {
 pub fn cell_to_latlng(cell_series: &Series) -> PolarsResult<Series> {
     let cells = parse_cell_indices(cell_series)?;
 
-    let coords: ListChunked = cells
+    let coords: Vec<Option<[f64; 2]>> = cells
         .into_par_iter()
         .map(|cell| {
             cell.map(|idx| {
                 let latlng = LatLng::from(idx);
-                Series::new(PlSmallStr::from(""), &[latlng.lat(), latlng.lng()])
+                [latlng.lat(), latlng.lng()]
             })
         })
         .collect();
 
-    Ok(coords.into_series())
+    let mut builder = ListPrimitiveChunkedBuilder::<Float64Type>::new(
+        PlSmallStr::from(""),
+        coords.len(),
+        coords.len() * 2,
+        DataType::Float64,
+    );
+    for opt_coord in coords {
+        match opt_coord {
+            Some(coord) => builder.append_slice(&coord),
+            None => builder.append_null(),
+        }
+    }
+
+    Ok(builder.finish().into_series())
 }
 
 pub fn cell_to_boundary(cell_series: &Series) -> PolarsResult<Series> {
@@ -128,20 +141,18 @@ pub fn cell_to_boundary(cell_series: &Series) -> PolarsResult<Series> {
         .map(|cell| {
             cell.map(|idx| {
                 let boundary = idx.boundary();
+                let mut builder = ListPrimitiveChunkedBuilder::<Float64Type>::new(
+                    PlSmallStr::from(""),
+                    boundary.len(),
+                    boundary.len() * 2,
+                    DataType::Float64,
+                );
 
-                // Create a Vec<Vec<f64>> for the boundary: each inner vec is [lat, lng]
-                let latlng_pairs: Vec<Vec<f64>> = boundary
-                    .iter()
-                    .map(|vertex| vec![vertex.lat(), vertex.lng()])
-                    .collect();
+                for vertex in boundary.iter() {
+                    builder.append_slice(&[vertex.lat(), vertex.lng()]);
+                }
 
-                // Convert each [lat, lng] pair into its own Series
-                let inner_series: Vec<Series> = latlng_pairs
-                    .into_iter()
-                    .map(|coords| Series::new(PlSmallStr::from(""), coords))
-                    .collect();
-
-                Series::new(PlSmallStr::from(""), inner_series)
+                builder.finish().into_series()
             })
         })
         .collect();

@@ -369,3 +369,18 @@ def test_get_pentagons():
             ]
         else:
             assert val["h3_resolution"] in list(range(0, 16))
+
+
+@pytest.mark.parametrize(
+    ("resolution", "dtype"),
+    [
+        pytest.param(-1, pl.Int64, id="negative-int64"),
+        pytest.param(256, pl.Int64, id="oversized-int64"),
+        pytest.param(256, pl.UInt64, id="oversized-uint64"),
+    ],
+)
+def test_get_pentagons_invalid_resolution(resolution: int, dtype: pl.DataType):
+    df = pl.DataFrame({"resolution": [resolution]}, schema={"resolution": dtype})
+
+    with pytest.raises(pl.exceptions.ComputeError, match="Invalid resolution"):
+        df.select(plh3.get_pentagons("resolution"))

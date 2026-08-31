@@ -3,7 +3,7 @@ use polars::prelude::*;
 use rayon::prelude::*;
 
 use super::utils::{
-    cast_list_u64_to_dtype, cast_u64_to_dtype, parse_cell_indices, resolve_target_inner_dtype,
+    cast_u64_to_dtype, list_u64_vecs_to_series, parse_cell_indices, resolve_target_inner_dtype,
 };
 
 fn get_target_resolution(cell: CellIndex, target_res: Option<u8>) -> Option<Resolution> {
@@ -93,24 +93,19 @@ pub fn cell_to_children(cell_series: &Series, child_res: Option<u8>) -> PolarsRe
     let original_dtype = cell_series.dtype().clone();
     let cells = parse_cell_indices(cell_series)?;
 
-    let children: ListChunked = cells
+    let children: Vec<Option<Vec<u64>>> = cells
         .into_par_iter()
         .map(|cell| {
             cell.map(|idx| {
                 let target_res = get_target_resolution(idx, child_res)
                     .unwrap_or_else(|| idx.resolution().succ().unwrap_or(idx.resolution()));
-                let children: Vec<u64> = idx.children(target_res).map(Into::into).collect();
-                Series::new(PlSmallStr::from(""), children.as_slice())
+                idx.children(target_res).map(Into::into).collect()
             })
         })
         .collect();
 
-    let children_series = children.into_series();
-
     let target_dtype = resolve_target_inner_dtype(&original_dtype)?;
-    let casted_children =
-        cast_list_u64_to_dtype(&children_series, &DataType::UInt64, Some(&target_dtype))?;
-    Ok(casted_children)
+    list_u64_vecs_to_series(PlSmallStr::from(""), children, &target_dtype)
 }
 
 pub fn cell_to_child_pos(child_series: &Series, parent_res: u8) -> PolarsResult<Series> {
@@ -161,12 +156,12 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
     let original_dtype = cell_series.dtype().clone();
 
     // Perform the compaction logic
-    let out_series = if let DataType::List(_) = cell_series.dtype() {
+    let compacted_values: Vec<Option<Vec<u64>>> = if let DataType::List(_) = cell_series.dtype() {
         // Input is already a List column
         let ca = cell_series.list()?;
         let cells_vec: Vec<_> = ca.into_iter().collect();
 
-        let compacted: ListChunked = cells_vec
+        cells_vec
             .into_par_iter()
             .map(|opt_series| {
                 opt_series
@@ -178,19 +173,11 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
                             .map_err(|e| {
                                 PolarsError::ComputeError(format!("Compaction error: {}", e).into())
                             })
-                            .map(|compacted| {
-                                // Note: `compacted` is a Vec<CellIndex>.
-                                // Convert to `u64` and store as a Series of UInt64.
-                                let compacted_u64: Vec<u64> =
-                                    compacted.into_iter().map(u64::from).collect();
-                                Series::new(PlSmallStr::from(""), compacted_u64.as_slice())
-                            })
+                            .map(|compacted| compacted.into_iter().map(u64::from).collect())
                     })
                     .transpose()
             })
-            .collect::<PolarsResult<_>>()?;
-
-        compacted.into_series()
+            .collect::<PolarsResult<_>>()?
     } else {
         // Input is not a list, so we treat it as a single column of cells.
         let cells = parse_cell_indices(cell_series)?;
@@ -199,16 +186,7 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
         let compacted = CellIndex::compact(cell_vec)
             .map_err(|e| PolarsError::ComputeError(format!("Compaction error: {}", e).into()))?;
 
-        // Wrap in a single List
-        let compacted_u64: Vec<u64> = compacted.into_iter().map(u64::from).collect();
-        let compacted_cells: ListChunked = vec![Some(Series::new(
-            PlSmallStr::from(""),
-            compacted_u64.as_slice(),
-        ))]
-        .into_iter()
-        .collect();
-
-        compacted_cells.into_series()
+        vec![Some(compacted.into_iter().map(u64::from).collect())]
     };
 
     // Determine the target inner dtype based on the original column
@@ -220,7 +198,7 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
 
     let target_inner_dtype = resolve_target_inner_dtype(&inner_original_dtype)?;
 
-    cast_list_u64_to_dtype(&out_series, &DataType::UInt64, Some(&target_inner_dtype))
+    list_u64_vecs_to_series(PlSmallStr::from(""), compacted_values, &target_inner_dtype)
 }
 
 pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
@@ -229,12 +207,12 @@ pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
         .map_err(|_| PolarsError::ComputeError("Invalid resolution".into()))?;
 
     // Perform the uncompact logic
-    let out_series = if let DataType::List(_) = cell_series.dtype() {
+    let uncompacted_values: Vec<Option<Vec<u64>>> = if let DataType::List(_) = cell_series.dtype() {
         // Input is already a List column
         let ca = cell_series.list()?;
         let cells_vec: Vec<_> = ca.into_iter().collect();
 
-        let uncompacted: ListChunked = cells_vec
+        cells_vec
             .into_par_iter()
             .map(|opt_series| {
                 opt_series
@@ -243,36 +221,18 @@ pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
                         let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 
                         let uncompacted = CellIndex::uncompact(cell_vec, target_res);
-                        // Convert the CellIndex result to a UInt64 Series
-                        let uncompacted_u64: Vec<u64> =
-                            uncompacted.into_iter().map(u64::from).collect();
-                        Ok(Series::new(
-                            PlSmallStr::from(""),
-                            uncompacted_u64.as_slice(),
-                        ))
+                        Ok(uncompacted.into_iter().map(u64::from).collect())
                     })
                     .transpose()
             })
-            .collect::<PolarsResult<_>>()?;
-
-        uncompacted.into_series()
+            .collect::<PolarsResult<_>>()?
     } else {
         // Input is not a list, treat it as a single column of cells.
         let cells = parse_cell_indices(cell_series)?;
         let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 
         let uncompacted = CellIndex::uncompact(cell_vec, target_res);
-        let uncompacted_u64: Vec<u64> = uncompacted.into_iter().map(u64::from).collect();
-
-        // Wrap in a single List
-        let uncompacted_cells: ListChunked = vec![Some(Series::new(
-            PlSmallStr::from(""),
-            uncompacted_u64.as_slice(),
-        ))]
-        .into_iter()
-        .collect();
-
-        uncompacted_cells.into_series()
+        vec![Some(uncompacted.into_iter().map(u64::from).collect())]
     };
 
     // Determine the target inner dtype based on the original column
@@ -283,6 +243,9 @@ pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
 
     // Map original inner dtype to the target dtype
     let target_inner_dtype = resolve_target_inner_dtype(&inner_original_dtype)?;
-    // We have a List(UInt64) right now, cast it to List(target_inner_dtype)
-    cast_list_u64_to_dtype(&out_series, &DataType::UInt64, Some(&target_inner_dtype))
+    list_u64_vecs_to_series(
+        PlSmallStr::from(""),
+        uncompacted_values,
+        &target_inner_dtype,
+    )
 }

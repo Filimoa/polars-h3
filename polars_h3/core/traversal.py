@@ -95,6 +95,7 @@ def grid_ring(cell: IntoExprColumn, k: IntoExprColumn | int) -> pl.Expr:
     - `ValueError`: If `k < 0`.
     - `ComputeError`: If pentagonal distortion or invalid inputs prevent computation.
     """
+    k_expr: IntoExprColumn
     if isinstance(k, int):
         if k < 0:
             raise ValueError("k must be non-negative")
@@ -145,6 +146,7 @@ def grid_disk(cell: IntoExprColumn, k: IntoExprColumn | int) -> pl.Expr:
     - `ValueError`: If `k < 0`.
     - `ComputeError`: If pentagonal distortion or invalid inputs prevent computation.
     """
+    k_expr: IntoExprColumn
     if isinstance(k, int):
         if k < 0:
             raise ValueError("k must be non-negative")

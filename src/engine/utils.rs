@@ -96,6 +96,40 @@ pub fn cast_list_u64_to_dtype(
     Ok(out.into_series())
 }
 
+pub fn list_u64_vecs_to_series(
+    name: PlSmallStr,
+    values: Vec<Option<Vec<u64>>>,
+    target_inner_dtype: &DataType,
+) -> PolarsResult<Series> {
+    let values_capacity = values
+        .iter()
+        .filter_map(|opt| opt.as_ref().map(Vec::len))
+        .sum();
+    let mut builder = ListPrimitiveChunkedBuilder::<UInt64Type>::new(
+        name,
+        values.len(),
+        values_capacity,
+        DataType::UInt64,
+    );
+
+    for opt_values in values {
+        match opt_values {
+            Some(values) => builder.append_slice(&values),
+            None => builder.append_null(),
+        }
+    }
+
+    let out = builder.finish().into_series();
+    match target_inner_dtype {
+        DataType::UInt64 => Ok(out),
+        DataType::Int64 => out.cast(&DataType::List(Box::new(DataType::Int64))),
+        DataType::String => {
+            cast_list_u64_to_dtype(&out, &DataType::UInt64, Some(target_inner_dtype))
+        },
+        _ => polars_bail!(ComputeError: "Unsupported dtype for H3 List result"),
+    }
+}
+
 pub fn resolve_target_inner_dtype(original_dtype: &DataType) -> PolarsResult<DataType> {
     // If the original was a List, extract its inner type. Otherwise, use the original directly.
     let inner_original_dtype = match original_dtype {

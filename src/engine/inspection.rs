@@ -33,17 +33,32 @@ pub fn str_to_int(cell_series: &Series) -> PolarsResult<Series> {
 }
 
 pub fn int_to_str(cell_series: &Series) -> PolarsResult<Series> {
-    let cells = match cell_series.dtype() {
-        DataType::UInt64 => cell_series
-            .u64()?
-            .into_iter()
-            .map(|opt| opt.and_then(|v| CellIndex::try_from(v).ok()))
-            .collect::<Vec<_>>(),
-        DataType::Int64 => cell_series
-            .i64()?
-            .into_iter()
-            .map(|opt| opt.and_then(|v| CellIndex::try_from(v as u64).ok()))
-            .collect::<Vec<_>>(),
+    let strings: Vec<Option<String>> = match cell_series.dtype() {
+        DataType::UInt64 => {
+            let values: Vec<_> = cell_series.u64()?.into_iter().collect();
+            values
+                .into_par_iter()
+                .map(|opt| {
+                    opt.and_then(|v| {
+                        CellIndex::try_from(v).ok()?;
+                        Some(format!("{:x}", v))
+                    })
+                })
+                .collect()
+        },
+        DataType::Int64 => {
+            let values: Vec<_> = cell_series.i64()?.into_iter().collect();
+            values
+                .into_par_iter()
+                .map(|opt| {
+                    opt.and_then(|v| {
+                        let v: u64 = v.try_into().ok()?;
+                        CellIndex::try_from(v).ok()?;
+                        Some(format!("{:x}", v))
+                    })
+                })
+                .collect()
+        },
         _ => {
             return Err(PolarsError::ComputeError(
                 format!("Expected UInt64 or Int64, got: {:?}", cell_series.dtype()).into(),
@@ -51,10 +66,7 @@ pub fn int_to_str(cell_series: &Series) -> PolarsResult<Series> {
         },
     };
 
-    let strings: StringChunked = cells
-        .into_iter()
-        .map(|opt_cell| opt_cell.map(|cell| cell.to_string()))
-        .collect();
+    let strings: StringChunked = strings.into_iter().collect();
 
     Ok(strings.into_series())
 }
@@ -127,23 +139,32 @@ pub fn is_res_class_III(cell_series: &Series) -> PolarsResult<Series> {
 pub fn get_icosahedron_faces(cell_series: &Series) -> PolarsResult<Series> {
     let cells = parse_cell_indices(cell_series)?;
 
-    let faces: ListChunked = cells
+    let faces: Vec<Option<Vec<i64>>> = cells
         .into_par_iter()
         .map(|cell| {
             cell.map(|idx| {
                 let faces = idx.icosahedron_faces();
-                // Convert faces set to vec of integers
-                Series::new(
-                    PlSmallStr::from(""),
-                    faces
-                        .iter()
-                        .map(|f| u8::from(f) as i64)
-                        .collect::<Vec<_>>()
-                        .as_slice(),
-                )
+                faces.iter().map(|f| u8::from(f) as i64).collect()
             })
         })
         .collect();
 
-    Ok(faces.into_series())
+    let values_capacity = faces
+        .iter()
+        .filter_map(|opt| opt.as_ref().map(Vec::len))
+        .sum();
+    let mut builder = ListPrimitiveChunkedBuilder::<Int64Type>::new(
+        PlSmallStr::from(""),
+        faces.len(),
+        values_capacity,
+        DataType::Int64,
+    );
+    for opt_faces in faces {
+        match opt_faces {
+            Some(faces) => builder.append_slice(&faces),
+            None => builder.append_null(),
+        }
+    }
+
+    Ok(builder.finish().into_series())
 }

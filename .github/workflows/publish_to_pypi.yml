@@ -27,8 +27,10 @@ jobs:
       - name: Set up Rust
         run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.3
-      - run: make .venv
-      - run: make pre-commit
+      - run: make sync
+      - run: make fmt
+      - run: git diff --exit-code
+      - run: make lint
       - run: make install
       - run: make test
 
