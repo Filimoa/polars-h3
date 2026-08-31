@@ -14,3 +14,4 @@ playground.ipynb
 
 benchmarks/benchmarks-results.json
 notebooks/sample-data
+docs/*-execplan.md
