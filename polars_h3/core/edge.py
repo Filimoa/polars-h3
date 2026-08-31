@@ -53,6 +53,7 @@ def are_neighbor_cells(origin: IntoExprColumn, destination: IntoExprColumn) -> p
         args=[origin, destination],
         plugin_path=LIB,
         function_name="are_neighbor_cells",
+        is_elementwise=True,
     )
 
 
@@ -98,6 +99,7 @@ def cells_to_directed_edge(
         args=[origin, destination],
         plugin_path=LIB,
         function_name="cells_to_directed_edge",
+        is_elementwise=True,
     )
 
 
@@ -134,6 +136,7 @@ def is_valid_directed_edge(edge: IntoExprColumn) -> pl.Expr:
         args=[edge],
         plugin_path=LIB,
         function_name="is_valid_directed_edge",
+        is_elementwise=True,
     )
 
 
@@ -170,6 +173,7 @@ def get_directed_edge_origin(edge: IntoExprColumn) -> pl.Expr:
         args=[edge],
         plugin_path=LIB,
         function_name="get_directed_edge_origin",
+        is_elementwise=True,
     )
 
 
@@ -206,6 +210,7 @@ def get_directed_edge_destination(edge: IntoExprColumn) -> pl.Expr:
         args=[edge],
         plugin_path=LIB,
         function_name="get_directed_edge_destination",
+        is_elementwise=True,
     )
 
 
@@ -244,6 +249,7 @@ def directed_edge_to_cells(edge: IntoExprColumn) -> pl.Expr:
         args=[edge],
         plugin_path=LIB,
         function_name="directed_edge_to_cells",
+        is_elementwise=True,
     )
 
 
@@ -282,6 +288,7 @@ def origin_to_directed_edges(cell: IntoExprColumn) -> pl.Expr:
         args=[cell],
         plugin_path=LIB,
         function_name="origin_to_directed_edges",
+        is_elementwise=True,
     )
 
 
@@ -320,4 +327,5 @@ def directed_edge_to_boundary(edge: IntoExprColumn) -> pl.Expr:
         args=[edge],
         plugin_path=LIB,
         function_name="directed_edge_to_boundary",
+        is_elementwise=True,
     )
