@@ -29,7 +29,7 @@ fmt:
 lint:
 	cargo clippy --all-features
 	uv run ruff check polars_h3 tests benchmarks
-	uv run mypy polars_h3
+	uv run ty check polars_h3
 
 test:
 	uv run pytest tests
@@ -44,4 +44,4 @@ bench: install-release
 
 clean:
 	cargo clean
-	rm -rf .pytest_cache .ruff_cache .mypy_cache
+	rm -rf .pytest_cache .ruff_cache
