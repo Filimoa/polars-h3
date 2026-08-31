@@ -1,9 +1,8 @@
-use h3o::CellIndex;
-use h3o::CoordIJ;
+use h3o::{CellIndex, CoordIJ};
 use polars::prelude::*;
 use rayon::prelude::*;
 
-use super::utils::{cast_list_u64_to_dtype, parse_cell_indices, resolve_target_inner_dtype};
+use super::utils::{list_u64_vecs_to_series, parse_cell_indices, resolve_target_inner_dtype};
 
 pub fn grid_distance(origin_series: &Series, destination_series: &Series) -> PolarsResult<Series> {
     let origins = parse_cell_indices(origin_series)?;
@@ -85,19 +84,8 @@ pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
             .collect()
     };
 
-    let rings: ListChunked = ring_results
-        .into_iter()
-        .map(|opt| opt.map(|rings| Series::new(PlSmallStr::from(""), rings.as_slice())))
-        .collect::<Vec<_>>()
-        .into_iter()
-        .collect();
-
     let target_inner_dtype = super::utils::resolve_target_inner_dtype(cell_series.dtype())?;
-    super::utils::cast_list_u64_to_dtype(
-        &rings.into_series(),
-        &DataType::UInt64,
-        Some(&target_inner_dtype),
-    )
+    list_u64_vecs_to_series(PlSmallStr::from(""), ring_results, &target_inner_dtype)
 }
 
 pub fn grid_disk(inputs: &[Series]) -> PolarsResult<Series> {
@@ -166,14 +154,7 @@ pub fn grid_disk(inputs: &[Series]) -> PolarsResult<Series> {
             .collect()
     };
 
-    // Convert results to a ListChunked series
-    let disks: ListChunked = disk_results
-        .into_iter()
-        .map(|opt| opt.map(|disk| Series::new(PlSmallStr::from(""), disk.as_slice())))
-        .collect();
-
-    let disks_series = disks.into_series();
-    cast_list_u64_to_dtype(&disks_series, &DataType::UInt64, Some(&target_inner_dtype))
+    list_u64_vecs_to_series(PlSmallStr::from(""), disk_results, &target_inner_dtype)
 }
 
 pub fn grid_path_cells(
@@ -187,27 +168,24 @@ pub fn grid_path_cells(
     // Convert to Vec to ensure parallel iteration works
     let dest_vec: Vec<_> = destinations.into_iter().collect();
 
-    let paths: ListChunked = origins
+    let paths: Vec<Option<Vec<u64>>> = origins
         .into_par_iter()
         .zip(dest_vec.into_par_iter())
         .map(|(origin, dest)| {
             match (origin, dest) {
                 (Some(org), Some(dst)) => {
                     // Collect all cells in the path, handling errors by returning None
-                    org.grid_path_cells(dst).ok().map(|path| {
-                        let path_cells: Vec<u64> =
-                            path.filter_map(Result::ok).map(Into::into).collect();
-                        Series::new(PlSmallStr::from(""), path_cells.as_slice())
-                    })
+                    org.grid_path_cells(dst)
+                        .ok()
+                        .map(|path| path.filter_map(Result::ok).map(Into::into).collect())
                 },
                 _ => None,
             }
         })
         .collect();
 
-    let paths_series = paths.into_series();
     let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
-    cast_list_u64_to_dtype(&paths_series, &DataType::UInt64, Some(&target_inner_dtype))
+    list_u64_vecs_to_series(PlSmallStr::from(""), paths, &target_inner_dtype)
 }
 
 pub fn cell_to_local_ij(cell_series: &Series, origin_series: &Series) -> PolarsResult<Series> {
@@ -216,21 +194,32 @@ pub fn cell_to_local_ij(cell_series: &Series, origin_series: &Series) -> PolarsR
 
     let origin_vec: Vec<_> = origins.into_iter().collect();
 
-    let coords: ListChunked = cells
+    let coords: Vec<Option<[f64; 2]>> = cells
         .into_par_iter()
         .zip(origin_vec.into_par_iter())
         .map(|(cell, origin)| match (cell, origin) {
-            (Some(cell), Some(origin)) => cell.to_local_ij(origin).ok().map(|local_ij| {
-                Series::new(
-                    PlSmallStr::from(""),
-                    &[local_ij.coord.i as f64, local_ij.coord.j as f64],
-                )
-            }),
+            (Some(cell), Some(origin)) => cell
+                .to_local_ij(origin)
+                .ok()
+                .map(|local_ij| [local_ij.coord.i as f64, local_ij.coord.j as f64]),
             _ => None,
         })
         .collect();
 
-    Ok(coords.into_series())
+    let mut builder = ListPrimitiveChunkedBuilder::<Float64Type>::new(
+        PlSmallStr::from(""),
+        coords.len(),
+        coords.len() * 2,
+        DataType::Float64,
+    );
+    for opt_coord in coords {
+        match opt_coord {
+            Some(coord) => builder.append_slice(&coord),
+            None => builder.append_null(),
+        }
+    }
+
+    Ok(builder.finish().into_series())
 }
 
 pub fn local_ij_to_cell(
@@ -245,10 +234,12 @@ pub fn local_ij_to_cell(
 
     let i_values = i_coords.i32()?;
     let j_values = j_coords.i32()?;
+    let i_vec: Vec<_> = i_values.into_iter().collect();
+    let j_vec: Vec<_> = j_values.into_iter().collect();
 
     let cells: UInt64Chunked = origins
-        .into_iter()
-        .zip(i_values.into_iter().zip(j_values))
+        .into_par_iter()
+        .zip(i_vec.into_par_iter().zip(j_vec.into_par_iter()))
         .map(|(origin, (i, j))| match (origin, i, j) {
             (Some(origin), Some(i), Some(j)) => {
                 let coord = CoordIJ { i, j };

@@ -27,6 +27,10 @@ dependencies = []
 module = "polars.utils.udfs"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["folium", "matplotlib"]
+ignore_missing_imports = true
+
 [dependency-groups]
 dev = [
     "maturin",
