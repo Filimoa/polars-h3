@@ -1,0 +1,28 @@
+# Polars H3
+
+> Polars-native H3 expressions for indexing, inspection, hierarchy, traversal, directed edges, vertices, metrics, and optional Folium graphing.
+
+Polars H3 functions accept Polars column names or expressions and return `pl.Expr`. H3 indexes are supported as unsigned 64-bit integers, signed 64-bit integers, or hexadecimal strings where documented. Unsigned 64-bit integers are preferred for computation. H3 resolutions range from 0 through 15. Polygon-to-cells and cells-to-polygon geometry conversion are outside this package's scope.
+
+## Start here
+
+- [Getting started](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/getting-started.md): Installation, a complete coordinate-to-cell example, and lazy expression composition.
+- [User guide](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/guide.md): Index representations, function families, resolutions, and list-valued results.
+
+## API reference
+
+- [API overview](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/index.md): Map of the public function families.
+- [Indexing](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/indexing.md): Coordinate, cell center, local IJ, and boundary expressions.
+- [Index inspection](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/inspection.md): Validation, representation conversion, and index metadata.
+- [Hierarchy](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/hierarchy.md): Parent/child traversal, compacting, and uncompacting.
+- [Directed edges](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/edge.md): Neighbor checks and directed-edge construction and inspection.
+- [Traversal](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/traversal.md): Grid distance, rings, disks, and paths.
+- [Vertices](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/vertexes.md): Cell vertices, vertex validation, and coordinates.
+- [Metrics](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/metrics.md): Great-circle distance, areas, edge lengths, cell counts, and pentagons.
+- [Graphing](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/graphing.md): Optional Folium visualization helpers.
+
+## Source and tests
+
+- [Public Python API](https://raw.githubusercontent.com/Filimoa/polars-h3/master/polars_h3/__init__.py): Canonical public exports.
+- [Python wrapper source](https://github.com/Filimoa/polars-h3/tree/master/polars_h3/core): Signatures and implementation-facing docstrings.
+- [Test suite](https://github.com/Filimoa/polars-h3/tree/master/tests): Executable behavior and dtype coverage.

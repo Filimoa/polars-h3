@@ -37,7 +37,7 @@ test:
 check: fmt lint install test
 
 docs:
-	uv run mkdocs serve
+	uv run --group docs zensical serve
 
 bench: install-release
 	uv run -m benchmarks.engine
