@@ -162,7 +162,13 @@ pub fn origin_to_directed_edges(cell_series: &Series) -> PolarsResult<Series> {
 
     let edges: Vec<Option<Vec<u64>>> = cells
         .into_par_iter()
-        .map(|cell| cell.map(|idx| idx.edges().map(Into::into).collect()))
+        .map(|cell| {
+            cell.map(|idx| {
+                let mut edges: Vec<_> = idx.edges().map(Into::into).collect();
+                edges.sort_unstable();
+                edges
+            })
+        })
         .collect();
 
     list_u64_vecs_to_series(PlSmallStr::from(""), edges, &DataType::UInt64)
