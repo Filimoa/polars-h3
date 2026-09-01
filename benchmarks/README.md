@@ -12,6 +12,12 @@ make install-release
 
 `benchmarks.engine` compares `polars-h3` with the DuckDB H3 extension and the
 Python `h3` package. Use it to answer questions about how the libraries compare on the operations they have in common.
+It runs one excluded warm-up by default and prints a direct DuckDB-to-`polars-h3`
+speedup table when both libraries are selected. Timings include producing a
+Polars result from each implementation, so interpret them as an end-to-end
+comparison for a Polars-based workload rather than isolated H3 call latency.
+The command also prints the concrete Polars, DuckDB, DuckDB H3 extension, and
+Python H3 versions used by the run.
 
 The benchmark covers a focused set of common operations. Its row counts are
 grouped into basic, medium, and complex workloads. It also initializes the
