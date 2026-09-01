@@ -167,13 +167,12 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
                 opt_series
                     .map(|series| {
                         let cells = parse_cell_indices(&series)?;
-                        let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
+                        let mut cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 
-                        CellIndex::compact(cell_vec)
-                            .map_err(|e| {
-                                PolarsError::ComputeError(format!("Compaction error: {}", e).into())
-                            })
-                            .map(|compacted| compacted.into_iter().map(u64::from).collect())
+                        CellIndex::compact(&mut cell_vec).map_err(|e| {
+                            PolarsError::ComputeError(format!("Compaction error: {}", e).into())
+                        })?;
+                        Ok(cell_vec.into_iter().map(u64::from).collect())
                     })
                     .transpose()
             })
@@ -181,12 +180,12 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
     } else {
         // Input is not a list, so we treat it as a single column of cells.
         let cells = parse_cell_indices(cell_series)?;
-        let cell_vec: Vec<_> = cells.into_iter().flatten().collect();
+        let mut cell_vec: Vec<_> = cells.into_iter().flatten().collect();
 
-        let compacted = CellIndex::compact(cell_vec)
+        CellIndex::compact(&mut cell_vec)
             .map_err(|e| PolarsError::ComputeError(format!("Compaction error: {}", e).into()))?;
 
-        vec![Some(compacted.into_iter().map(u64::from).collect())]
+        vec![Some(cell_vec.into_iter().map(u64::from).collect())]
     };
 
     // Determine the target inner dtype based on the original column

@@ -86,6 +86,22 @@ def test_origin_to_directed_edges(test_params):
     assert len(df["edges"][0]) == test_params["output_length"]
 
 
+def test_origin_to_directed_edges_preserves_direction_order():
+    df = pl.DataFrame(
+        {"h3_cell": [599686042433355775]},
+        schema={"h3_cell": pl.UInt64},
+    ).with_columns(edges=plh3.origin_to_directed_edges("h3_cell"))
+
+    assert df["edges"][0].to_list() == [
+        1248204388774707199,
+        1320261982812635135,
+        1392319576850563071,
+        1464377170888491007,
+        1536434764926418943,
+        1608492358964346879,
+    ]
+
+
 def test_directed_edge_operations():
     # Test edge to cells conversion
     df = pl.DataFrame(

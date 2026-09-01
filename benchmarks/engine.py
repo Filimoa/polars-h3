@@ -3,7 +3,7 @@ Utility script to benchmark the performance of the H3 Polars extension.
 
 - If you know how to make any of these other libraries more performant, please open a PR. I want to be as fair as possible.
 - I'm not an expert in DuckDB, but copying the data should be 0 cost due to Apache Arrow?
-- I used `h3==4.1.2`, `polars==1.8.2` and `duckdb==1.1.3`.
+- The driver prints library and extension versions so saved benchmark output can be reproduced.
 - Attempted to also benchmark H3-Pandas, but project appears to be abandoned and doesn't work with h3 >= 4.0.0.
 """
 
@@ -14,6 +14,7 @@ import statistics
 import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
+from importlib.metadata import version
 from pathlib import Path
 from typing import Literal
 
@@ -61,6 +62,7 @@ class BenchmarkResult:
 @dataclass
 class ParamConfig:
     num_iterations: int
+    warmup_iterations: int
     resolution: int
     grid_ring_distance: int
     libraries: list[Library] | Literal["all"] = "all"
@@ -128,6 +130,10 @@ class Benchmark:
         con.execute("INSTALL h3 FROM community;")
         con.execute("LOAD h3;")
         self.con = con
+        self.duckdb_h3_version = con.execute(
+            "SELECT extension_version FROM duckdb_extensions() "
+            "WHERE extension_name = 'h3'"
+        ).fetchone()[0]
 
         self.config = config
 
@@ -283,10 +289,14 @@ class Benchmark:
             for library in libraries:
                 func = config["funcs"][library]
 
+                input_df = df.head(num_rows)
+                for _ in range(self.config.warmup_iterations):
+                    func(input_df)
+
                 perf_times = []
                 for _ in range(self.config.num_iterations):
                     start = time.perf_counter()
-                    result_df = func(df.head(num_rows))
+                    result_df = func(input_df)
                     perf_times.append(time.perf_counter() - start)
 
                 if self.config.verbose:
@@ -451,12 +461,14 @@ class Benchmark:
 
     def _cell_to_parent_plh3(self, df: pl.DataFrame) -> pl.DataFrame:
         return df.with_columns(
-            plh3.cell_to_parent("int_h3_cell", self.config.resolution).alias("result")
+            plh3.cell_to_parent("int_h3_cell", self.config.resolution - 1).alias(
+                "result"
+            )
         )
 
     def _cell_to_parent_duckdb(self, df: pl.DataFrame) -> pl.DataFrame:
         return self.con.execute(
-            f"SELECT h3_cell_to_parent(int_h3_cell, {self.config.resolution}) as result FROM df;"
+            f"SELECT h3_cell_to_parent(int_h3_cell, {self.config.resolution - 1}) as result FROM df;"
         ).pl()
 
     def _cell_to_parent_h3_py(self, df: pl.DataFrame) -> pl.DataFrame:
@@ -464,7 +476,7 @@ class Benchmark:
             pl.struct(["str_h3_cell"])
             .map_elements(
                 lambda row: h3.cell_to_parent(
-                    row["str_h3_cell"], self.config.resolution
+                    row["str_h3_cell"], self.config.resolution - 1
                 ),
                 return_dtype=pl.Utf8,
             )
@@ -682,6 +694,42 @@ def _pretty_print_avg_results(results: list[BenchmarkResult]):
         print(f"{lib:<10} {median_by_lib[lib]:<8} {avg_by_lib[lib]:<8}")
 
 
+def _pretty_print_duckdb_comparison(results: list[BenchmarkResult]) -> None:
+    by_name: dict[str, dict[Library, BenchmarkResult]] = defaultdict(dict)
+    for result in results:
+        by_name[result.name][result.library] = result
+
+    comparisons = [
+        (name, library_results["plh3"], library_results["duckdb"])
+        for name, library_results in by_name.items()
+        if "plh3" in library_results and "duckdb" in library_results
+    ]
+    if not comparisons:
+        return
+
+    print("\n\n======= polars-h3 vs DuckDB H3 =======\n")
+    print(
+        f"{'Function':<21} {'Rows':>8} {'polars-h3':>12} "
+        f"{'DuckDB':>12} {'Speedup':>10}"
+    )
+    print("-" * 69)
+    speedups = []
+    for name, plh3_result, duckdb_result in comparisons:
+        speedup = duckdb_result.avg_seconds / plh3_result.avg_seconds
+        speedups.append(speedup)
+        print(
+            f"{name:<21} {plh3_result.num_rows_human:>8} "
+            f"{plh3_result.avg_seconds * 1_000:>10.2f}ms "
+            f"{duckdb_result.avg_seconds * 1_000:>10.2f}ms "
+            f"{speedup:>9.2f}x"
+        )
+
+    print(
+        f"\nMedian unweighted speedup (DuckDB / polars-h3): "
+        f"{statistics.median(speedups):.2f}x"
+    )
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="h3-bench",
@@ -705,6 +753,12 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--iterations", "-n", type=int, default=3)
     parser.add_argument(
+        "--warmup-iterations",
+        type=int,
+        default=1,
+        help="Warm-up runs per function and library, excluded from measurements",
+    )
+    parser.add_argument(
         "--fast-factor",
         type=int,
         default=1,
@@ -725,6 +779,7 @@ def _build_param_config(args: argparse.Namespace) -> ParamConfig:
         resolution=9,
         grid_ring_distance=3,
         num_iterations=args.iterations,
+        warmup_iterations=max(args.warmup_iterations, 0),
         libraries=args.libraries if "all" not in args.libraries else "all",
         functions=args.functions if "all" not in args.functions else "all",
         difficulty_to_num_rows={
@@ -741,6 +796,12 @@ def main() -> None:
     config = _build_param_config(args)
 
     benchmark = Benchmark(config=config)
+    print("Benchmark versions:")
+    print(f"  polars-h3: {version('polars-h3')}")
+    print(f"  Polars: {pl.__version__}")
+    print(f"  DuckDB: {duckdb.__version__}")
+    print(f"  DuckDB H3 extension: {benchmark.duckdb_h3_version}")
+    print(f"  h3-py: {h3.__version__}")
     results = benchmark.run_all()
 
     last = None
@@ -749,6 +810,8 @@ def main() -> None:
             print(f"\n{r.name} (num_iterations={config.num_iterations})")
             last = r.name
         print(r)
+
+    _pretty_print_duckdb_comparison(results)
 
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
