@@ -1,13 +1,29 @@
 site_name: Polars H3
 site_author: Sergey Filimonov
-repo_url: "https://github.com/Filimoa/polars-h3/"
+repo_url: "https://github.com/Filimoa/polars-h3"
 repo_name: "polars-h3"
-site_url: "https://github.com/Filimoa/polars-h3/"
+site_url: "https://filimoa.github.io/polars-h3/"
 dev_addr: "localhost:8001"
 theme:
   name: material
+  variant: modern
+  logo: assets/h3-logo.svg
+  favicon: assets/h3-logo.svg
   features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.path
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - content.action.view
     - content.code.copy
+    - content.code.select
+    - content.tabs.link
   palette:
     - scheme: default
       primary: black
@@ -51,9 +67,7 @@ markdown_extensions:
   - pymdownx.keys
   - pymdownx.mark
   - pymdownx.smartsymbols
-  - pymdownx.snippets:
-      auto_append:
-        - includes/mkdocs.md
+  - pymdownx.snippets
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -66,24 +80,28 @@ markdown_extensions:
       custom_checkbox: true
 
 nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - User guide: guide.md
   - API Reference:
+      - Overview: api-reference/index.md
       - Indexing: api-reference/indexing.md
-      - Inspection: api-reference/inspection.md
+      - Index inspection: api-reference/inspection.md
+      - Hierarchy: api-reference/hierarchy.md
       - Directed edges: api-reference/edge.md
       - Traversal: api-reference/traversal.md
-      - Vertexes: api-reference/vertexes.md
+      - Vertices: api-reference/vertexes.md
       - Metrics: api-reference/metrics.md
-  - Graphing: graphing.md
+      - Graphing: graphing.md
 
 plugins:
   - search:
       separator: '[\s\u200b\-_,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
-  - minify:
-      minify_html: true
-  - mkdocstrings:
-      handlers:
-        python:
-          options:
-            members_order: alphabetical
-            allow_inspection: true
-            show_bases: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Filimoa/polars-h3
+      name: Polars H3 on GitHub
+
+copyright: Copyright &copy; Sergey Filimonov
