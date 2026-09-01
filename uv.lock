@@ -1592,7 +1592,7 @@ wheels = [
 
 [[package]]
 name = "polars-h3"
-version = "0.6.3"
+version = "0.6.4"
 source = { editable = "." }
 
 [package.dev-dependencies]
