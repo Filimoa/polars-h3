@@ -50,17 +50,17 @@ fn parse_edge_indices(edge_series: &Series) -> PolarsResult<Vec<Option<DirectedE
     Ok(match edge_series.dtype() {
         DataType::UInt64 => edge_series
             .u64()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| DirectedEdgeIndex::try_from(v).ok()))
             .collect(),
         DataType::Int64 => edge_series
             .i64()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| DirectedEdgeIndex::try_from(v as u64).ok()))
             .collect(),
         DataType::String => edge_series
             .str()?
-            .into_iter()
+            .iter()
             .map(|opt| {
                 opt.and_then(|s| u64::from_str_radix(s, 16).ok())
                     .and_then(|v| DirectedEdgeIndex::try_from(v).ok())
@@ -78,7 +78,7 @@ pub fn is_valid_directed_edge(edge_series: &Series) -> PolarsResult<Series> {
     let is_valid: BooleanChunked = match edge_series.dtype() {
         DataType::UInt64 => edge_series
             .u64()?
-            .into_iter()
+            .iter()
             .map(|opt| {
                 opt.map(|v| DirectedEdgeIndex::try_from(v).is_ok())
                     .unwrap_or(false)
@@ -86,7 +86,7 @@ pub fn is_valid_directed_edge(edge_series: &Series) -> PolarsResult<Series> {
             .collect(),
         DataType::Int64 => edge_series
             .i64()?
-            .into_iter()
+            .iter()
             .map(|opt| {
                 opt.map(|v| DirectedEdgeIndex::try_from(v as u64).is_ok())
                     .unwrap_or(false)
@@ -94,7 +94,7 @@ pub fn is_valid_directed_edge(edge_series: &Series) -> PolarsResult<Series> {
             .collect(),
         DataType::String => edge_series
             .str()?
-            .into_iter()
+            .iter()
             .map(|opt| {
                 opt.and_then(|s| u64::from_str_radix(s, 16).ok())
                     .map(|v| DirectedEdgeIndex::try_from(v).is_ok())

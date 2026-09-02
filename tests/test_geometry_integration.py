@@ -12,9 +12,7 @@ TRACTS_PATH = (
     / "data"
     / "houston-population-tracts-2020.geoparquet"
 )
-HARD_TRACTS_PATH = (
-    Path(__file__).parent / "data" / "us-census-tracts-hard.geoparquet"
-)
+HARD_TRACTS_PATH = Path(__file__).parent / "data" / "us-census-tracts-hard.geoparquet"
 HARD_TRACT_IDS = {
     "02016000100",  # Antimeridian-crossing, 28-part Alaska MultiPolygon.
     "06083990000",  # MultiPolygon containing interior rings.

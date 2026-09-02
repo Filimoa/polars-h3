@@ -133,7 +133,7 @@ pub fn child_pos_to_cell(
     let parents = parse_cell_indices(parent_series)?;
     let positions = pos_series.u64()?;
 
-    let pos_vec: Vec<Option<u64>> = positions.into_iter().collect();
+    let pos_vec: Vec<Option<u64>> = positions.iter().collect();
 
     let children: UInt64Chunked = parents
         .into_par_iter()
@@ -159,7 +159,7 @@ pub fn compact_cells(cell_series: &Series) -> PolarsResult<Series> {
     let compacted_values: Vec<Option<Vec<u64>>> = if let DataType::List(_) = cell_series.dtype() {
         // Input is already a List column
         let ca = cell_series.list()?;
-        let cells_vec: Vec<_> = ca.into_iter().collect();
+        let cells_vec: Vec<_> = ca.series_iter().collect();
 
         cells_vec
             .into_par_iter()
@@ -209,7 +209,7 @@ pub fn uncompact_cells(cell_series: &Series, res: u8) -> PolarsResult<Series> {
     let uncompacted_values: Vec<Option<Vec<u64>>> = if let DataType::List(_) = cell_series.dtype() {
         // Input is already a List column
         let ca = cell_series.list()?;
-        let cells_vec: Vec<_> = ca.into_iter().collect();
+        let cells_vec: Vec<_> = ca.series_iter().collect();
 
         cells_vec
             .into_par_iter()

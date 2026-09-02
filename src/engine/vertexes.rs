@@ -36,17 +36,17 @@ pub fn vertex_to_latlng(vertex_series: &Series) -> PolarsResult<Series> {
     let vertices: Vec<Option<VertexIndex>> = match vertex_series.dtype() {
         DataType::UInt64 => vertex_series
             .u64()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| VertexIndex::try_from(v).ok()))
             .collect(),
         DataType::Int64 => vertex_series
             .i64()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| VertexIndex::try_from(v as u64).ok()))
             .collect(),
         DataType::String => vertex_series
             .str()?
-            .into_iter()
+            .iter()
             .map(|opt| {
                 opt.and_then(|s| u64::from_str_radix(s, 16).ok())
                     .and_then(|v| VertexIndex::try_from(v).ok())
@@ -88,7 +88,7 @@ pub fn vertex_to_latlng(vertex_series: &Series) -> PolarsResult<Series> {
 pub fn is_valid_vertex(vertex_series: &Series) -> PolarsResult<Series> {
     let is_valid = match vertex_series.dtype() {
         DataType::UInt64 => {
-            let values: Vec<_> = vertex_series.u64()?.into_iter().collect();
+            let values: Vec<_> = vertex_series.u64()?.iter().collect();
             values
                 .into_par_iter()
                 .map(|opt| {
@@ -98,7 +98,7 @@ pub fn is_valid_vertex(vertex_series: &Series) -> PolarsResult<Series> {
                 .collect::<BooleanChunked>()
         },
         DataType::Int64 => {
-            let values: Vec<_> = vertex_series.i64()?.into_iter().collect();
+            let values: Vec<_> = vertex_series.i64()?.iter().collect();
             values
                 .into_par_iter()
                 .map(|opt| {
@@ -108,7 +108,7 @@ pub fn is_valid_vertex(vertex_series: &Series) -> PolarsResult<Series> {
                 .collect::<BooleanChunked>()
         },
         DataType::String => {
-            let values: Vec<_> = vertex_series.str()?.into_iter().collect();
+            let values: Vec<_> = vertex_series.str()?.iter().collect();
             values
                 .into_par_iter()
                 .map(|opt| {

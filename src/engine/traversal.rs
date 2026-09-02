@@ -58,7 +58,7 @@ pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
             .collect()
     } else {
         // Column case: zip with k values
-        let k_vec: Vec<_> = k_i32.into_iter().collect();
+        let k_vec: Vec<_> = k_i32.iter().collect();
         if k_vec.len() != cells_vec.len() {
             return Err(polars_err!(
                 ComputeError: "Length of k_series ({}) must match cell_series ({})",
@@ -128,7 +128,7 @@ pub fn grid_disk(inputs: &[Series]) -> PolarsResult<Series> {
         }
     } else {
         // Non-scalar case: k_series should match cell_series length
-        let k_vec: Vec<_> = k_i32.into_iter().collect();
+        let k_vec: Vec<_> = k_i32.iter().collect();
         if k_vec.len() != cells_vec.len() {
             return Err(polars_err!(
                 ComputeError: "k_series length ({}) must match cell_series length ({})",
@@ -234,8 +234,8 @@ pub fn local_ij_to_cell(
 
     let i_values = i_coords.i32()?;
     let j_values = j_coords.i32()?;
-    let i_vec: Vec<_> = i_values.into_iter().collect();
-    let j_vec: Vec<_> = j_values.into_iter().collect();
+    let i_vec: Vec<_> = i_values.iter().collect();
+    let j_vec: Vec<_> = j_values.iter().collect();
 
     let cells: UInt64Chunked = origins
         .into_par_iter()

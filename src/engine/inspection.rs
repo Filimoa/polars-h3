@@ -20,7 +20,7 @@ pub fn str_to_int(cell_series: &Series) -> PolarsResult<Series> {
     let str_ca = cell_series.str()?;
 
     let indices: UInt64Chunked = str_ca
-        .into_iter()
+        .iter()
         .map(|opt_str| {
             opt_str
                 .and_then(|s| u64::from_str_radix(s, 16).ok())
@@ -35,7 +35,7 @@ pub fn str_to_int(cell_series: &Series) -> PolarsResult<Series> {
 pub fn int_to_str(cell_series: &Series) -> PolarsResult<Series> {
     let strings: Vec<Option<String>> = match cell_series.dtype() {
         DataType::UInt64 => {
-            let values: Vec<_> = cell_series.u64()?.into_iter().collect();
+            let values: Vec<_> = cell_series.u64()?.iter().collect();
             values
                 .into_par_iter()
                 .map(|opt| {
@@ -47,7 +47,7 @@ pub fn int_to_str(cell_series: &Series) -> PolarsResult<Series> {
                 .collect()
         },
         DataType::Int64 => {
-            let values: Vec<_> = cell_series.i64()?.into_iter().collect();
+            let values: Vec<_> = cell_series.i64()?.iter().collect();
             values
                 .into_par_iter()
                 .map(|opt| {
@@ -75,12 +75,12 @@ pub fn is_valid_cell(cell_series: &Series) -> PolarsResult<Series> {
     let is_valid = match cell_series.dtype() {
         DataType::UInt64 => cell_series
             .u64()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.map(|v| CellIndex::try_from(v).is_ok()).unwrap_or(false))
             .collect::<BooleanChunked>(),
         DataType::Int64 => cell_series
             .i64()?
-            .into_iter()
+            .iter()
             .map(|opt| {
                 opt.map(|v| CellIndex::try_from(v as u64).is_ok())
                     .unwrap_or(false)
@@ -88,7 +88,7 @@ pub fn is_valid_cell(cell_series: &Series) -> PolarsResult<Series> {
             .collect::<BooleanChunked>(),
         DataType::String => cell_series
             .str()?
-            .into_iter()
+            .iter()
             .map(|opt_str| {
                 opt_str
                     .map(|s| {

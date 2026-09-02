@@ -1,8 +1,9 @@
-.PHONY: help sync install install-release fmt lint test check docs bench clean
+.PHONY: help sync sync-bench install install-release fmt lint test check docs bench clean
 
 help:
 	@echo "Targets:"
 	@echo "  sync             Install dev dependencies"
+	@echo "  sync-bench       Install dev and benchmarking dependencies"
 	@echo "  install          Build/install extension in dev mode"
 	@echo "  install-release  Build/install optimized extension"
 	@echo "  fmt              Format Rust and Python"
@@ -14,7 +15,10 @@ help:
 	@echo "  clean            Remove build artifacts"
 
 sync:
-	uv sync --all-groups
+	uv sync --group dev
+
+sync-bench:
+	uv sync --group dev --group benchmarking
 
 install:
 	uv run maturin develop --uv
@@ -40,7 +44,7 @@ docs:
 	uv run --group docs zensical serve
 
 bench: install-release
-	uv run -m benchmarks.engine
+	uv run --group benchmarking -m benchmarks.engine
 
 clean:
 	cargo clean

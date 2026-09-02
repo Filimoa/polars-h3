@@ -1,3 +1,4 @@
+import inspect
 import json
 from typing import Any, Literal, Union
 
@@ -37,7 +38,10 @@ def _cells_with_boundaries(
 
     cells = df.select(cells_col).drop_nulls(subset=[cells_col])
     if df.schema[cells_col].base_type() == pl.List:
-        cells = cells.explode(cells_col)
+        if "empty_as_null" in inspect.signature(pl.DataFrame.explode).parameters:
+            cells = cells.explode(cells_col, empty_as_null=True)
+        else:
+            cells = cells.explode(cells_col)
 
     cells = cells.drop_nulls(subset=[cells_col]).unique(
         subset=[cells_col], maintain_order=True
@@ -371,7 +375,9 @@ def plot_hex_fills(
     colormap = matplotlib.colormaps.get_cmap("plasma")
 
     for (hexagon, metric, boundary), norm_metric in zip(
-        zip(hexagons, metrics, boundaries), normalized_metrics, strict=False
+        zip(hexagons, metrics, boundaries, strict=False),
+        normalized_metrics,
+        strict=False,
     ):
         rgba = colormap(norm_metric)
         color = (
