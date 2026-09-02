@@ -11,6 +11,7 @@ import argparse
 import json
 import random
 import statistics
+import struct
 import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
@@ -76,10 +77,6 @@ class ParamConfig:
     )
     verbose: bool = False
 
-    @property
-    def max_num_rows(self) -> int:
-        return max(self.difficulty_to_num_rows.values())
-
 
 def generate_points_within_bbox(
     n: int, min_lat: float, max_lat: float, min_lon: float, max_lon: float
@@ -122,6 +119,30 @@ def generate_test_data(n: int, resolution: int) -> pl.DataFrame:
         )
         .drop_nulls()
     )
+
+
+def _square_polygon_wkb(lat: float, lon: float, half_size: float = 0.015) -> bytes:
+    """Build a little-endian WKB polygon centered on a latitude/longitude."""
+    ring = [
+        (lon - half_size, lat - half_size),
+        (lon + half_size, lat - half_size),
+        (lon + half_size, lat + half_size),
+        (lon - half_size, lat + half_size),
+        (lon - half_size, lat - half_size),
+    ]
+    value = bytearray(struct.pack("<BIII", 1, 3, 1, len(ring)))
+    for lng, latitude in ring:
+        value.extend(struct.pack("<dd", lng, latitude))
+    return bytes(value)
+
+
+def add_polygon_wkb(df: pl.DataFrame) -> pl.DataFrame:
+    """Add deterministic tract-sized polygons outside the timed benchmark."""
+    polygons = [
+        _square_polygon_wkb(lat, lon)
+        for lat, lon in df.select("lat", "lon").iter_rows()
+    ]
+    return df.with_columns(pl.Series("polygon_wkb", polygons, dtype=pl.Binary))
 
 
 class Benchmark:
@@ -250,6 +271,13 @@ class Benchmark:
                     "h3_py": self._cell_to_boundary_h3_py,
                 },
             },
+            "polygon_to_cells": {
+                "category": "complex",
+                "funcs": {
+                    "plh3": self._polygon_to_cells_plh3,
+                    "duckdb": self._polygon_to_cells_duckdb,
+                },
+            },
         }
 
     def run_all(
@@ -264,7 +292,7 @@ class Benchmark:
         results = []
 
         # Filter functions to run
-        functions_to_run = (
+        functions_to_run = list(
             self.function_configs.items()
             if self.config.functions == "all"
             else {
@@ -273,8 +301,18 @@ class Benchmark:
                 if k in self.config.functions
             }.items()
         )
+        if not functions_to_run:
+            raise ValueError("No matching benchmark functions selected")
 
-        df = generate_test_data(self.config.max_num_rows, self.config.resolution)
+        max_num_rows = max(
+            self.config.difficulty_to_num_rows[config["category"]]
+            for _, config in functions_to_run
+        )
+        # `generate_test_data` drops the final shifted row. Generate one extra
+        # so reported and measured row counts remain identical.
+        df = generate_test_data(max_num_rows + 1, self.config.resolution).head(
+            max_num_rows
+        )
         for func_name, config in functions_to_run:
             print(f"\n========== {func_name} ==========\n")
 
@@ -286,10 +324,13 @@ class Benchmark:
                 else [lib for lib in self.config.libraries if lib in config["funcs"]]
             )
 
+            input_df = df.head(num_rows)
+            if func_name == "polygon_to_cells":
+                input_df = add_polygon_wkb(input_df)
+
             for library in libraries:
                 func = config["funcs"][library]
 
-                input_df = df.head(num_rows)
                 for _ in range(self.config.warmup_iterations):
                     func(input_df)
 
@@ -614,6 +655,21 @@ class Benchmark:
             )
             .alias("result")
         )
+
+    ########################
+    ### POLYGON TO CELLS ###
+    ########################
+
+    def _polygon_to_cells_plh3(self, df: pl.DataFrame) -> pl.DataFrame:
+        return df.select(
+            result=plh3.polygon_to_cells("polygon_wkb", self.config.resolution)
+        )
+
+    def _polygon_to_cells_duckdb(self, df: pl.DataFrame) -> pl.DataFrame:
+        return self.con.execute(
+            f"SELECT h3_polygon_wkb_to_cells(polygon_wkb, "
+            f"{self.config.resolution}) AS result FROM df;"
+        ).pl()
 
     ##########################
     ### ARE NEIGHBOR CELLS ###

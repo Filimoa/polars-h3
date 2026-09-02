@@ -19,21 +19,25 @@ comparison for a Polars-based workload rather than isolated H3 call latency.
 The command also prints the concrete Polars, DuckDB, DuckDB H3 extension, and
 Python H3 versions used by the run.
 
-The benchmark covers a focused set of common operations. Its row counts are
-grouped into basic, medium, and complex workloads. It also initializes the
-DuckDB H3 extension, so it may require network access the first time it runs.
+The benchmark covers a focused set of common operations, including native WKB
+polygon-to-cell conversion in both engines. Polygon inputs are deterministic,
+tract-sized WGS84 rectangles constructed before timing, and both engines
+materialize the resulting `List(UInt64)` column. Row counts are grouped into
+basic, medium, and complex workloads. It also initializes the DuckDB H3
+extension, so it may require network access the first time it runs.
 
 Run the complete comparison:
 
 ```bash
-uv run -m benchmarks.engine
+uv run --group benchmarking -m benchmarks.engine
 ```
 
 Run only `polars-h3`, reduce the workload, or select functions:
 
 ```bash
-uv run -m benchmarks.engine --libraries plh3 --fast-factor 100
-uv run -m benchmarks.engine --functions latlng_to_cell grid_ring
+uv run --group benchmarking -m benchmarks.engine --libraries plh3 --fast-factor 100
+uv run --group benchmarking -m benchmarks.engine --functions latlng_to_cell grid_ring
+uv run --group benchmarking -m benchmarks.engine --functions polygon_to_cells --iterations 5
 ```
 
 ## Internal performance benchmark

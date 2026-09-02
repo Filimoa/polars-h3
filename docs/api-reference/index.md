@@ -7,6 +7,7 @@ Polars expressions unless their signature documents a scalar argument.
 | Family | Purpose | Reference |
 | --- | --- | --- |
 | Indexing | Convert coordinates, cells, local IJ coordinates, and boundaries. | [Indexing](indexing.md) |
+| Geometry | Tile WKT/WKB polygons and dissolve cell sets into WKT. | [Geometry](geometry.md) |
 | Index inspection | Validate, convert, and inspect H3 indexes. | [Index inspection](inspection.md) |
 | Hierarchy | Navigate parent/child relationships and compact cell sets. | [Hierarchy](hierarchy.md) |
 | Directed edges | Create and inspect edges between neighboring cells. | [Directed edges](edge.md) |
@@ -16,7 +17,8 @@ Polars expressions unless their signature documents a scalar argument.
 
 For optional Folium helpers, see the separate [graphing reference](../graphing.md).
 
-!!! note "Geometry scope"
+!!! note "Geometry representation"
 
-    Polars H3 exposes cell boundaries and coordinates, but does not implement
-    polygon-to-cells or cells-to-polygon geometry conversion.
+    Geometry conversion accepts ordinary WKT `String` or WKB `Binary` columns.
+    Geometry values exist only inside the Rust expression, so no Polars
+    geometry dtype is required.

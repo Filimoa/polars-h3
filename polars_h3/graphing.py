@@ -1,7 +1,9 @@
+import json
 from typing import Any, Literal, Union
 
 import polars as pl
 
+from .core.geometry import _polygon_to_geojson
 from .core.indexing import cell_to_boundary
 
 
@@ -25,6 +27,199 @@ def _hex_bounds(
     max_lng = float(df_flat["lng"].max())  # type: ignore
 
     return ((min_lat, min_lng), (max_lat, max_lng))
+
+
+def _cells_with_boundaries(
+    df: pl.DataFrame, cells_col: str, *, require_cells: bool = True
+) -> pl.DataFrame:
+    if cells_col not in df.schema:
+        raise ValueError(f"column {cells_col!r} not found")
+
+    cells = df.select(cells_col).drop_nulls(subset=[cells_col])
+    if df.schema[cells_col].base_type() == pl.List:
+        cells = cells.explode(cells_col)
+
+    cells = cells.drop_nulls(subset=[cells_col]).unique(
+        subset=[cells_col], maintain_order=True
+    )
+    if cells.height == 0:
+        if require_cells:
+            raise ValueError("DataFrame contains no cells to plot")
+        return cells.with_columns(
+            pl.lit(None, dtype=pl.List(pl.List(pl.Float64))).alias("boundary")
+        )
+
+    cells = cells.with_columns(cell_to_boundary(pl.col(cells_col)).alias("boundary"))
+    if cells.filter(pl.col("boundary").is_null()).height:
+        raise ValueError(f"column {cells_col!r} contains an invalid H3 cell")
+    return cells
+
+
+def _geometry_feature_collection(df: pl.DataFrame, geometry_col: str) -> dict[str, Any]:
+    if geometry_col not in df.schema:
+        raise ValueError(f"column {geometry_col!r} not found")
+    if df.schema[geometry_col] not in (pl.String, pl.Binary, pl.Null):
+        raise ValueError(
+            f"column {geometry_col!r} must contain WKT String or WKB Binary values"
+        )
+
+    geometries = (
+        df.select(_polygon_to_geojson(geometry_col).alias("geometry"))
+        .drop_nulls()
+        .unique(maintain_order=True)
+        .get_column("geometry")
+        .to_list()
+    )
+    if not geometries:
+        raise ValueError("DataFrame contains no geometries to plot")
+
+    features = []
+    for geometry in geometries:
+        parsed = json.loads(geometry)
+        if not parsed["coordinates"]:
+            continue
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": parsed,
+            }
+        )
+    if not features:
+        raise ValueError("DataFrame contains no non-empty geometries to plot")
+
+    return {"type": "FeatureCollection", "features": features}
+
+
+def _cell_feature_collection(cells: pl.DataFrame, cells_col: str) -> dict[str, Any]:
+    features = []
+    for cell, boundary in cells.iter_rows():
+        coordinates = [[longitude, latitude] for latitude, longitude in boundary]
+        if coordinates and coordinates[0] != coordinates[-1]:
+            coordinates.append(coordinates[0])
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {"h3_cell": str(cell)},
+                "geometry": {"type": "Polygon", "coordinates": [coordinates]},
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
+
+
+def _combine_bounds(*bounds: Any) -> tuple[tuple[float, float], tuple[float, float]]:
+    valid_bounds = []
+    for bound in bounds:
+        south, west = bound[0]
+        north, east = bound[1]
+        if (
+            south is not None
+            and west is not None
+            and north is not None
+            and east is not None
+        ):
+            valid_bounds.append(((south, west), (north, east)))
+
+    if not valid_bounds:
+        raise ValueError("Cannot determine map bounds")
+    return (
+        (
+            min(bound[0][0] for bound in valid_bounds),
+            min(bound[0][1] for bound in valid_bounds),
+        ),
+        (
+            max(bound[1][0] for bound in valid_bounds),
+            max(bound[1][1] for bound in valid_bounds),
+        ),
+    )
+
+
+def plot_polygon_coverage(
+    df: pl.DataFrame,
+    *,
+    geometry_col: str,
+    cells_col: str,
+    map: Union[Any, None] = None,
+    cell_color: str = "#2563eb",
+    cell_fill_opacity: float = 0.2,
+    geometry_color: str = "#dc2626",
+    map_size: Literal["medium", "large"] = "large",
+) -> Any:
+    """Plot H3 polygon coverage over its source geometry on a Folium map.
+
+    ``geometry_col`` accepts WKT String or WKB/EWKB Binary polygons, matching
+    :func:`polars_h3.polygon_to_cells`. ``cells_col`` may contain one H3 cell
+    per row or a List of cells. Repeated geometries and cells are rendered
+    once. Null values are skipped, and valid geometries with empty coverages
+    are still displayed.
+
+    Folium is an optional dependency. Install it with ``pip install folium``.
+    Input geometry coordinates must use WGS84 longitude/latitude order.
+    """
+    if df.height == 0:
+        raise ValueError("DataFrame is empty")
+    if not 0.0 <= cell_fill_opacity <= 1.0:
+        raise ValueError("cell_fill_opacity must be between 0 and 1")
+    if map_size not in ("medium", "large"):
+        raise ValueError("map_size must be 'medium' or 'large'")
+
+    try:
+        import folium
+    except ImportError as e:
+        raise ImportError(
+            "folium is required to plot polygon coverage. "
+            "Install with `pip install folium`"
+        ) from e
+
+    geometry_features = _geometry_feature_collection(df, geometry_col)
+    cells = _cells_with_boundaries(df, cells_col, require_cells=False)
+    geometry_layer = folium.GeoJson(
+        geometry_features,
+        name="Source geometry",
+        style_function=lambda _: {
+            "color": geometry_color,
+            "weight": 3,
+            "fillOpacity": 0,
+        },
+    )
+
+    cell_layer = None
+    if cells.height:
+        cell_layer = folium.GeoJson(
+            _cell_feature_collection(cells, cells_col),
+            name="H3 cells",
+            style_function=lambda _: {
+                "color": cell_color,
+                "weight": 1,
+                "fillColor": cell_color,
+                "fillOpacity": cell_fill_opacity,
+            },
+            tooltip=folium.GeoJsonTooltip(
+                fields=["h3_cell"],
+                aliases=["H3 cell:"],
+            ),
+        )
+
+    if map is None:
+        map = folium.Map(
+            zoom_start=8,
+            tiles="cartodbpositron",
+            width="50%" if map_size == "medium" else "100%",
+            height="50%" if map_size == "medium" else "100%",
+        )
+
+    geometry_layer.add_to(map)
+    layers = [geometry_layer.get_bounds()]
+    if cell_layer is not None:
+        cell_layer.add_to(map)
+        layers.append(cell_layer.get_bounds())
+
+    map.fit_bounds(_combine_bounds(*layers))
+    if not any(
+        isinstance(child, folium.LayerControl) for child in map._children.values()
+    ):
+        folium.LayerControl().add_to(map)
+    return map
 
 
 def plot_hex_outlines(

@@ -1,4 +1,5 @@
 pub mod edge;
+pub mod geometry;
 pub mod hierarchy;
 pub mod indexing;
 pub mod inspection;
