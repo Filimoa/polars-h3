@@ -34,8 +34,8 @@ df = pl.DataFrame(
 - **Flexible cell representations.** Use `UInt64`, `Int64`, or string H3
   indexes where supported. Prefer `UInt64` in performance-sensitive pipelines.
 - **Focused H3 coverage.** Work with cells, hierarchy, traversal, directed
-  edges, vertices, and metrics. Polygon-to-cell geometry operations are outside
-  the package's scope.
+  edges, vertices, metrics, and WKT/WKB polygon coverage without requiring a
+  Polars geometry dtype.
 
 ## Find what you need
 

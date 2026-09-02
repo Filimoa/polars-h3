@@ -103,6 +103,26 @@ fn cell_to_boundary(inputs: &[Series]) -> PolarsResult<Series> {
     crate::engine::indexing::cell_to_boundary(cell_series)
 }
 
+// ===== Geometry ===== //
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn polygon_to_cells(inputs: &[Series], kwargs: LatLngToCellKwargs) -> PolarsResult<Series> {
+    let geometry_series = &inputs[0];
+    crate::engine::geometry::polygon_to_cells_series(geometry_series, kwargs.resolution)
+}
+
+#[polars_expr(output_type=String)]
+fn polygon_to_geojson(inputs: &[Series]) -> PolarsResult<Series> {
+    let geometry_series = &inputs[0];
+    crate::engine::geometry::polygon_to_geojson_series(geometry_series)
+}
+
+#[polars_expr(output_type=String)]
+fn cells_to_multi_polygon_wkt(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::geometry::cells_to_multi_polygon_wkt(cell_series)
+}
+
 // ===== Inspection ===== //
 
 #[polars_expr(output_type=UInt8)]

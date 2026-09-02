@@ -2,7 +2,7 @@
 
 > Polars-native H3 expressions for indexing, inspection, hierarchy, traversal, directed edges, vertices, metrics, and optional Folium graphing.
 
-Polars H3 functions accept Polars column names or expressions and return `pl.Expr`. H3 indexes are supported as unsigned 64-bit integers, signed 64-bit integers, or hexadecimal strings where documented. Unsigned 64-bit integers are preferred for computation. H3 resolutions range from 0 through 15. Polygon-to-cells and cells-to-polygon geometry conversion are outside this package's scope.
+Polars H3 functions accept Polars column names or expressions and return `pl.Expr`. H3 indexes are supported as unsigned 64-bit integers, signed 64-bit integers, or hexadecimal strings where documented. Unsigned 64-bit integers are preferred for computation. H3 resolutions range from 0 through 15. Polygon-to-cells accepts WKT String or WKB Binary columns and does not require a Polars geometry dtype.
 
 ## Start here
 
@@ -13,6 +13,7 @@ Polars H3 functions accept Polars column names or expressions and return `pl.Exp
 
 - [API overview](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/index.md): Map of the public function families.
 - [Indexing](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/indexing.md): Coordinate, cell center, local IJ, and boundary expressions.
+- [Geometry](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/geometry.md): WKT/WKB polygon coverage and cell-set dissolution expressions.
 - [Index inspection](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/inspection.md): Validation, representation conversion, and index metadata.
 - [Hierarchy](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/hierarchy.md): Parent/child traversal, compacting, and uncompacting.
 - [Directed edges](https://raw.githubusercontent.com/Filimoa/polars-h3/master/docs/api-reference/edge.md): Neighbor checks and directed-edge construction and inspection.

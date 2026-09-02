@@ -10,9 +10,10 @@ venv
 __pycache__/
 
 playground.ipynb
+scratch/
 *.vscode
 
 benchmarks/benchmarks-results.json
 notebooks/sample-data
-docs/*-execplan.md
+*-execplan.md
 site/

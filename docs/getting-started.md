@@ -74,6 +74,13 @@ summary = (
 
 ## Next steps
 
+- Work through the [quickstart notebook](https://github.com/Filimoa/polars-h3/blob/main/notebooks/quickstart.ipynb)
+  for a broader tour of Polars H3 expressions.
+- Follow the [polygon-to-H3 notebook](https://github.com/Filimoa/polars-h3/blob/main/notebooks/polygon-to-h3.ipynb)
+  to turn census-tract polygons into a validated H3 crosswalk, audit the
+  boundary approximation, and dissolve cell sets back to geometry.
+- Explore the [telematics notebook](https://github.com/Filimoa/polars-h3/blob/main/notebooks/telematics.ipynb)
+  to turn timestamped GPS points into trips, trace the H3 cells traveled, and estimate time spent in each cell.
 - Read the [user guide](guide.md) for index representations and function
   families.
 - Browse the [indexing reference](api-reference/indexing.md) for coordinate and

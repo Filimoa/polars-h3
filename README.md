@@ -20,7 +20,7 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
   - 25X faster than [h3-py](https://github.com/uber/h3-py)
   - 5X faster than [H3 DuckDB](https://github.com/isaacbrodsky/h3-duckdb) _(See [notebook](notebooks/benchmarking.ipynb) for more details)_
 
-- 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, covering almost everything the standard H3 library provides, excluding geometric functions.
+- 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, including WKT/WKB polygon coverage and cell-set dissolution.
 
 - 📋 **Fully Tested & Used in Production:** Thoroughly tested against the standard H3 library.
 
@@ -72,6 +72,13 @@ shape: (1, 3)
 ```
 
 Check out the [quickstart notebook](notebooks/quickstart.ipynb) for more examples.
+The [polygon-to-H3 notebook](notebooks/polygon-to-h3.ipynb) starts with raw
+census-tract GeoParquet, compares H3 resolutions, builds a validated
+tract-to-cell crosswalk, and closes the cell-set geometry round trip without
+GeoPandas.
+The [telematics notebook](notebooks/telematics.ipynb) turns timestamped GPS
+points into trips, traces the H3 cells traveled, and estimates time spent in
+each cell.
 
 🌟 You can also find the advanced notebooks [here](notebooks/).
 
@@ -81,7 +88,8 @@ This extension implements most of the [H3 API](https://h3geo.org/docs/api/indexi
 
 > ⚠️ **Performance Note:** When possible, prefer using `pl.UInt64` for H3 indices instead of the `pl.Utf8` representation. String representations require casting operations which impact performance. Working directly with the native 64-bit integer format provides better computational efficiency.
 
-We are unable to support the functions that work with geometries.
+Geometry conversions use WKT `String` or WKB `Binary` columns and do not
+require a Polars geometry dtype.
 
 ### Full list of functions
 
@@ -134,8 +142,8 @@ We are unable to support the functions that work with geometries.
 | [`get_num_cells`](https://filimoa.github.io/polars-h3/api-reference/metrics/#get_num_cells)                              | Get the number of cells at a resolution                                                                                  | ✅        |
 | [`get_pentagons`](https://filimoa.github.io/polars-h3/api-reference/metrics/#get_pentagons)                              | Get all pentagons at a resolution                                                                                        | ✅        |
 | [`great_circle_distance`](https://filimoa.github.io/polars-h3/api-reference/metrics/#great_circle_distance)              | Compute the great circle distance between two points (haversine)                                                         | ✅        |
-| `cells_to_multi_polygon_wkt`                                                                                             | Convert a set of cells to multipolygon WKT                                                                               | 🛑        |
-| `polygon_wkt_to_cells`                                                                                                   | Convert polygon WKT to a set of cells                                                                                    | 🛑        |
+| [`cells_to_multi_polygon_wkt`](https://filimoa.github.io/polars-h3/api-reference/geometry/#cells_to_multi_polygon_wkt)   | Convert a set of cells to multipolygon WKT                                                                               | ✅        |
+| [`polygon_to_cells`](https://filimoa.github.io/polars-h3/api-reference/geometry/#polygon_to_cells)                       | Convert polygon WKT or WKB to a set of cells                                                                             | ✅        |
 | `directed_edge_to_boundary_wkt`                                                                                          | Convert directed edge ID to linestring WKT                                                                               | 🛑        |
 
 ### Plotting
@@ -146,12 +154,24 @@ The library also comes with helper functions to plot hexes on a Folium map.
 import polars_h3 as plh3
 import polars as pl
 
-hex_map = plh3.graphing.plot_hex_outlines(df, "h3_cell")
+hex_map = plh3.graphing.plot_hex_outlines(df, hex_id_col="h3_cell")
 display(hex_map)
+
+# overlay a polygon coverage with its source WKT/WKB geometry column
+coverage_map = plh3.graphing.plot_polygon_coverage(
+    covered,
+    geometry_col="geometry",
+    cells_col="h3_cells",
+)
+display(coverage_map)
 
 # or if you have a metric to plot
 
-hex_map = plh3.graphing.plot_hex_fills(df, "h3_cell", "metric_col")
+hex_map = plh3.graphing.plot_hex_fills(
+    df,
+    hex_id_col="h3_cell",
+    metric_col="metric_col",
+)
 display(hex_map)
 ```
 

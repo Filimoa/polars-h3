@@ -86,6 +86,7 @@ nav:
   - API Reference:
       - Overview: api-reference/index.md
       - Indexing: api-reference/indexing.md
+      - Geometry: api-reference/geometry.md
       - Index inspection: api-reference/inspection.md
       - Hierarchy: api-reference/hierarchy.md
       - Directed edges: api-reference/edge.md
