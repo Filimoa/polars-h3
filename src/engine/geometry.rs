@@ -404,7 +404,7 @@ pub fn polygon_to_cells_series(geometry_series: &Series, resolution: u8) -> Pola
     let cells = match geometry_series.dtype() {
         DataType::Null => vec![None; geometry_series.len()],
         DataType::String => {
-            let values = geometry_series.str()?.into_iter().collect::<Vec<_>>();
+            let values = geometry_series.str()?.iter().collect::<Vec<_>>();
             values
                 .into_par_iter()
                 .map(|value| {
@@ -418,7 +418,7 @@ pub fn polygon_to_cells_series(geometry_series: &Series, resolution: u8) -> Pola
                 .collect::<PolarsResult<Vec<_>>>()?
         },
         DataType::Binary => {
-            let values = geometry_series.binary()?.into_iter().collect::<Vec<_>>();
+            let values = geometry_series.binary()?.iter().collect::<Vec<_>>();
             values
                 .into_par_iter()
                 .map(|value| {
@@ -447,7 +447,7 @@ pub fn polygon_to_geojson_series(geometry_series: &Series) -> PolarsResult<Serie
     let geometries = match geometry_series.dtype() {
         DataType::Null => vec![None; geometry_series.len()],
         DataType::String => {
-            let values = geometry_series.str()?.into_iter().collect::<Vec<_>>();
+            let values = geometry_series.str()?.iter().collect::<Vec<_>>();
             values
                 .into_par_iter()
                 .map(|value| {
@@ -458,7 +458,7 @@ pub fn polygon_to_geojson_series(geometry_series: &Series) -> PolarsResult<Serie
                 .collect::<PolarsResult<Vec<_>>>()?
         },
         DataType::Binary => {
-            let values = geometry_series.binary()?.into_iter().collect::<Vec<_>>();
+            let values = geometry_series.binary()?.iter().collect::<Vec<_>>();
             values
                 .into_par_iter()
                 .map(|value| {
@@ -492,7 +492,7 @@ fn parse_cells_strict(series: &Series) -> PolarsResult<Vec<CellIndex>> {
         ),
         DataType::UInt64 => series
             .u64()?
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(index, value)| {
                 let value = value.ok_or_else(
@@ -510,7 +510,7 @@ fn parse_cells_strict(series: &Series) -> PolarsResult<Vec<CellIndex>> {
             .collect(),
         DataType::Int64 => series
             .i64()?
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(index, value)| {
                 let value = value.ok_or_else(
@@ -535,7 +535,7 @@ fn parse_cells_strict(series: &Series) -> PolarsResult<Vec<CellIndex>> {
             .collect(),
         DataType::String => series
             .str()?
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(index, value)| {
                 let value = value.ok_or_else(
@@ -592,7 +592,7 @@ pub fn cells_to_multi_polygon_wkt(cell_series: &Series) -> PolarsResult<Series> 
             cell_series.dtype()
         )
     })?;
-    let rows = lists.into_iter().collect::<Vec<_>>();
+    let rows = lists.series_iter().collect::<Vec<_>>();
     let wkts = rows
         .into_par_iter()
         .map(|row| row.map(|row| cells_to_wkt(&row)).transpose())

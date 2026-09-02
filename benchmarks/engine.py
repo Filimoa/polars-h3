@@ -106,7 +106,7 @@ def generate_test_data(n: int, resolution: int) -> pl.DataFrame:
         ohio_bbox["min_lon"],
         ohio_bbox["max_lon"],
     )
-    lats, lons = zip(*points)
+    lats, lons = zip(*points, strict=False)
     return (
         pl.DataFrame({"lat": lats, "lon": lons})
         .with_columns(int_h3_cell=plh3.latlng_to_cell("lat", "lon", resolution))

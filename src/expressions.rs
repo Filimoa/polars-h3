@@ -40,8 +40,12 @@ fn map_list_dtype(dt: &DataType) -> PolarsResult<DataType> {
 fn dynamic_list_output_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
     let input_dtype = &input_fields[0].dtype;
 
-    // map_list_dtype will handle both nested lists and base types
-    let mapped_dtype = map_list_dtype(input_dtype)?;
+    // Scalar H3 inputs produce one list per row. Expressions such as
+    // compact_cells also accept an existing list and preserve its list depth.
+    let mapped_dtype = match input_dtype {
+        DataType::List(_) => map_list_dtype(input_dtype)?,
+        _ => DataType::List(Box::new(map_list_dtype(input_dtype)?)),
+    };
 
     Ok(Field::new(input_fields[0].name.clone(), mapped_dtype))
 }

@@ -10,10 +10,10 @@ fn parse_latlng_to_cells(
     resolution: u8,
 ) -> PolarsResult<Vec<Option<CellIndex>>> {
     let lat_vals = match lat_series.dtype() {
-        DataType::Float64 => lat_series.f64()?.into_iter().collect::<Vec<_>>(),
+        DataType::Float64 => lat_series.f64()?.iter().collect::<Vec<_>>(),
         DataType::Float32 => {
             let lat_casted = lat_series.cast(&DataType::Float64)?;
-            lat_casted.f64()?.into_iter().collect::<Vec<_>>()
+            lat_casted.f64()?.iter().collect::<Vec<_>>()
         },
         _ => {
             return Err(PolarsError::ComputeError(
@@ -23,10 +23,10 @@ fn parse_latlng_to_cells(
     };
 
     let lng_vals = match lng_series.dtype() {
-        DataType::Float64 => lng_series.f64()?.into_iter().collect::<Vec<_>>(),
+        DataType::Float64 => lng_series.f64()?.iter().collect::<Vec<_>>(),
         DataType::Float32 => {
             let lng_casted = lng_series.cast(&DataType::Float64)?;
-            lng_casted.f64()?.into_iter().collect::<Vec<_>>()
+            lng_casted.f64()?.iter().collect::<Vec<_>>()
         },
         _ => {
             return Err(PolarsError::ComputeError(

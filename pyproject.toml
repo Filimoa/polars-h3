@@ -10,10 +10,14 @@ name = "polars-h3"
 version = "0.6.4"
 description = "H3 bindings for Polars"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 classifiers = [
   "Programming Language :: Rust",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
@@ -22,6 +26,9 @@ authors = [
 ]
 
 dependencies = []
+
+[tool.uv]
+exclude-newer = "5 days"
 
 [tool.ty.analysis]
 allowed-unresolved-imports = ["folium", "matplotlib"]
@@ -52,7 +59,7 @@ benchmarking = [
 ]
 
 docs = [
-    "zensical>=0.0.57,<0.1; python_version >= '3.10'",
+    "zensical>=0.0.57,<0.1",
 ]
 
 [tool.ruff.lint]
