@@ -144,7 +144,7 @@ require a Polars geometry dtype.
 | [`great_circle_distance`](https://filimoa.github.io/polars-h3/api-reference/metrics/#great_circle_distance)              | Compute the great circle distance between two points (haversine)                                                         | ✅        |
 | [`cells_to_multi_polygon_wkt`](https://filimoa.github.io/polars-h3/api-reference/geometry/#cells_to_multi_polygon_wkt)   | Convert a set of cells to multipolygon WKT                                                                               | ✅        |
 | [`polygon_to_cells`](https://filimoa.github.io/polars-h3/api-reference/geometry/#polygon_to_cells)                       | Convert polygon WKT or WKB to a set of cells                                                                             | ✅        |
-| `directed_edge_to_boundary_wkt`                                                                                          | Convert directed edge ID to linestring WKT                                                                               | 🛑        |
+| [`directed_edge_to_boundary`](https://filimoa.github.io/polars-h3/api-reference/edge/#directed_edge_to_boundary)         | Convert a directed edge ID to its boundary coordinates                                                                   | ✅        |
 
 ### Plotting
 
