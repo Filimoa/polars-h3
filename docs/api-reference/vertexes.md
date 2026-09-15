@@ -1,158 +1,129 @@
-# Vertex functions
+# Vertices
 
-Vertex mode allows encoding the topological vertexes of H3 cells.
-
----
+Inspect the vertices shared by H3 cells.
 
 ## `cell_to_vertex`
 
-Retrieve the H3 vertex index for a specific vertex of a given cell.
-
 ```python
-plh3.cell_to_vertex(
-    cell: IntoExprColumn,
-    vertex_num: int
-) -> pl.Expr
+plh3.cell_to_vertex(cell: IntoExprColumn, vertex_num: int) -> pl.Expr
 ```
 
-**Parameters**
-
-- **cell** : IntoExprColumn  
-  H3 cell index (`pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
-- **vertex_num** : int  
-  0-based vertex number. For hexagonal cells, valid range is `[0..5]`; for pentagonal cells, `[0..4]`.
-
-**Returns**
-
-- **Expr**  
-  A Polars expression returning the corresponding H3 vertex index (`pl.UInt64` or `pl.Int64`), or `null` if invalid.
-
-**Examples**
+Return one vertex of each cell by its zero-based vertex number.
 
 ```python
->>> df = pl.DataFrame({"h3_cell": [599686042433355775]})
->>> df.with_columns(vertex=plh3.cell_to_vertex("h3_cell", 0))
-shape: (1, 2)
-┌─────────────────────┬─────────────────────┐
-│ h3_cell             │ vertex              │
-│ ---                 │ ---                 │
-│ u64                 │ u64                 │
-╞═════════════════════╪═════════════════════╡
-│ 599686042433355775  │ 2473183459502194687 │
-└─────────────────────┴─────────────────────┘
+import polars as pl
+import polars_h3 as plh3
+
+df = pl.DataFrame(
+    {"cell": [599686042433355775]},
+    schema_overrides={"cell": pl.UInt64},
+)
+df.select(vertex=plh3.cell_to_vertex("cell", 0))
 ```
 
-**Errors**
-
-- `ComputeError`: If `vertex_num` is out of range or the cell is invalid.
-
----
+```text
+shape: (1, 1)
+┌─────────────────────┐
+│ vertex              │
+│ ---                 │
+│ u64                 │
+╞═════════════════════╡
+│ 2473183459502194687 │
+└─────────────────────┘
+```
 
 ## `cell_to_vertexes`
 
-Retrieve all vertex indices for a given H3 cell.
-
 ```python
-plh3.cell_to_vertexes(
-    cell: IntoExprColumn
-) -> pl.Expr
+plh3.cell_to_vertexes(cell: IntoExprColumn) -> pl.Expr
 ```
 
-**Parameters**
-
-- **cell** : IntoExprColumn  
-  H3 cell index (`pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
-
-**Returns**
-
-- **Expr**  
-  A Polars expression returning a list of H3 vertex indices (6 for a hex cell, 5 for a pentagon).
-
-**Examples**
+Return all vertices of each cell as a list.
 
 ```python
->>> df = pl.DataFrame({"h3_cell": [599686042433355775]})
->>> df.with_columns(vertexes=plh3.cell_to_vertexes("h3_cell"))
-shape: (1, 2)
-┌─────────────────────┬────────────────────────────────────────────────┐
-│ h3_cell             │ vertexes                                       │
-│ ---                 │ ---                                             │
-│ u64                 │ list[u64]                                       │
-╞═════════════════════╪════════════════════════════════════════════════╡
-│ 599686042433355775  │ [2473183459502194687, 2545241069646249983, … ] │
-└─────────────────────┴────────────────────────────────────────────────┘
+import polars as pl
+import polars_h3 as plh3
+
+df = pl.DataFrame(
+    {"cell": [599686042433355775]},
+    schema_overrides={"cell": pl.UInt64},
+)
+df.select(vertices=plh3.cell_to_vertexes("cell"))
 ```
 
----
+```text
+shape: (1, 1)
+┌───────────────────────────┐
+│ vertices                  │
+│ ---                       │
+│ list[u64]                 │
+╞═══════════════════════════╡
+│ [2473183459502194687, 25… │
+└───────────────────────────┘
+```
 
 ## `vertex_to_latlng`
 
-Convert an H3 vertex index into its latitude and longitude coordinates.
-
 ```python
-plh3.vertex_to_latlng(
-    vertex: IntoExprColumn
-) -> pl.Expr
+plh3.vertex_to_latlng(vertex: IntoExprColumn) -> pl.Expr
 ```
 
-**Parameters**
-
-- **vertex** : IntoExprColumn  
-  H3 vertex index (`pl.UInt64`, `pl.Int64`, or `pl.Utf8`).
-
-**Returns**
-
-- **Expr**  
-  A Polars expression returning a two-element list `[latitude, longitude]` (`Float64`, `Float64`) or `null` if invalid.
-
-**Examples**
+Return each vertex's latitude and longitude in degrees.
 
 ```python
->>> df = pl.DataFrame({"vertex": [2459626752788398079]})
->>> df.with_columns(coords=plh3.vertex_to_latlng("vertex"))
-shape: (1, 2)
-┌──────────────────────┬─────────────────────────┐
-│ vertex               │ coords                  │
-│ ---                  │ ---                     │
-│ u64                  │ list[f64]               │
-╞══════════════════════╪═════════════════════════╡
-│ 2459626752788398079  │ [39.38084284181812, 88.57496213785487] │
-└──────────────────────┴─────────────────────────┘
+import polars as pl
+import polars_h3 as plh3
+
+df = pl.DataFrame(
+    {"vertex": [2459626752788398079]},
+    schema_overrides={"vertex": pl.UInt64},
+)
+df.select(coordinates=plh3.vertex_to_latlng("vertex"))
 ```
 
----
+```text
+shape: (1, 1)
+┌────────────────────────┐
+│ coordinates            │
+│ ---                    │
+│ list[f64]              │
+╞════════════════════════╡
+│ [39.380843, 88.574962] │
+└────────────────────────┘
+```
 
 ## `is_valid_vertex`
 
-Check whether an H3 index represents a valid H3 vertex.
-
 ```python
-plh3.is_valid_vertex(
-    vertex: IntoExprColumn
-) -> pl.Expr
+plh3.is_valid_vertex(vertex: IntoExprColumn) -> pl.Expr
 ```
 
-**Parameters**
-
-- **vertex** : IntoExprColumn  
-  H3 vertex index.
-
-**Returns**
-
-- **Expr**  
-  A boolean Polars expression: `true` if valid, `false` otherwise.
-
-**Examples**
+Return whether each value is a valid H3 vertex.
 
 ```python
->>> df = pl.DataFrame({"vertex": [2459626752788398079]})
->>> df.with_columns(valid=plh3.is_valid_vertex("vertex"))
-shape: (1, 2)
-┌──────────────────────┬──────────┐
-│ vertex               │ valid    │
-│ ---                  │ ---      │
-│ u64                  │ bool     │
-╞══════════════════════╪══════════╡
-│ 2459626752788398079  │ true     │
-└──────────────────────┴──────────┘
+import polars as pl
+import polars_h3 as plh3
+
+df = pl.DataFrame(
+    {"index": [2459626752788398079, 599686042433355775]},
+    schema_overrides={"index": pl.UInt64},
+)
+df.select(valid=plh3.is_valid_vertex("index"))
 ```
+
+```text
+shape: (2, 1)
+┌───────┐
+│ valid │
+│ ---   │
+│ bool  │
+╞═══════╡
+│ true  │
+│ false │
+└───────┘
+```
+
+!!! note "Vertex numbering"
+
+    `cell_to_vertexes` retains the package's public spelling for compatibility.
+    An invalid `vertex_num` can raise `polars.exceptions.ComputeError`.

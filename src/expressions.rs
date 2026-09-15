@@ -40,8 +40,12 @@ fn map_list_dtype(dt: &DataType) -> PolarsResult<DataType> {
 fn dynamic_list_output_dtype(input_fields: &[Field]) -> PolarsResult<Field> {
     let input_dtype = &input_fields[0].dtype;
 
-    // map_list_dtype will handle both nested lists and base types
-    let mapped_dtype = map_list_dtype(input_dtype)?;
+    // Scalar H3 inputs produce one list per row. Expressions such as
+    // compact_cells also accept an existing list and preserve its list depth.
+    let mapped_dtype = match input_dtype {
+        DataType::List(_) => map_list_dtype(input_dtype)?,
+        _ => DataType::List(Box::new(map_list_dtype(input_dtype)?)),
+    };
 
     Ok(Field::new(input_fields[0].name.clone(), mapped_dtype))
 }
@@ -101,6 +105,26 @@ fn cell_to_latlng(inputs: &[Series]) -> PolarsResult<Series> {
 fn cell_to_boundary(inputs: &[Series]) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
     crate::engine::indexing::cell_to_boundary(cell_series)
+}
+
+// ===== Geometry ===== //
+
+#[polars_expr(output_type_func=list_uint64_dtype)]
+fn polygon_to_cells(inputs: &[Series], kwargs: LatLngToCellKwargs) -> PolarsResult<Series> {
+    let geometry_series = &inputs[0];
+    crate::engine::geometry::polygon_to_cells_series(geometry_series, kwargs.resolution)
+}
+
+#[polars_expr(output_type=String)]
+fn polygon_to_geojson(inputs: &[Series]) -> PolarsResult<Series> {
+    let geometry_series = &inputs[0];
+    crate::engine::geometry::polygon_to_geojson_series(geometry_series)
+}
+
+#[polars_expr(output_type=String)]
+fn cells_to_multi_polygon_wkt(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_series = &inputs[0];
+    crate::engine::geometry::cells_to_multi_polygon_wkt(cell_series)
 }
 
 // ===== Inspection ===== //

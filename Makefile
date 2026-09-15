@@ -1,31 +1,51 @@
-SHELL=/bin/bash
-PYTHON = python
-VENV_DIR = .venv
-PIP = $(VENV_DIR)/bin/pip
+.PHONY: help sync sync-bench install install-release fmt lint test check docs bench clean
 
-.venv:
-	$(PYTHON) -m venv $(VENV_DIR)
-	$(PIP) install -U pip setuptools wheel
-	$(PIP) install maturin polars ruff mypy pytest
+help:
+	@echo "Targets:"
+	@echo "  sync             Install dev dependencies"
+	@echo "  sync-bench       Install dev and benchmarking dependencies"
+	@echo "  install          Build/install extension in dev mode"
+	@echo "  install-release  Build/install optimized extension"
+	@echo "  fmt              Format Rust and Python"
+	@echo "  lint             Run Rust/Python checks"
+	@echo "  test             Run Python tests"
+	@echo "  check            Run fmt, lint, install, and test"
+	@echo "  docs             Serve docs locally"
+	@echo "  bench            Run benchmarks after release build"
+	@echo "  clean            Remove build artifacts"
+
+sync:
+	uv sync --group dev
+
+sync-bench:
+	uv sync --group dev --group benchmarking
 
 install:
-	unset CONDA_PREFIX && \
-	source .venv/bin/activate && maturin develop
+	uv run maturin develop --uv
 
 install-release:
-	unset CONDA_PREFIX && \
-	source .venv/bin/activate && maturin develop --release
+	uv run maturin develop --release --uv
 
-pre-commit:
-	cargo fmt --all && cargo clippy --all-features
-	.venv/bin/python -m ruff format polars_h3 tests
+fmt:
+	cargo fmt --all
+	uv run ruff format polars_h3 tests benchmarks
+
+lint:
+	cargo clippy --all-features
+	uv run ruff check polars_h3 tests benchmarks
+	uv run ty check polars_h3
 
 test:
-	.venv/bin/python -m pytest tests
+	uv run pytest tests
 
-run: install
-	source .venv/bin/activate && python run.py
+check: fmt lint install test
 
-run-release: install-release
-	source .venv/bin/activate && python run.py
+docs:
+	uv run --group docs zensical serve
 
+bench: install-release
+	uv run --group benchmarking -m benchmarks.engine
+
+clean:
+	cargo clean
+	rm -rf .pytest_cache .ruff_cache

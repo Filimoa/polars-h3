@@ -3,7 +3,7 @@ Utility script to benchmark the performance of the H3 Polars extension.
 
 - If you know how to make any of these other libraries more performant, please open a PR. I want to be as fair as possible.
 - I'm not an expert in DuckDB, but copying the data should be 0 cost due to Apache Arrow?
-- I used `h3==4.1.2`, `polars==1.8.2` and `duckdb==1.1.3`.
+- The driver prints library and extension versions so saved benchmark output can be reproduced.
 - Attempted to also benchmark H3-Pandas, but project appears to be abandoned and doesn't work with h3 >= 4.0.0.
 """
 
@@ -11,9 +11,11 @@ import argparse
 import json
 import random
 import statistics
+import struct
 import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
+from importlib.metadata import version
 from pathlib import Path
 from typing import Literal
 
@@ -61,6 +63,7 @@ class BenchmarkResult:
 @dataclass
 class ParamConfig:
     num_iterations: int
+    warmup_iterations: int
     resolution: int
     grid_ring_distance: int
     libraries: list[Library] | Literal["all"] = "all"
@@ -73,10 +76,6 @@ class ParamConfig:
         }
     )
     verbose: bool = False
-
-    @property
-    def max_num_rows(self) -> int:
-        return max(self.difficulty_to_num_rows.values())
 
 
 def generate_points_within_bbox(
@@ -107,7 +106,7 @@ def generate_test_data(n: int, resolution: int) -> pl.DataFrame:
         ohio_bbox["min_lon"],
         ohio_bbox["max_lon"],
     )
-    lats, lons = zip(*points)
+    lats, lons = zip(*points, strict=False)
     return (
         pl.DataFrame({"lat": lats, "lon": lons})
         .with_columns(int_h3_cell=plh3.latlng_to_cell("lat", "lon", resolution))
@@ -122,12 +121,40 @@ def generate_test_data(n: int, resolution: int) -> pl.DataFrame:
     )
 
 
+def _square_polygon_wkb(lat: float, lon: float, half_size: float = 0.015) -> bytes:
+    """Build a little-endian WKB polygon centered on a latitude/longitude."""
+    ring = [
+        (lon - half_size, lat - half_size),
+        (lon + half_size, lat - half_size),
+        (lon + half_size, lat + half_size),
+        (lon - half_size, lat + half_size),
+        (lon - half_size, lat - half_size),
+    ]
+    value = bytearray(struct.pack("<BIII", 1, 3, 1, len(ring)))
+    for lng, latitude in ring:
+        value.extend(struct.pack("<dd", lng, latitude))
+    return bytes(value)
+
+
+def add_polygon_wkb(df: pl.DataFrame) -> pl.DataFrame:
+    """Add deterministic tract-sized polygons outside the timed benchmark."""
+    polygons = [
+        _square_polygon_wkb(lat, lon)
+        for lat, lon in df.select("lat", "lon").iter_rows()
+    ]
+    return df.with_columns(pl.Series("polygon_wkb", polygons, dtype=pl.Binary))
+
+
 class Benchmark:
     def __init__(self, config: ParamConfig):
         con = duckdb.connect()
         con.execute("INSTALL h3 FROM community;")
         con.execute("LOAD h3;")
         self.con = con
+        self.duckdb_h3_version = con.execute(
+            "SELECT extension_version FROM duckdb_extensions() "
+            "WHERE extension_name = 'h3'"
+        ).fetchone()[0]
 
         self.config = config
 
@@ -244,6 +271,13 @@ class Benchmark:
                     "h3_py": self._cell_to_boundary_h3_py,
                 },
             },
+            "polygon_to_cells": {
+                "category": "complex",
+                "funcs": {
+                    "plh3": self._polygon_to_cells_plh3,
+                    "duckdb": self._polygon_to_cells_duckdb,
+                },
+            },
         }
 
     def run_all(
@@ -258,7 +292,7 @@ class Benchmark:
         results = []
 
         # Filter functions to run
-        functions_to_run = (
+        functions_to_run = list(
             self.function_configs.items()
             if self.config.functions == "all"
             else {
@@ -267,8 +301,18 @@ class Benchmark:
                 if k in self.config.functions
             }.items()
         )
+        if not functions_to_run:
+            raise ValueError("No matching benchmark functions selected")
 
-        df = generate_test_data(self.config.max_num_rows, self.config.resolution)
+        max_num_rows = max(
+            self.config.difficulty_to_num_rows[config["category"]]
+            for _, config in functions_to_run
+        )
+        # `generate_test_data` drops the final shifted row. Generate one extra
+        # so reported and measured row counts remain identical.
+        df = generate_test_data(max_num_rows + 1, self.config.resolution).head(
+            max_num_rows
+        )
         for func_name, config in functions_to_run:
             print(f"\n========== {func_name} ==========\n")
 
@@ -280,13 +324,20 @@ class Benchmark:
                 else [lib for lib in self.config.libraries if lib in config["funcs"]]
             )
 
+            input_df = df.head(num_rows)
+            if func_name == "polygon_to_cells":
+                input_df = add_polygon_wkb(input_df)
+
             for library in libraries:
                 func = config["funcs"][library]
+
+                for _ in range(self.config.warmup_iterations):
+                    func(input_df)
 
                 perf_times = []
                 for _ in range(self.config.num_iterations):
                     start = time.perf_counter()
-                    result_df = func(df.head(num_rows))
+                    result_df = func(input_df)
                     perf_times.append(time.perf_counter() - start)
 
                 if self.config.verbose:
@@ -451,12 +502,14 @@ class Benchmark:
 
     def _cell_to_parent_plh3(self, df: pl.DataFrame) -> pl.DataFrame:
         return df.with_columns(
-            plh3.cell_to_parent("int_h3_cell", self.config.resolution).alias("result")
+            plh3.cell_to_parent("int_h3_cell", self.config.resolution - 1).alias(
+                "result"
+            )
         )
 
     def _cell_to_parent_duckdb(self, df: pl.DataFrame) -> pl.DataFrame:
         return self.con.execute(
-            f"SELECT h3_cell_to_parent(int_h3_cell, {self.config.resolution}) as result FROM df;"
+            f"SELECT h3_cell_to_parent(int_h3_cell, {self.config.resolution - 1}) as result FROM df;"
         ).pl()
 
     def _cell_to_parent_h3_py(self, df: pl.DataFrame) -> pl.DataFrame:
@@ -464,7 +517,7 @@ class Benchmark:
             pl.struct(["str_h3_cell"])
             .map_elements(
                 lambda row: h3.cell_to_parent(
-                    row["str_h3_cell"], self.config.resolution
+                    row["str_h3_cell"], self.config.resolution - 1
                 ),
                 return_dtype=pl.Utf8,
             )
@@ -603,6 +656,21 @@ class Benchmark:
             .alias("result")
         )
 
+    ########################
+    ### POLYGON TO CELLS ###
+    ########################
+
+    def _polygon_to_cells_plh3(self, df: pl.DataFrame) -> pl.DataFrame:
+        return df.select(
+            result=plh3.polygon_to_cells("polygon_wkb", self.config.resolution)
+        )
+
+    def _polygon_to_cells_duckdb(self, df: pl.DataFrame) -> pl.DataFrame:
+        return self.con.execute(
+            f"SELECT h3_polygon_wkb_to_cells(polygon_wkb, "
+            f"{self.config.resolution}) AS result FROM df;"
+        ).pl()
+
     ##########################
     ### ARE NEIGHBOR CELLS ###
     ##########################
@@ -682,6 +750,42 @@ def _pretty_print_avg_results(results: list[BenchmarkResult]):
         print(f"{lib:<10} {median_by_lib[lib]:<8} {avg_by_lib[lib]:<8}")
 
 
+def _pretty_print_duckdb_comparison(results: list[BenchmarkResult]) -> None:
+    by_name: dict[str, dict[Library, BenchmarkResult]] = defaultdict(dict)
+    for result in results:
+        by_name[result.name][result.library] = result
+
+    comparisons = [
+        (name, library_results["plh3"], library_results["duckdb"])
+        for name, library_results in by_name.items()
+        if "plh3" in library_results and "duckdb" in library_results
+    ]
+    if not comparisons:
+        return
+
+    print("\n\n======= polars-h3 vs DuckDB H3 =======\n")
+    print(
+        f"{'Function':<21} {'Rows':>8} {'polars-h3':>12} "
+        f"{'DuckDB':>12} {'Speedup':>10}"
+    )
+    print("-" * 69)
+    speedups = []
+    for name, plh3_result, duckdb_result in comparisons:
+        speedup = duckdb_result.avg_seconds / plh3_result.avg_seconds
+        speedups.append(speedup)
+        print(
+            f"{name:<21} {plh3_result.num_rows_human:>8} "
+            f"{plh3_result.avg_seconds * 1_000:>10.2f}ms "
+            f"{duckdb_result.avg_seconds * 1_000:>10.2f}ms "
+            f"{speedup:>9.2f}x"
+        )
+
+    print(
+        f"\nMedian unweighted speedup (DuckDB / polars-h3): "
+        f"{statistics.median(speedups):.2f}x"
+    )
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="h3-bench",
@@ -705,6 +809,12 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--iterations", "-n", type=int, default=3)
     parser.add_argument(
+        "--warmup-iterations",
+        type=int,
+        default=1,
+        help="Warm-up runs per function and library, excluded from measurements",
+    )
+    parser.add_argument(
         "--fast-factor",
         type=int,
         default=1,
@@ -725,6 +835,7 @@ def _build_param_config(args: argparse.Namespace) -> ParamConfig:
         resolution=9,
         grid_ring_distance=3,
         num_iterations=args.iterations,
+        warmup_iterations=max(args.warmup_iterations, 0),
         libraries=args.libraries if "all" not in args.libraries else "all",
         functions=args.functions if "all" not in args.functions else "all",
         difficulty_to_num_rows={
@@ -741,6 +852,12 @@ def main() -> None:
     config = _build_param_config(args)
 
     benchmark = Benchmark(config=config)
+    print("Benchmark versions:")
+    print(f"  polars-h3: {version('polars-h3')}")
+    print(f"  Polars: {pl.__version__}")
+    print(f"  DuckDB: {duckdb.__version__}")
+    print(f"  DuckDB H3 extension: {benchmark.duckdb_h3_version}")
+    print(f"  h3-py: {h3.__version__}")
     results = benchmark.run_all()
 
     last = None
@@ -749,6 +866,8 @@ def main() -> None:
             print(f"\n{r.name} (num_iterations={config.num_iterations})")
             last = r.name
         print(r)
+
+    _pretty_print_duckdb_comparison(results)
 
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

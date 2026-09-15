@@ -2,4 +2,4 @@ polars
 maturin
 ruff
 pytest
-mypy
+ty

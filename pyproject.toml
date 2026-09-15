@@ -6,14 +6,18 @@ build-backend = "maturin"
 homepage = "https://github.com/filimoa/polars-h3"
 
 [project]
-name = "polars-h3"  
-version = "0.6.1" 
+name = "polars-h3"
+version = "0.7.0"
 description = "H3 bindings for Polars"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 classifiers = [
   "Programming Language :: Rust",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
@@ -23,20 +27,25 @@ authors = [
 
 dependencies = []
 
-[[tool.mypy.overrides]]
-module = "polars.utils.udfs"
-ignore_missing_imports = true
+[tool.uv]
+exclude-newer = "5 days"
+
+[tool.ty.analysis]
+allowed-unresolved-imports = ["folium", "matplotlib"]
 
 [dependency-groups]
 dev = [
+    "folium",
+    "matplotlib",
     "maturin",
     "ruff==0.8.3",
     "pytest",
-    "mypy",
     "h3>=4.1.2",
     "jupyter>=1.1.1",
     "polars>=1.3.0",
     "pytest-cov",
+    "shapely>=2.0",
+    "ty>=0.0.75",
 ]
 
 benchmarking = [
@@ -50,12 +59,7 @@ benchmarking = [
 ]
 
 docs = [
-    "mkdocs-jupyter>=0.25.1",
-    "mkdocs-material>=9.5.50",
-    "mkdocs-material-extensions>=1.3.1",
-    "mkdocs-minify-plugin>=0.8.0",
-    "mkdocstrings-python>=1.13.0",
-    "pymdown-extensions>=10.14.2",
+    "zensical>=0.0.57,<0.1",
 ]
 
 [tool.ruff.lint]

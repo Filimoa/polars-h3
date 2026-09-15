@@ -9,6 +9,11 @@ from .core.edge import (
     is_valid_directed_edge,
     origin_to_directed_edges,
 )
+from .core.geometry import (
+    cells_to_multi_polygon_wkt,
+    polygon_to_cells,
+    polygon_wkt_to_cells,
+)
 from .core.indexing import (
     cell_to_boundary,
     cell_to_lat,
@@ -69,6 +74,9 @@ __all__ = [
     "cell_to_local_ij",
     "local_ij_to_cell",
     "cell_to_boundary",
+    "polygon_to_cells",
+    "polygon_wkt_to_cells",
+    "cells_to_multi_polygon_wkt",
     "get_resolution",
     "str_to_int",
     "int_to_str",

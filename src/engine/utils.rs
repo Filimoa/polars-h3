@@ -6,17 +6,17 @@ pub fn parse_cell_indices(cell_series: &Series) -> PolarsResult<Vec<Option<CellI
     Ok(match cell_series.dtype() {
         DataType::UInt64 => cell_series
             .u64()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| CellIndex::try_from(v).ok()))
             .collect(),
         DataType::Int64 => cell_series
             .i64()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| CellIndex::try_from(v as u64).ok()))
             .collect(),
         DataType::String => cell_series
             .str()?
-            .into_iter()
+            .iter()
             .map(|opt| {
                 opt.and_then(|s| u64::from_str_radix(s, 16).ok())
                     .and_then(|v| CellIndex::try_from(v).ok())
@@ -42,7 +42,7 @@ pub fn cast_u64_to_dtype(
         DataType::Int64 => result.cast(&DataType::Int64),
         DataType::String => {
             let utf8: StringChunked = result
-                .into_iter()
+                .iter()
                 .map(|opt_u| opt_u.map(|u| format!("{:x}", u)))
                 .collect();
             Ok(utf8.into_series())
@@ -60,7 +60,7 @@ pub fn cast_list_u64_to_dtype(
     let final_dtype = target_dtype.unwrap_or(original_dtype);
 
     let out: ListChunked = ca
-        .into_iter()
+        .series_iter()
         .map(|opt_s| {
             opt_s
                 .map(|s| {
@@ -81,7 +81,7 @@ pub fn cast_list_u64_to_dtype(
                         DataType::String => {
                             // Convert each u64 to a hex string.
                             let utf8: StringChunked = u64_ca
-                                .into_iter()
+                                .iter()
                                 .map(|opt_u| opt_u.map(|u| format!("{:x}", u)))
                                 .collect();
                             Ok(utf8.into_series())
@@ -94,6 +94,40 @@ pub fn cast_list_u64_to_dtype(
         .collect::<PolarsResult<_>>()?;
 
     Ok(out.into_series())
+}
+
+pub fn list_u64_vecs_to_series(
+    name: PlSmallStr,
+    values: Vec<Option<Vec<u64>>>,
+    target_inner_dtype: &DataType,
+) -> PolarsResult<Series> {
+    let values_capacity = values
+        .iter()
+        .filter_map(|opt| opt.as_ref().map(Vec::len))
+        .sum();
+    let mut builder = ListPrimitiveChunkedBuilder::<UInt64Type>::new(
+        name,
+        values.len(),
+        values_capacity,
+        DataType::UInt64,
+    );
+
+    for opt_values in values {
+        match opt_values {
+            Some(values) => builder.append_slice(&values),
+            None => builder.append_null(),
+        }
+    }
+
+    let out = builder.finish().into_series();
+    match target_inner_dtype {
+        DataType::UInt64 => Ok(out),
+        DataType::Int64 => out.cast(&DataType::List(Box::new(DataType::Int64))),
+        DataType::String => {
+            cast_list_u64_to_dtype(&out, &DataType::UInt64, Some(target_inner_dtype))
+        },
+        _ => polars_bail!(ComputeError: "Unsupported dtype for H3 List result"),
+    }
 }
 
 pub fn resolve_target_inner_dtype(original_dtype: &DataType) -> PolarsResult<DataType> {

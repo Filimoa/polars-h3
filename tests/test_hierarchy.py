@@ -140,6 +140,18 @@ def test_cell_to_children_valid(test_params):
     assert df["children"].to_list()[0] == test_params["output"]
 
 
+@pytest.mark.parametrize("cell_dtype", [pl.UInt64, pl.Int64, pl.String])
+def test_cell_to_children_lazy_schema_is_list(cell_dtype):
+    schema = (
+        pl.DataFrame(schema={"input": cell_dtype})
+        .lazy()
+        .select(children=plh3.cell_to_children("input", 3))
+        .collect_schema()
+    )
+
+    assert schema["children"] == pl.List(cell_dtype)
+
+
 @pytest.mark.parametrize(
     "resolution",
     [

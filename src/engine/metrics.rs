@@ -1,46 +1,47 @@
+use std::str::FromStr;
+
 use h3o::{CellIndex, DirectedEdgeIndex, Resolution};
 use polars::prelude::*;
 use rayon::prelude::*;
-use std::str::FromStr;
 
 use super::utils::parse_cell_indices;
 
 pub fn get_num_cells_series(resolution_series: &Series) -> PolarsResult<Series> {
     let resolutions: Vec<Option<u8>> = match resolution_series.dtype() {
-        DataType::UInt8 => resolution_series.u8()?.into_iter().collect(),
+        DataType::UInt8 => resolution_series.u8()?.iter().collect(),
         DataType::UInt16 => resolution_series
             .u16()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| v.try_into().ok()))
             .collect(),
         DataType::UInt32 => resolution_series
             .u32()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| v.try_into().ok()))
             .collect(),
         DataType::UInt64 => resolution_series
             .u64()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| v.try_into().ok()))
             .collect(),
         DataType::Int8 => resolution_series
             .i8()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| if v >= 0 { Some(v as u8) } else { None }))
             .collect(),
         DataType::Int16 => resolution_series
             .i16()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| if v >= 0 { v.try_into().ok() } else { None }))
             .collect(),
         DataType::Int32 => resolution_series
             .i32()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| if v >= 0 { v.try_into().ok() } else { None }))
             .collect(),
         DataType::Int64 => resolution_series
             .i64()?
-            .into_iter()
+            .iter()
             .map(|opt| opt.and_then(|v| if v >= 0 { v.try_into().ok() } else { None }))
             .collect(),
         _ => {
@@ -85,16 +86,71 @@ pub fn get_res0_cells() -> PolarsResult<Series> {
 
 pub fn get_pentagons(inputs: &[Series]) -> PolarsResult<Series> {
     let resolutions: Vec<Option<u8>> = match inputs[0].dtype() {
-        DataType::UInt8 => Ok::<_, PolarsError>(inputs[0].u8()?.into_iter().collect()),
+        DataType::UInt8 => Ok::<_, PolarsError>(inputs[0].u8()?.iter().collect()),
+        DataType::UInt16 => Ok::<_, PolarsError>(
+            inputs[0]
+                .u16()?
+                .iter()
+                .map(|opt| {
+                    opt.map(|v| {
+                        u8::try_from(v)
+                            .map_err(|_| polars_err!(ComputeError: "Invalid resolution: {}", v))
+                    })
+                    .transpose()
+                })
+                .collect::<PolarsResult<_>>()?,
+        ),
+        DataType::UInt32 => Ok::<_, PolarsError>(
+            inputs[0]
+                .u32()?
+                .iter()
+                .map(|opt| {
+                    opt.map(|v| {
+                        u8::try_from(v)
+                            .map_err(|_| polars_err!(ComputeError: "Invalid resolution: {}", v))
+                    })
+                    .transpose()
+                })
+                .collect::<PolarsResult<_>>()?,
+        ),
+        DataType::UInt64 => Ok::<_, PolarsError>(
+            inputs[0]
+                .u64()?
+                .iter()
+                .map(|opt| {
+                    opt.map(|v| {
+                        u8::try_from(v)
+                            .map_err(|_| polars_err!(ComputeError: "Invalid resolution: {}", v))
+                    })
+                    .transpose()
+                })
+                .collect::<PolarsResult<_>>()?,
+        ),
         DataType::Int64 => Ok::<_, PolarsError>(
             inputs[0]
                 .i64()?
-                .into_iter()
-                .map(|opt| opt.map(|v| v as u8))
-                .collect(),
+                .iter()
+                .map(|opt| {
+                    opt.map(|v| {
+                        u8::try_from(v)
+                            .map_err(|_| polars_err!(ComputeError: "Invalid resolution: {}", v))
+                    })
+                    .transpose()
+                })
+                .collect::<PolarsResult<_>>()?,
         ),
-        _ => polars_bail!(ComputeError: "Expected UInt8 or Int64 for resolutions"),
+        _ => polars_bail!(ComputeError: "Expected an integer dtype for resolutions"),
     }?;
+
+    let pentagons_by_res: Vec<Vec<u64>> = (0u8..=15)
+        .map(|res| {
+            Resolution::try_from(res)
+                .expect("0..=15 are valid H3 resolutions")
+                .pentagons()
+                .map(Into::into)
+                .collect()
+        })
+        .collect();
 
     let mut builder = ListPrimitiveChunkedBuilder::<UInt64Type>::new(
         PlSmallStr::from("pentagons"),
@@ -106,14 +162,10 @@ pub fn get_pentagons(inputs: &[Series]) -> PolarsResult<Series> {
     for res_opt in resolutions {
         match res_opt {
             Some(res) => {
-                let pentagons: Vec<u64> = Resolution::try_from(res)
-                    .map_err(|e| {
-                        PolarsError::ComputeError(format!("Error getting pentagons: {}", e).into())
-                    })?
-                    .pentagons()
-                    .map(|cell| cell.into())
-                    .collect();
-                builder.append_slice(&pentagons);
+                let pentagons = pentagons_by_res.get(res as usize).ok_or_else(|| {
+                    PolarsError::ComputeError(format!("Invalid resolution: {}", res).into())
+                })?;
+                builder.append_slice(pentagons);
             },
             None => {
                 builder.append_null();
@@ -180,7 +232,7 @@ fn parse_edge_indices(series: &Series) -> PolarsResult<Vec<Option<DirectedEdgeIn
         DataType::String => {
             let ca = series.str()?;
             Ok(ca
-                .into_iter()
+                .iter()
                 .map(|opt| opt.and_then(|s| DirectedEdgeIndex::from_str(s).ok()))
                 .collect())
         },
@@ -188,7 +240,7 @@ fn parse_edge_indices(series: &Series) -> PolarsResult<Vec<Option<DirectedEdgeIn
         DataType::UInt64 => {
             let ca = series.u64()?;
             Ok(ca
-                .into_iter()
+                .iter()
                 .map(|opt| opt.and_then(|v| DirectedEdgeIndex::try_from(v).ok()))
                 .collect())
         },
@@ -196,7 +248,7 @@ fn parse_edge_indices(series: &Series) -> PolarsResult<Vec<Option<DirectedEdgeIn
         DataType::Int64 => {
             let ca = series.i64()?;
             Ok(ca
-                .into_iter()
+                .iter()
                 .map(|opt| {
                     opt.and_then(|v| {
                         if v >= 0 {
