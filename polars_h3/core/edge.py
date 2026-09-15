@@ -53,7 +53,6 @@ def are_neighbor_cells(origin: IntoExprColumn, destination: IntoExprColumn) -> p
         args=[origin, destination],
         plugin_path=LIB,
         function_name="are_neighbor_cells",
-        is_elementwise=True,
     )
 
 
@@ -99,7 +98,6 @@ def cells_to_directed_edge(
         args=[origin, destination],
         plugin_path=LIB,
         function_name="cells_to_directed_edge",
-        is_elementwise=True,
     )
 
 

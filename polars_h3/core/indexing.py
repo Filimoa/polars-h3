@@ -318,7 +318,6 @@ def cell_to_local_ij(cell: IntoExprColumn, origin: IntoExprColumn) -> pl.Expr:
         args=[cell, origin],
         plugin_path=LIB,
         function_name="cell_to_local_ij",
-        is_elementwise=True,
     )
 
 
@@ -372,7 +371,6 @@ def local_ij_to_cell(
         args=[origin, i, j],
         plugin_path=LIB,
         function_name="local_ij_to_cell",
-        is_elementwise=True,
     )
 
 
