@@ -51,6 +51,7 @@ def cell_to_vertex(cell: IntoExprColumn, vertex_num: int) -> pl.Expr:
         args=[cell],
         plugin_path=LIB,
         function_name="cell_to_vertex",
+        is_elementwise=True,
         kwargs={"vertex_num": vertex_num},
     )
 
@@ -87,6 +88,7 @@ def cell_to_vertexes(cell: IntoExprColumn) -> pl.Expr:
         args=[cell],
         plugin_path=LIB,
         function_name="cell_to_vertexes",
+        is_elementwise=True,
     )
 
 
@@ -123,6 +125,7 @@ def vertex_to_latlng(vertex: IntoExprColumn) -> pl.Expr:
         args=[vertex],
         plugin_path=LIB,
         function_name="vertex_to_latlng",
+        is_elementwise=True,
     )
 
 
@@ -158,4 +161,5 @@ def is_valid_vertex(vertex: IntoExprColumn) -> pl.Expr:
         args=[vertex],
         plugin_path=LIB,
         function_name="is_valid_vertex",
+        is_elementwise=True,
     )
