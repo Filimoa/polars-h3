@@ -391,7 +391,7 @@ fn origin_to_directed_edges(inputs: &[Series]) -> PolarsResult<Series> {
     crate::engine::edge::origin_to_directed_edges(cell_series)
 }
 
-#[polars_expr(output_type_func=boundary_list_dtype)]
+#[polars_expr(output_type_func=latlng_list_dtype)]
 fn directed_edge_to_boundary(inputs: &[Series]) -> PolarsResult<Series> {
     let edge_series = &inputs[0];
     crate::engine::edge::directed_edge_to_boundary(edge_series)

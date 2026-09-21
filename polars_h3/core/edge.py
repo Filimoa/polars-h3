@@ -287,7 +287,7 @@ def origin_to_directed_edges(cell: IntoExprColumn) -> pl.Expr:
 
 def directed_edge_to_boundary(edge: IntoExprColumn) -> pl.Expr:
     """
-    Retrieve the geographic boundary (list of lat/lng pairs) defining a directed edge.
+    Retrieve the geographic boundary as a flat list of alternating latitude/longitude values.
 
     Some directed edges may correspond to complex boundaries, meaning there can be more than two points defining them.
 
@@ -297,24 +297,17 @@ def directed_edge_to_boundary(edge: IntoExprColumn) -> pl.Expr:
 
     #### Returns
     Expr
-        Expression returning a list of lat/lng pairs representing the polygonal boundary of the edge.
+        Expression returning `List(Float64)` with values `[lat1, lng1, lat2, lng2, ...]`.
 
     #### Examples
     ```python
     >>> df = pl.DataFrame({"edge": [1608492358964346879]})
-    >>> df.with_columns(boundary=polars_h3.directed_edge_to_boundary("edge"))
-    shape: (1, 2)
-    ┌─────────────────────┬───────────────────────────────┐
-    │ edge                │ boundary                      │
-    │ ---                 │ ---                           │
-    │ u64                 │ list[list[f64]]               │
-    ╞═════════════════════╪═══════════════════════════════╡
-    │ 1608492358964346879 │ [[37.3457, -121.9763], … ]    │
-    └─────────────────────┴───────────────────────────────┘
+    >>> df.select(boundary=polars_h3.directed_edge_to_boundary("edge")).schema
+    Schema({'boundary': List(Float64)})
     ```
 
     #### Errors
-    - `ComputeError`: If `edge` is invalid, null, or its boundary cannot be computed.
+    Invalid or null edges produce null values.
     """
     return register_plugin_function(
         args=[edge],
