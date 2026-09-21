@@ -2,25 +2,28 @@ use h3o::{CellIndex, CoordIJ};
 use polars::prelude::*;
 use rayon::prelude::*;
 
-use super::utils::{list_u64_vecs_to_series, parse_cell_indices, resolve_target_inner_dtype};
+use super::utils::{
+    apply_batches, cell_index_iter, list_u64_vecs_to_series, map_cell_indices, parse_cell_indices,
+    resolve_target_inner_dtype,
+};
 
 pub fn grid_distance(origin_series: &Series, destination_series: &Series) -> PolarsResult<Series> {
-    let origins = parse_cell_indices(origin_series)?;
-    let destinations = parse_cell_indices(destination_series)?;
-
-    // Convert to Vec to ensure parallel iteration works
-    let dest_vec: Vec<_> = destinations.into_iter().collect();
-
-    let distances: Int32Chunked = origins
-        .into_par_iter()
-        .zip(dest_vec.into_par_iter())
-        .map(|(origin, dest)| match (origin, dest) {
-            (Some(org), Some(dst)) => org.grid_distance(dst).ok(),
-            _ => None,
-        })
-        .collect();
-
-    Ok(distances.into_series())
+    apply_batches(
+        origin_series.len().min(destination_series.len()),
+        |offset, len| {
+            let origins = origin_series.slice(offset as i64, len);
+            let destinations = destination_series.slice(offset as i64, len);
+            let mut destinations = cell_index_iter(&destinations)?;
+            let result: Int32Chunked = map_cell_indices(&origins, |origin| {
+                let dest = destinations.next().flatten();
+                match (origin, dest) {
+                    (Some(org), Some(dst)) => org.grid_distance(dst).ok(),
+                    _ => None,
+                }
+            })?;
+            Ok(result.into_series())
+        },
+    )
 }
 
 pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {

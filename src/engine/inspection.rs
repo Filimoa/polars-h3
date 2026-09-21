@@ -2,16 +2,12 @@ use h3o::CellIndex;
 use polars::prelude::*;
 use rayon::prelude::*;
 
-use super::utils::parse_cell_indices;
+use super::utils::{apply_batches, map_cell_indices, parse_cell_indices, HexStringBuilder};
 
 pub fn get_resolution(cell_series: &Series) -> PolarsResult<Series> {
-    // Convert input to u64 regardless of input type
-    let cells = parse_cell_indices(cell_series)?;
-
-    let resolutions: UInt32Chunked = cells
-        .into_par_iter()
-        .map(|cell| cell.map(|c| u8::from(c.resolution()) as u32))
-        .collect();
+    let resolutions: UInt32Chunked = map_cell_indices(cell_series, |cell| {
+        cell.map(|c| u8::from(c.resolution()) as u32)
+    })?;
 
     Ok(resolutions.into_series())
 }
@@ -33,42 +29,15 @@ pub fn str_to_int(cell_series: &Series) -> PolarsResult<Series> {
 }
 
 pub fn int_to_str(cell_series: &Series) -> PolarsResult<Series> {
-    let strings: Vec<Option<String>> = match cell_series.dtype() {
-        DataType::UInt64 => {
-            let values: Vec<_> = cell_series.u64()?.iter().collect();
-            values
-                .into_par_iter()
-                .map(|opt| {
-                    opt.and_then(|v| {
-                        CellIndex::try_from(v).ok()?;
-                        Some(format!("{:x}", v))
-                    })
-                })
-                .collect()
-        },
-        DataType::Int64 => {
-            let values: Vec<_> = cell_series.i64()?.iter().collect();
-            values
-                .into_par_iter()
-                .map(|opt| {
-                    opt.and_then(|v| {
-                        let v: u64 = v.try_into().ok()?;
-                        CellIndex::try_from(v).ok()?;
-                        Some(format!("{:x}", v))
-                    })
-                })
-                .collect()
-        },
-        _ => {
-            return Err(PolarsError::ComputeError(
-                format!("Expected UInt64 or Int64, got: {:?}", cell_series.dtype()).into(),
-            ))
-        },
-    };
-
-    let strings: StringChunked = strings.into_iter().collect();
-
-    Ok(strings.into_series())
+    if !matches!(cell_series.dtype(), DataType::UInt64 | DataType::Int64) {
+        polars_bail!(ComputeError: "Expected UInt64 or Int64, got: {:?}", cell_series.dtype());
+    }
+    apply_batches(cell_series.len(), |offset, len| {
+        let cells = cell_series.slice(offset as i64, len);
+        let mut builder = HexStringBuilder::new(len);
+        map_cell_indices::<(), _, _>(&cells, |cell| builder.append(cell.map(Into::into)))?;
+        Ok(builder.finish().into_series())
+    })
 }
 
 pub fn is_valid_cell(cell_series: &Series) -> PolarsResult<Series> {
@@ -111,27 +80,19 @@ pub fn is_valid_cell(cell_series: &Series) -> PolarsResult<Series> {
 }
 
 pub fn is_pentagon(cell_series: &Series) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
-
-    let is_pent: BooleanChunked = cells
-        .into_par_iter()
-        .map(|cell| cell.map(|idx| idx.is_pentagon()).unwrap_or(false))
-        .collect();
+    let is_pent: BooleanChunked = map_cell_indices(cell_series, |cell| {
+        cell.map(|idx| idx.is_pentagon()).unwrap_or(false)
+    })?;
 
     Ok(is_pent.into_series())
 }
 
 #[allow(non_snake_case)]
 pub fn is_res_class_III(cell_series: &Series) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
-
-    let is_class3: BooleanChunked = cells
-        .into_par_iter()
-        .map(|cell| {
-            cell.map(|idx| idx.resolution().is_class3())
-                .unwrap_or(false)
-        })
-        .collect();
+    let is_class3: BooleanChunked = map_cell_indices(cell_series, |cell| {
+        cell.map(|idx| idx.resolution().is_class3())
+            .unwrap_or(false)
+    })?;
 
     Ok(is_class3.into_series())
 }

@@ -1,7 +1,7 @@
 # Benchmarks
 
-This directory contains two benchmark drivers with different purposes. Always
-build the Rust extension in release mode before running either one; development
+This directory contains benchmark drivers with different purposes. Always
+build the Rust extension in release mode before running them; development
 build timings are not representative.
 
 ```bash
@@ -39,6 +39,28 @@ uv run --group benchmarking -m benchmarks.engine --libraries plh3 --fast-factor 
 uv run --group benchmarking -m benchmarks.engine --functions latlng_to_cell grid_ring
 uv run --group benchmarking -m benchmarks.engine --functions polygon_to_cells --iterations 5
 ```
+
+### Focused scalar comparison with native DuckDB input
+
+`benchmarks.duckdb_kernel_profile` compares the optimized scalar kernels on the
+same deterministic input, with equivalent fully materialized Polars output.
+It measures DuckDB reading a registered Arrow table and a preloaded native
+DuckDB table separately. Setup and validation are excluded; DuckDB's output
+conversion to Polars is included. It verifies output values and records versions,
+binary hashes, and every timed run. The H3 extension must already be installed.
+
+```bash
+POLARS_MAX_THREADS=16 RAYON_NUM_THREADS=16 uv run --no-sync \
+  -m benchmarks.duckdb_kernel_profile --rows 25000000 \
+  --iterations 5 --warmups 2 --output /tmp/duckdb-h3-comparison.json
+```
+
+Use `--functions cell_to_parent latlng_to_cell` for a smaller selection.
+`--arrow-batch-rows 100000` splits DuckDB's Arrow input into smaller batches
+without changing the input values. Arrow layout can strongly affect DuckDB's
+parallel utilization, so do not interpret the single-chunk Arrow result as
+general DuckDB engine performance. This comparison covers valid scalar inputs;
+it is not a claim that invalid-value behavior is identical across the libraries.
 
 ## Internal performance benchmark
 

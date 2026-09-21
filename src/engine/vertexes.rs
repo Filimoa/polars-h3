@@ -2,7 +2,10 @@ use h3o::{LatLng, Vertex, VertexIndex};
 use polars::prelude::*;
 use rayon::prelude::*;
 
-use super::utils::{list_u64_vecs_to_series, parse_cell_indices};
+use super::utils::{
+    apply_batches, apply_scalar_batches, list_u64_vecs_to_series, map_cell_indices,
+    map_vertex_indices, parse_cell_indices,
+};
 
 pub fn cell_to_vertex(cell_series: &Series, vertex_num: u8) -> PolarsResult<Series> {
     // Try to create vertex first to validate the number
@@ -10,14 +13,13 @@ pub fn cell_to_vertex(cell_series: &Series, vertex_num: u8) -> PolarsResult<Seri
         PolarsError::ComputeError(format!("Invalid vertex number: {}", vertex_num).into())
     })?;
 
-    let cells = parse_cell_indices(cell_series)?;
-
-    let vertices: UInt64Chunked = cells
-        .into_par_iter()
-        .map(|cell| cell.and_then(|idx| idx.vertex(vertex).map(Into::into)))
-        .collect();
-
-    Ok(vertices.into_series())
+    apply_batches(cell_series.len(), |offset, len| {
+        let cells = cell_series.slice(offset as i64, len);
+        let vertices: UInt64Chunked = map_cell_indices(&cells, |cell| {
+            cell.and_then(|idx| idx.vertex(vertex).map(Into::into))
+        })?;
+        Ok(vertices.into_series())
+    })
 }
 
 pub fn cell_to_vertexes(cell_series: &Series) -> PolarsResult<Series> {
@@ -86,44 +88,8 @@ pub fn vertex_to_latlng(vertex_series: &Series) -> PolarsResult<Series> {
 }
 
 pub fn is_valid_vertex(vertex_series: &Series) -> PolarsResult<Series> {
-    let is_valid = match vertex_series.dtype() {
-        DataType::UInt64 => {
-            let values: Vec<_> = vertex_series.u64()?.iter().collect();
-            values
-                .into_par_iter()
-                .map(|opt| {
-                    opt.map(|v| VertexIndex::try_from(v).is_ok())
-                        .unwrap_or(false)
-                })
-                .collect::<BooleanChunked>()
-        },
-        DataType::Int64 => {
-            let values: Vec<_> = vertex_series.i64()?.iter().collect();
-            values
-                .into_par_iter()
-                .map(|opt| {
-                    opt.map(|v| VertexIndex::try_from(v as u64).is_ok())
-                        .unwrap_or(false)
-                })
-                .collect::<BooleanChunked>()
-        },
-        DataType::String => {
-            let values: Vec<_> = vertex_series.str()?.iter().collect();
-            values
-                .into_par_iter()
-                .map(|opt| {
-                    opt.and_then(|s| u64::from_str_radix(s, 16).ok())
-                        .map(|v| VertexIndex::try_from(v).is_ok())
-                        .unwrap_or(false)
-                })
-                .collect::<BooleanChunked>()
-        },
-        _ => {
-            return Err(PolarsError::ComputeError(
-                format!("Unsupported type for vertex: {:?}", vertex_series.dtype()).into(),
-            ))
-        },
-    };
-
-    Ok(is_valid.into_series())
+    apply_scalar_batches(vertex_series, |vertices| {
+        let valid: BooleanChunked = map_vertex_indices(vertices, |vertex| vertex.is_some())?;
+        Ok(valid.into_series())
+    })
 }

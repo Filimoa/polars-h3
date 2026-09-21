@@ -2,48 +2,53 @@ use h3o::DirectedEdgeIndex;
 use polars::prelude::*;
 use rayon::prelude::*;
 
-use super::utils::{list_u64_vecs_to_series, parse_cell_indices};
+use super::utils::{
+    apply_batches, apply_scalar_batches, cell_index_iter, list_u64_vecs_to_series,
+    map_cell_indices, map_edge_indices, parse_cell_indices,
+};
 
 pub fn are_neighbor_cells(
     origin_series: &Series,
     destination_series: &Series,
 ) -> PolarsResult<Series> {
-    let origins = parse_cell_indices(origin_series)?;
-    let destinations = parse_cell_indices(destination_series)?;
-
-    let dest_vec: Vec<_> = destinations.into_iter().collect();
-
-    let are_neighbors: BooleanChunked = origins
-        .into_par_iter()
-        .zip(dest_vec.into_par_iter())
-        .map(|(origin, dest)| match (origin, dest) {
-            (Some(org), Some(dst)) => org.is_neighbor_with(dst).ok().unwrap_or(false),
-            _ => false,
-        })
-        .collect();
-
-    Ok(are_neighbors.into_series())
+    apply_batches(
+        origin_series.len().min(destination_series.len()),
+        |offset, len| {
+            let origins = origin_series.slice(offset as i64, len);
+            let destinations = destination_series.slice(offset as i64, len);
+            let mut destinations = cell_index_iter(&destinations)?;
+            let result: BooleanChunked = map_cell_indices(&origins, |origin| {
+                let dest = destinations.next().flatten();
+                match (origin, dest) {
+                    (Some(org), Some(dst)) => org.is_neighbor_with(dst).ok().unwrap_or(false),
+                    _ => false,
+                }
+            })?;
+            Ok(result.into_series())
+        },
+    )
 }
 
 pub fn cells_to_directed_edge(
     origin_series: &Series,
     destination_series: &Series,
 ) -> PolarsResult<Series> {
-    let origins = parse_cell_indices(origin_series)?;
-    let destinations = parse_cell_indices(destination_series)?;
-
-    let dest_vec: Vec<_> = destinations.into_iter().collect();
-
-    let edges: UInt64Chunked = origins
-        .into_par_iter()
-        .zip(dest_vec.into_par_iter())
-        .map(|(origin, dest)| match (origin, dest) {
-            (Some(org), Some(dst)) => org.edge(dst).map(Into::into),
-            _ => None,
-        })
-        .collect();
-
-    Ok(edges.into_series())
+    apply_batches(
+        origin_series.len().min(destination_series.len()),
+        |offset, len| {
+            let origins = origin_series.slice(offset as i64, len);
+            let destinations = destination_series.slice(offset as i64, len);
+            let mut destinations = cell_index_iter(&destinations)?;
+            let result: UInt64Chunked = map_cell_indices(&origins, |origin| {
+                let dest = destinations.next().flatten();
+                match (origin, dest) {
+                    (Some(org), Some(dst)) => org.edge(dst).map(Into::into),
+                    _ => None,
+                }
+            })?;
+            Ok(result.into_series())
+        },
+    )
 }
 
 fn parse_edge_indices(edge_series: &Series) -> PolarsResult<Vec<Option<DirectedEdgeIndex>>> {
@@ -112,25 +117,20 @@ pub fn is_valid_directed_edge(edge_series: &Series) -> PolarsResult<Series> {
 }
 
 pub fn get_directed_edge_origin(edge_series: &Series) -> PolarsResult<Series> {
-    let edges = parse_edge_indices(edge_series)?;
-
-    let origins: UInt64Chunked = edges
-        .into_par_iter()
-        .map(|edge| edge.map(|idx| u64::from(idx.origin())))
-        .collect();
-
-    Ok(origins.into_series())
+    apply_scalar_batches(edge_series, |edges| {
+        let result: UInt64Chunked =
+            map_edge_indices(edges, |edge| edge.map(|idx| u64::from(idx.origin())))?;
+        Ok(result.into_series())
+    })
 }
 
 pub fn get_directed_edge_destination(edge_series: &Series) -> PolarsResult<Series> {
-    let edges = parse_edge_indices(edge_series)?;
-
-    let destinations: UInt64Chunked = edges
-        .into_par_iter()
-        .map(|edge| edge.map(|idx| u64::from(idx.destination())))
-        .collect();
-
-    Ok(destinations.into_series())
+    apply_batches(edge_series.len(), |offset, len| {
+        let edges = edge_series.slice(offset as i64, len);
+        let result: UInt64Chunked =
+            map_edge_indices(&edges, |edge| edge.map(|idx| u64::from(idx.destination())))?;
+        Ok(result.into_series())
+    })
 }
 
 pub fn directed_edge_to_cells(edge_series: &Series) -> PolarsResult<Series> {
