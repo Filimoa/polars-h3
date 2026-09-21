@@ -59,7 +59,7 @@ jobs:
         with:
           name: wheels-linux-${{ matrix.target }}
           path: dist
-  
+
   musllinux:
     runs-on: ubuntu-latest
     strategy:
@@ -73,7 +73,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          target: ${{ matrix.platform.target }}
+          target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: true
           manylinux: musllinux_1_2
