@@ -19,7 +19,9 @@ bits, area, vertices, directed-edge destinations, disks and rings. Fallible fast
 iterators stop on the first failure as required by their API contract.
 Additional checks cover boundary coordinates and their adjacent floating-point
 values, malformed cell IDs and validation errors, and ordered polygon coverage
-with holes, antimeridian crossings and all four containment modes.
+with holes, antimeridian crossings and all four containment modes. Compaction
+checks include complete and partial subtrees, duplicates, mixed resolutions and
+the mutation of input vectors on error.
 
 The fuzz target also tries arbitrary finite coordinates outside normal geographic
 ranges and valid raw cell IDs. It compares against the original Rust library,
@@ -30,13 +32,16 @@ checks; known disagreements are documented in `vendor/h3o/UPSTREAM.md`.
 pentagon boundaries and adjacent floats, base-cell centers, and extreme inputs.
 It preserves an existing corpus. Run the `seed-corpus` binary with an optional
 destination directory to inspect or reproduce those inputs independently.
+Generated complete and partial subtrees also exercise exact compaction behavior
+inside the differential fuzz target.
 
 Criterion benchmarks use 1,024 varied inputs per iteration. They distinguish
 global and Ohio distributions and indexing resolutions 0, 5, 9 and 15. A disk
 benchmark measures the radius-3 fast iterator at resolutions 0, 1, 5, 9 and 15.
 Boundary, center-coordinate, validation, edge and vertex benchmarks cover
 resolution 9. Polygon benchmarks cover Paris at resolutions 9 and 11 and Rabi at
-resolution 9, excluding the setup clone. Run without competing builds or tests,
+resolution 9, excluding the setup clone. Compaction benchmarks cover a complete
+subtree, a disk and scattered groups of children. Run without competing builds or tests,
 repeat promising results, then verify them through the Python benchmark
 suite. These are targeted microbenchmarks, not evidence for unmeasured APIs or
 all geographic workloads.

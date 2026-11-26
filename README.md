@@ -19,7 +19,7 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 
   - **25X faster** than [h3-py](https://github.com/uber/h3-py)
   - **5X faster** than [H3 DuckDB](https://github.com/isaacbrodsky/h3-duckdb)
-  - Speedups vary by operation, thread count, and how data is loaded and materialized. See [measured DuckDB comparisons](benchmarks/results/2026-11-25-large-data.md) for per-operation results and workload limits, the [benchmark guide](benchmarks/README.md) to reproduce DuckDB or Python H3 comparisons, and the [notebook](notebooks/benchmarking.ipynb) to explore saved results.
+  - Speedups vary by operation, thread count, and how data is loaded and materialized. See [measured core improvements and DuckDB comparisons](benchmarks/results/2026-11-26-h3o-core.md) for per-operation results and workload limits, the [benchmark guide](benchmarks/README.md) to reproduce DuckDB or Python H3 comparisons, and the [notebook](notebooks/benchmarking.ipynb) to explore saved results.
 
 - 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, including WKT/WKB polygon coverage and cell-set dissolution.
 
