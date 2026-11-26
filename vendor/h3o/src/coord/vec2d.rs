@@ -89,7 +89,7 @@ impl Vec2d {
         let theta = {
             // Compute counter-clockwise `theta` from Class II i-axis.
             let mut theta = face::AXES_AZ_RADS_CII[face]
-                - face::CENTER_POINT[face].azimuth(&value);
+                - Vec3d::face_azimuth(face, &value);
 
             // Adjust `theta` for Class III.
             if resolution.is_class3() {
@@ -101,6 +101,64 @@ impl Vec2d {
         // Convert to local x, y.
         let (sin_t, cos_t) = sin_cos(theta);
         Self::new(r * cos_t, r * sin_t)
+    }
+
+    /// Quantize a gnomonic projection, preserving the original calculation
+    /// near face centers and cell edges where floating-point rounding matters.
+    pub fn to_coord_ijk(
+        value: Vec3d,
+        resolution: Resolution,
+        face: Face,
+        distance: f64,
+    ) -> CoordIJK {
+        #[cfg(feature = "std")]
+        if distance >= 1e-10 {
+            // Project directly onto the face tangent plane. This is the same
+            // gnomonic geometry as tan(acos(...)) plus azimuth/sin/cos, without
+            // the intermediate angles. Keep a generous guard around every
+            // quantization edge and use the original arithmetic there.
+            static AXES: std::sync::LazyLock<
+                [[(f64, f64); 2]; crate::NUM_ICOSA_FACES],
+            > = std::sync::LazyLock::new(|| {
+                core::array::from_fn(|i| {
+                    [
+                        sin_cos(face::AXES_AZ_RADS_CII[i]),
+                        sin_cos(face::AXES_AZ_RADS_CII[i] - AP7_ROT_RADS),
+                    ]
+                })
+            });
+            let f = usize::from(face);
+            let (north, east) = Vec3d::face_tangent_basis(f);
+            let (sin_axis, cos_axis) =
+                AXES[f][usize::from(resolution.is_class3())];
+            let n = value.dot(&north);
+            let e = value.dot(&east);
+            let scale =
+                INV_RES0_U_GNOMONIC * SQRT7_POWERS[usize::from(resolution)];
+            let radial = scale / value.dot(&face::CENTER_POINT[f]);
+            let projected = Self::new(
+                mul_add(cos_axis, n, sin_axis * e) * radial,
+                mul_add(sin_axis, n, -cos_axis * e) * radial,
+            );
+            let coord = CoordIJK::from(projected);
+            let center = Self::from(coord);
+            let dx = projected.x - center.x;
+            let dy = projected.y - center.y;
+            // The three neighbor bisectors bound the convex hexagonal cell.
+            // The original angle path is ill-conditioned right at a face
+            // center (excluded above); elsewhere a 1e-9 angular guard is far
+            // larger than the accumulated double-precision rounding error.
+            // Two coordinate errors project to at most twice this guard.
+            let guard = 2.0e-9 * scale;
+            let limit = 0.5 - guard;
+            if abs(dx) < limit
+                && abs(mul_add(-0.5, dx, super::SQRT3_2 * dy)) < limit
+                && abs(mul_add(-0.5, dx, -super::SQRT3_2 * dy)) < limit
+            {
+                return coord;
+            }
+        }
+        Self::from_vec3d(value, resolution, face, distance).into()
     }
 
     /// Calculates the magnitude.

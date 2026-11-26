@@ -49,3 +49,59 @@ fn first_axe_some() {
         assert_eq!(result, expected, "resolution {resolution:?}");
     }
 }
+
+// Keep the scalar implementation as an independent oracle for the packed
+// rotation, including header bits, center digits and unused suffix digits.
+fn scalar_rotate<const CCW: bool>(mut bits: u64, count: usize) -> u64 {
+    for resolution in Resolution::range(Resolution::One, get_resolution(bits)) {
+        let direction =
+            Direction::new_unchecked(get_direction(bits, resolution));
+        bits = set_direction(
+            bits,
+            direction.rotate60::<CCW>(count).into(),
+            resolution,
+        );
+    }
+    bits
+}
+
+#[test]
+fn packed_rotations_match_scalar() {
+    let mut state = 0x7a91_9d36_b052_e4c1_u64;
+    for resolution in Resolution::range(Resolution::Zero, Resolution::Fifteen) {
+        for _ in 0..4096 {
+            let mut bits = set_resolution(0x08f2_9fff_ffff_ffff, resolution);
+            for level in Resolution::range(Resolution::One, resolution) {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                let digit = u8::try_from(state % 7).expect("direction");
+                bits = set_direction(bits, digit, level);
+            }
+            for count in 0..12 {
+                assert_eq!(
+                    rotate60::<true>(bits, count),
+                    scalar_rotate::<true>(bits, count)
+                );
+                assert_eq!(
+                    rotate60::<false>(bits, count),
+                    scalar_rotate::<false>(bits, count)
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn packed_rotations_preserve_centers_and_unused_digits() {
+    for resolution in Resolution::range(Resolution::Zero, Resolution::Fifteen) {
+        let mut bits = set_resolution(0x0802_9fff_ffff_ffff, resolution);
+        for level in Resolution::range(Resolution::One, resolution) {
+            bits = set_direction(bits, 0, level);
+        }
+        for count in 0..6 {
+            assert_eq!(rotate60::<true>(bits, count), bits);
+            assert_eq!(rotate60::<false>(bits, count), bits);
+        }
+    }
+}

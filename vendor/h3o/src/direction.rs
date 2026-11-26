@@ -165,14 +165,19 @@ impl Direction {
     /// Get the first vertex for this direction. The neighbor in this
     /// direction is located between this vertex and the next in sequence.
     pub(crate) fn vertex(self, origin: CellIndex) -> Vertex {
+        self.vertex_with_rotations(origin, origin.vertex_rotations())
+    }
+
+    pub(crate) fn vertex_with_rotations(
+        self,
+        origin: CellIndex,
+        rotations: u8,
+    ) -> Vertex {
         let is_pentagon = origin.is_pentagon();
 
         // Check for invalid directions: center and deleted K axis (pentagon
         // only).
         assert!(self != Self::Center && !(is_pentagon && self == Self::K));
-
-        // Determine the vertex rotations for this cell.
-        let rotations = origin.vertex_rotations();
 
         // Find the appropriate vertex, rotating CCW if necessary.
         Vertex::new_unchecked(if is_pentagon {

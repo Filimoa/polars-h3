@@ -99,7 +99,7 @@ impl Vec3d {
         let center = face::CENTER_POINT[face];
 
         // Now find the point at `(r,theta)` from the face center
-        let (north, east) = center.tangent_basis();
+        let (north, east) = Self::face_tangent_basis(face);
         let (sin_t, cos_t) = sin_cos(theta);
         let dir = linear_combination(cos_t, &north, sin_t, &east);
         let mut res = linear_combination(cos_r, &center, sin_r, &dir);
@@ -119,13 +119,15 @@ impl Vec3d {
         FaceIJK::from_vec3d(self, resolution).to_cell(resolution)
     }
 
-    /// Calculates the azimuth, in radians, from `self` to `other`.
+    /// Calculates the azimuth, in radians, from a face center to `other`.
     #[inline]
-    pub fn azimuth(&self, other: &Self) -> f64 {
-        let (north, east) = self.tangent_basis();
+    pub fn face_azimuth(face: usize, other: &Self) -> f64 {
+        let center = &face::CENTER_POINT[face];
+        let (north, east) = Self::face_tangent_basis(face);
 
         // Project `other` onto tangent plane at `self`.
-        let mut proj = linear_combination(1.0, other, -other.dot(self), self);
+        let mut proj =
+            linear_combination(1.0, other, -other.dot(center), center);
         proj.normalize();
 
         atan2(proj.dot(&east), proj.dot(&north))
@@ -181,6 +183,24 @@ impl Vec3d {
         )
     }
 
+    // The twenty face centers never change. Reuse their tangent bases while
+    // retaining exactly the same floating-point operations during initialization.
+    pub(super) fn face_tangent_basis(face: usize) -> (Self, Self) {
+        #[cfg(feature = "std")]
+        {
+            static BASES: std::sync::LazyLock<
+                [(Vec3d, Vec3d); crate::NUM_ICOSA_FACES],
+            > = std::sync::LazyLock::new(|| {
+                core::array::from_fn(|i| face::CENTER_POINT[i].tangent_basis())
+            });
+            BASES[face]
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            face::CENTER_POINT[face].tangent_basis()
+        }
+    }
+
     /// Computes the local north and east directions on the tangent plane at
     /// `self.`
     ///
@@ -225,7 +245,7 @@ impl Vec3d {
         }
     }
 
-    fn dot(&self, other: &Self) -> f64 {
+    pub(super) fn dot(&self, other: &Self) -> f64 {
         mul_add(self.x, other.x, mul_add(self.y, other.y, self.z * other.z))
     }
 

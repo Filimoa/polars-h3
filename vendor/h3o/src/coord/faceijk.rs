@@ -51,7 +51,7 @@ impl FaceIJK {
         float_eq::debug_assert_float_eq!(value.norm(), 1., abs <= f64::EPSILON);
 
         let (face, distance) = value.closest_face();
-        let coord = Vec2d::from_vec3d(value, resolution, face, distance).into();
+        let coord = Vec2d::to_coord_ijk(value, resolution, face, distance);
 
         Self::new(face, coord)
     }
@@ -141,18 +141,16 @@ impl FaceIJK {
         let possible_overage = base_cell.is_pentagon()
             || (resolution != Resolution::Zero || fijk.coord != ZERO);
 
-        for res in Resolution::range(Resolution::One, resolution) {
-            if res.is_class3() {
-                // Class III == rotate CCW.
-                fijk.coord = fijk.coord.down_aperture7::<{ CCW }>();
-            } else {
-                // Class II == rotate CW.
-                fijk.coord = fijk.coord.down_aperture7::<{ CW }>();
-            }
-
-            // SAFETY: loop upper bound is the index resolution.
+        for res in (2..=u8::from(resolution)).step_by(2) {
+            let res = Resolution::new_unchecked(res);
+            let digits = u8::try_from((bits >> res.direction_offset()) & 63)
+                .expect("two direction digits fit in u8");
+            fijk.coord = fijk.coord.down_aperture49(digits);
+        }
+        if resolution.is_class3() {
+            fijk.coord = fijk.coord.down_aperture7::<{ CCW }>();
             let direction =
-                Direction::new_unchecked(bits::get_direction(bits, res));
+                Direction::new_unchecked(bits::get_direction(bits, resolution));
             fijk.coord = fijk.coord.neighbor(direction);
         }
 

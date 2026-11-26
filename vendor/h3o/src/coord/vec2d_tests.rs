@@ -76,3 +76,40 @@ fn from_vec3d() {
         );
     }
 }
+
+#[test]
+fn guarded_projection_matches_angle_path_near_face_centers() {
+    use crate::LatLng;
+    for center in face::CENTER_POINT {
+        let ll = LatLng::from(center);
+        for radius in [
+            0.0, 1e-16, 1e-14, 1e-12, 1e-10, 1e-8, 1e-6, 9.99e-6, 1e-5,
+            1.001e-5, 1e-4, 1e-3, 0.1,
+        ] {
+            for bearing in 0..32 {
+                let (s, c) =
+                    sin_cos(f64::from(bearing) * core::f64::consts::TAU / 32.0);
+                let value = Vec3d::from(
+                    LatLng::from_radians(
+                        mul_add(radius, c, ll.lat_radians()),
+                        mul_add(radius, s, ll.lng_radians()),
+                    )
+                    .expect("finite coordinate"),
+                );
+                let (face, distance) = value.closest_face();
+                for resolution in
+                    Resolution::range(Resolution::Zero, Resolution::Fifteen)
+                {
+                    let expected = CoordIJK::from(Vec2d::from_vec3d(
+                        value, resolution, face, distance,
+                    ));
+                    assert_eq!(
+                        Vec2d::to_coord_ijk(value, resolution, face, distance),
+                        expected,
+                        "{ll:?}, {radius}, {bearing}, {resolution}"
+                    );
+                }
+            }
+        }
+    }
+}

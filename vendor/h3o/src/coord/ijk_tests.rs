@@ -205,3 +205,52 @@ fn test_checked_up_aperture7_cw() {
     let ijk = CoordIJK::new(-1, 0, 0);
     assert!(ijk.checked_up_aperture7::<{ CW }>().is_some());
 }
+
+#[test]
+fn integer_sevenths_match_floating_reference() {
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "preserve the upstream floating-point reference"
+    )]
+    fn check(value: i32) {
+        let expected =
+            (f64::from(value) * 0.142_857_142_857_142_85).round() as i32;
+        assert_eq!(round_seventh(value), expected, "numerator {value}");
+    }
+    for value in -100_000..=100_000 {
+        check(value);
+    }
+    for offset in 0..1024 {
+        check(i32::MIN + offset);
+        check(i32::MAX - offset);
+    }
+    let mut state = 0x62de_91a7_u32;
+    for _ in 0..1_000_000 {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        check(i32::from_ne_bytes(state.to_ne_bytes()));
+    }
+}
+
+#[test]
+fn paired_refinements_match_sequential_normalization() {
+    for i in -3..=3 {
+        for j in -3..=3 {
+            for k in -3..=3 {
+                let point = CoordIJK::new(i, j, k);
+                for first in Direction::iter() {
+                    for second in Direction::iter() {
+                        let expected = point
+                            .down_aperture7::<{ CCW }>()
+                            .neighbor(first)
+                            .down_aperture7::<{ CW }>()
+                            .neighbor(second);
+                        let digits = (u8::from(first) << 3) | u8::from(second);
+                        assert_eq!(point.down_aperture49(digits), expected);
+                    }
+                }
+            }
+        }
+    }
+}

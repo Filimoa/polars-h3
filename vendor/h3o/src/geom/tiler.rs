@@ -256,49 +256,45 @@ impl Tiler {
             candidates.retain(|&(_, is_fully_contained)| is_fully_contained);
         }
 
-        // Last step: inward propagation from the outermost layers.
+        // Last step: inward propagation from the outermost layers. Yield
+        // each current cell directly, retaining the two generation buffers
+        // instead of cloning an entire generation before every yield batch.
+        let mut cursor = 0;
         let inward_propagation = std::iter::from_fn(move || {
-            if candidates.is_empty() {
-                return None;
+            if cursor == candidates.len() {
+                std::mem::swap(&mut next_gen, &mut candidates);
+                next_gen.clear();
+                std::mem::swap(&mut new_seen, &mut seen);
+                new_seen.clear();
+                cursor = 0;
             }
-
-            for &(cell, _) in &candidates {
-                debug_assert!(
-                    self.geom.relate(&cell_boundary(cell)).is_covers(),
-                    "cell index {cell} in polygon"
-                );
-
-                let count = neighbors(cell, &mut scratchpad);
-                next_gen.extend(scratchpad[0..count].iter().filter_map(
-                    |candidate| {
-                        // SAFETY: candidate comes from `ring_disk_*`.
-                        let index = CellIndex::new_unchecked(*candidate);
-                        new_seen.insert(index);
-                        seen.insert(index).then_some((index, true))
-                    },
-                ));
-            }
-
-            let curr_gen = candidates.clone();
-
-            std::mem::swap(&mut next_gen, &mut candidates);
-            next_gen.clear();
-
-            std::mem::swap(&mut new_seen, &mut seen);
-            new_seen.clear();
-
-            Some(curr_gen.into_iter())
+            let (cell, is_fully_contained) = candidates.get(cursor).copied()?;
+            cursor += 1;
+            debug_assert!(
+                self.geom.relate(&cell_boundary(cell)).is_covers(),
+                "cell index {cell} in polygon"
+            );
+            let count = neighbors(cell, &mut scratchpad);
+            next_gen.extend(scratchpad[0..count].iter().filter_map(
+                |candidate| {
+                    // SAFETY: candidate comes from `ring_disk_*`.
+                    let index = CellIndex::new_unchecked(*candidate);
+                    // Deduplicate this generation first. The previous seen set
+                    // need not be mutated: new_seen already excludes every
+                    // repeated candidate, and becomes seen at the next layer.
+                    (new_seen.insert(index) && !seen.contains(&index))
+                        .then_some((index, true))
+                },
+            ));
+            Some((cell, is_fully_contained))
         });
 
-        Either::Right(
-            outlines
-                .into_iter()
-                .chain(inward_propagation.flatten())
-                .map(|(cell, is_fully_contained)| AnnotatedCell {
-                    cell,
-                    is_fully_contained,
-                }),
-        )
+        Either::Right(outlines.into_iter().chain(inward_propagation).map(
+            |(cell, is_fully_contained)| AnnotatedCell {
+                cell,
+                is_fully_contained,
+            },
+        ))
     }
 
     // Return the cell indexes that traces the ring outline.

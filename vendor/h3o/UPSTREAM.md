@@ -3,12 +3,13 @@
 This is h3o **0.11.0** from <https://github.com/HydroniumLabs/h3o>, revision
 `fa1557fd1edd56f64e4da95b2fd294609ce2353e`, imported on 2026-11-25.
 The revision is recorded in the published crate's `.cargo_vcs_info.json`; the
-imported `src/` matches that crate byte for byte. The original BSD-3-Clause
+initially imported `src/` matched that crate byte for byte. Local optimizations
+are listed below. The original BSD-3-Clause
 license is in `LICENSE`. Retain it with redistributed source and binaries.
 
 ## Local changes
 
-No algorithm changes in the initial import. `UPSTREAM.md` documents provenance;
+The initial import had no algorithm changes. `UPSTREAM.md` documents provenance;
 `.gitignore` permits committing dependency lockfiles for tests and fuzzing.
 `fuzz/Cargo.toml` explicitly enables `libfuzzer-sys/link_libfuzzer` so the
 preserved targets link against the runtime with current libfuzzer-sys releases.
@@ -21,6 +22,46 @@ license in wheel metadata. The combined distribution uses the license expression
 `MIT AND BSD-3-Clause`; the parent project's own code remains MIT licensed.
 Upstream `.github/` files are retained for reference; only workflows at the
 root of polars-h3 are active.
+
+## Core optimization work
+
+The local fork changes these internal paths:
+
+- Rotate packed index digits in parallel using integer bit operations.
+- Advance two neighbor digits per lookup, inline ordinary base-cell moves,
+  specialize resolution-zero neighbors, and invert the finest digit transition
+  to find the sole possible direction for ordinary same-base neighbor pairs.
+- Replace integer-valued aperture-seven floating rounding with exact widened
+  integer arithmetic; combine pairs of coordinate refinements into one step.
+- Cache the twenty face tangent bases under `std`. Coordinate indexing uses
+  direct gnomonic projection away from face-center singularities and hexagon
+  boundaries, retaining the original angle-based path within conservative
+  guards. `no_std` retains the original projection path.
+- Validate cell headers and active digits without shifting the whole digit
+  field; preserve error precedence for invalid inputs.
+- Reuse origin orientation while determining incident vertex directions and
+  enumerating all vertices, retaining the center-child shortcut. All-vertex
+  iteration also caches neighboring cells and their owner orientations;
+  single-vertex calls omit those caches through compile-time specialization.
+- Skip compaction ancestors that cannot start at the current sorted cell,
+  using its suffix of center digits to identify eligible complete subtrees.
+- Stream polygon interior generations without cloning each generation, and
+  deduplicate candidates before checking the previous generation's set.
+
+Public signatures, iterator order, invalid-input semantics and floating-point
+outputs are preserved. No blanket fast-math or platform-specific CPU flags are
+enabled. Performance candidates must pass the pristine Rust-reference
+laboratory as well as the preserved upstream suite before acceptance; measured
+results and their exact binary provenance are maintained in the parent
+project's benchmark reports. Progress reports may describe an earlier saved
+binary than the current source; do not combine gains from different snapshots.
+
+The parent `scripts/h3o-lab` workspace pins crates.io h3o 0.11.0 as an independent
+reference. Run `make test-h3o-lab`, `make bench-h3o-lab`, and
+`make fuzz-h3o-lab FUZZ_SECONDS=300` from the repository root. It checks exact
+IDs, iterator order and floating-point bits, including global coordinates,
+boundary-adjacent inputs, low-resolution exhaustive cells and pentagon regions.
+This complements upstream's C-reference checks without changing their tolerances.
 
 ## Development and validation
 
@@ -92,3 +133,10 @@ The tolerance and algorithms remain unchanged. Fourteen other targets passed
 two-second smoke sessions on the import machine; those short runs are not
 exhaustive validation. Both findings used the preserved upstream fuzz reference
 dependency h3ron-h3-sys 0.16.0; regular upstream tests use 0.17.0.
+
+A later smoke run found the same class of extreme-coordinate disagreement at
+latitude `4.7936642175998674e-304`, longitude `-8.370139123404232e298` radians,
+resolution zero. Both pristine h3o and the optimized fork return
+`807dfffffffffff`; C H3 returns `8067fffffffffff`. The differential laboratory
+preserves this input and compares all sixteen resolutions. This is not a newly
+introduced Rust regression, and the C-reference assertion remains enabled.

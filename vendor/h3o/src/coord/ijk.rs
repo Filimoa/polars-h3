@@ -10,17 +10,22 @@
 //! always results in at most two non-zero components.
 
 use super::{CoordCube, SQRT3_2, Vec2d};
-use crate::{
-    Direction,
-    error::HexGridError,
-    math::{mul_add, round},
-};
+use crate::{Direction, error::HexGridError, math::mul_add};
 use core::{
     cmp, fmt,
     ops::{Add, MulAssign, Sub},
 };
 
-const ONE_SEVENTH: f64 = 0.14285714285714285714285714285714285;
+// An integer divided by seven cannot land on a half-integer. Its distance
+// from a rounding boundary is at least 1/14, far above the floating-point
+// error of the previous f64 multiply for any i32 numerator. Widen before
+// adding the rounding offset so i32::MIN/MAX remain valid inputs.
+#[inline]
+#[expect(clippy::cast_possible_truncation, reason = "quotient fits in i32")]
+fn round_seventh(value: i32) -> i32 {
+    let value = i64::from(value);
+    ((value + if value < 0 { -3 } else { 3 }) / 7) as i32
+}
 
 // -----------------------------------------------------------------------------
 
@@ -134,46 +139,38 @@ impl CoordIJK {
 
     /// Returns the normalized `IJK` coordinates of the indexing parent of a
     /// cell in an aperture 7 grid.
-    #[expect(clippy::cast_possible_truncation, reason = "on purpose")]
     #[inline]
     pub fn up_aperture7<const CCW: bool>(&self) -> Self {
         let CoordIJ { i, j } = self.into();
 
         let (i, j) = if CCW {
-            (
-                f64::from(3 * i - j) * ONE_SEVENTH,
-                f64::from(i + 2 * j) * ONE_SEVENTH,
-            )
+            (3 * i - j, i + 2 * j)
         } else {
-            (
-                f64::from(2 * i + j) * ONE_SEVENTH,
-                f64::from(3 * j - i) * ONE_SEVENTH,
-            )
+            (2 * i + j, 3 * j - i)
         };
 
-        Self::new(round(i) as i32, round(j) as i32, 0).normalize()
+        Self::new(round_seventh(i), round_seventh(j), 0).normalize()
     }
 
     /// Returns the normalized `IJK` coordinates of the indexing parent of a
     /// cell in an aperture 7 grid.
-    #[expect(clippy::cast_possible_truncation, reason = "on purpose")]
     #[inline]
     pub fn checked_up_aperture7<const CCW: bool>(&self) -> Option<Self> {
         let CoordIJ { i, j } = self.into();
 
         let (i, j) = if CCW {
             (
-                f64::from(i.checked_mul(3)?.checked_sub(j)?) * ONE_SEVENTH,
-                f64::from(j.checked_mul(2)?.checked_add(i)?) * ONE_SEVENTH,
+                i.checked_mul(3)?.checked_sub(j)?,
+                j.checked_mul(2)?.checked_add(i)?,
             )
         } else {
             (
-                f64::from(i.checked_mul(2)?.checked_add(j)?) * ONE_SEVENTH,
-                f64::from(j.checked_mul(3)?.checked_sub(i)?) * ONE_SEVENTH,
+                i.checked_mul(2)?.checked_add(j)?,
+                j.checked_mul(3)?.checked_sub(i)?,
             )
         };
 
-        Self::new(round(i) as i32, round(j) as i32, 0).checked_normalize()
+        Self::new(round_seventh(i), round_seventh(j), 0).checked_normalize()
     }
 
     /// Returns the normalized `IJK` coordinates of the hex centered on the
@@ -192,6 +189,20 @@ impl CoordIJK {
         k_vec *= self.k;
 
         (i_vec + j_vec + k_vec).normalize()
+    }
+
+    /// Applies a Class III then Class II refinement and their two digits.
+    /// The opposite aperture-seven rotations compose to a scale of seven,
+    /// modulo a common IJK translation removed by normalization.
+    #[inline]
+    pub fn down_aperture49(&self, digits: u8) -> Self {
+        let offset = APERTURE49_OFFSETS[usize::from(digits)];
+        Self::new(
+            7 * self.i + offset.i,
+            7 * self.j + offset.j,
+            7 * self.k + offset.k,
+        )
+        .normalize()
     }
 
     /// Returns the normalized `IJK` coordinates of the hex centered on the
@@ -332,3 +343,33 @@ impl TryFrom<CoordIJK> for Direction {
 #[cfg(test)]
 #[path = "./ijk_tests.rs"]
 mod tests;
+
+// The upper digit is applied before the lower digit. Transform its unit
+// vector clockwise, then add the lower digit's vector.
+const APERTURE49_OFFSETS: [CoordIJK; 64] = aperture49_offsets();
+
+const fn aperture49_offsets() -> [CoordIJK; 64] {
+    const DIGITS: [CoordIJK; 8] = [
+        CoordIJK::new(0, 0, 0),
+        CoordIJK::new(0, 0, 1),
+        CoordIJK::new(0, 1, 0),
+        CoordIJK::new(0, 1, 1),
+        CoordIJK::new(1, 0, 0),
+        CoordIJK::new(1, 0, 1),
+        CoordIJK::new(1, 1, 0),
+        CoordIJK::new(1, 1, 1),
+    ];
+    let mut result = [CoordIJK::new(0, 0, 0); 64];
+    let mut digits = 0;
+    while digits < 64 {
+        let first = DIGITS[digits >> 3];
+        let second = DIGITS[digits & 7];
+        result[digits] = CoordIJK::new(
+            3 * first.i + first.k + second.i,
+            first.i + 3 * first.j + second.j,
+            first.j + 3 * first.k + second.k,
+        );
+        digits += 1;
+    }
+    result
+}

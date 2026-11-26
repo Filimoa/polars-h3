@@ -742,7 +742,18 @@ impl CellIndex {
             if resolution != Resolution::Zero
                 && bits::get_direction(cell.into(), resolution) == 0
             {
-                for res in Resolution::range(Resolution::Zero, resolution) {
+                // A complete subtree must start at its center descendant.
+                // Only the suffix of center (000) digits can be collapsed;
+                // lower-resolution ancestors cannot begin at this cell.
+                let active = (u64::from(cell) & bits::DIRECTIONS_MASK)
+                    >> resolution.direction_offset();
+                let center_levels = u8::try_from(active.trailing_zeros() / 3)
+                    .expect("at most 21 digit groups");
+                let first_parent = Resolution::try_from(
+                    u8::from(resolution).saturating_sub(center_levels),
+                )
+                .expect("resolution does not increase");
+                for res in Resolution::range(first_parent, resolution) {
                     let parent = cell.parent(res).expect("parent exists");
                     let count =
                         usize::try_from(parent.children_count(resolution))
@@ -910,6 +921,17 @@ impl CellIndex {
     /// ```
     #[must_use]
     pub fn vertex(self, vertex: Vertex) -> Option<VertexIndex> {
+        self.vertex_with_rotations::<false>(vertex, &mut VertexCache::default())
+    }
+
+    // Cache origin orientation across the two incident directions and, when
+    // enumerating all vertices, across the entire cell. Keep it lazy so center
+    // children retain their fast path without any coordinate decoding.
+    fn vertex_with_rotations<const CACHE_NEIGHBORS: bool>(
+        self,
+        vertex: Vertex,
+        cache: &mut VertexCache,
+    ) -> Option<VertexIndex> {
         let vertex_count = self.vertex_count();
         let resolution = self.resolution();
 
@@ -934,9 +956,12 @@ impl CellIndex {
                 != u8::from(Direction::Center)
         {
             // Get the left neighbor of the vertex, with its rotations.
-            let left = vertex.to_direction(self);
+            let rotations = *cache
+                .origin_rotations
+                .get_or_insert_with(|| self.vertex_rotations());
+            let left = vertex.to_direction(self, rotations);
             let (left_cell, left_rotation) =
-                grid::neighbor_rotations(self, left, 0).expect("left neighbor");
+                cache.neighbor::<CACHE_NEIGHBORS>(self, left);
             // Set to owner if lowest index.
             if left_cell < owner {
                 owner = left_cell;
@@ -953,10 +978,9 @@ impl CellIndex {
                 let right_vertex = Vertex::new_unchecked(
                     (u8::from(vertex) + vertex_count - 1) % vertex_count,
                 );
-                let right = right_vertex.to_direction(self);
+                let right = right_vertex.to_direction(self, rotations);
                 let (right_cell, right_rotation) =
-                    grid::neighbor_rotations(self, right, 0)
-                        .expect("right neighbor");
+                    cache.neighbor::<CACHE_NEIGHBORS>(self, right);
 
                 // Set to owner if lowest index.
                 if right_cell < owner {
@@ -973,7 +997,8 @@ impl CellIndex {
                         DIRECTIONS[usize::from(offset)]
                     };
 
-                    owner_vertex = direction.vertex(owner);
+                    owner_vertex = cache
+                        .vertex::<CACHE_NEIGHBORS>(owner, right, direction);
                 }
             }
 
@@ -994,7 +1019,9 @@ impl CellIndex {
                 // For the left neighbor, we need the second vertex of the
                 // edge, which may involve looping around the vertex nums.
                 owner_vertex = Vertex::new_unchecked(
-                    (u8::from(direction.vertex(owner)) + 1)
+                    (u8::from(
+                        cache.vertex::<CACHE_NEIGHBORS>(owner, left, direction),
+                    ) + 1)
                         % owner.vertex_count(),
                 );
             }
@@ -1018,11 +1045,13 @@ impl CellIndex {
     /// # Ok::<(), h3o::error::InvalidCellIndex>(())
     /// ```
     pub fn vertexes(self) -> impl Iterator<Item = VertexIndex> {
+        let mut cache = VertexCache::default();
         (0..self.vertex_count()).map(move |vertex| {
             // SAFETY: loop bound ensure valid vertex value.
             let vertex = Vertex::new_unchecked(vertex);
             // We've already filtered out invalid vertex.
-            self.vertex(vertex).expect("cell vertex")
+            self.vertex_with_rotations::<true>(vertex, &mut cache)
+                .expect("cell vertex")
         })
     }
 
@@ -1953,11 +1982,16 @@ impl TryFrom<u64> for CellIndex {
     // Simpler because here we focus only on the trailing 56-bit part.
     // Faster because no loops, just plain ol' bitwise operations :)
     fn try_from(value: u64) -> Result<Self, Self::Error> {
-        if (value >> 56) & 0b1000_0111 != 0 {
-            return Err(Self::Error::new(Some(value), "tainted reserved bits"));
-        }
-        if bits::get_mode(value) != u8::from(IndexMode::Cell) {
-            return Err(Self::Error::new(Some(value), "invalid index mode"));
+        // A cell's mode and reserved bits form the single byte 0x08.
+        // Keep the original error precedence for malformed headers.
+        let header = value >> 56;
+        if header != 0x08 {
+            let reason = if header & 0b1000_0111 != 0 {
+                "tainted reserved bits"
+            } else {
+                "invalid index mode"
+            };
+            return Err(Self::Error::new(Some(value), reason));
         }
 
         let base = BaseCell::try_from(h3o_bit::get_base_cell(value))
@@ -1981,8 +2015,8 @@ impl TryFrom<u64> for CellIndex {
         }
 
         // Check that we have `resolution` valid cells (no unused ones).
-        let dirs_mask = (1 << (resolution * h3o_bit::DIRECTION_BITSIZE)) - 1;
-        let dirs = (value >> unused_bitsize) & dirs_mask;
+        // Keep active digits in their original lanes and zero the unused tail.
+        let dirs = value & (bits::DIRECTIONS_MASK ^ unused_mask);
         if has_unused_direction(dirs) {
             return Err(Self::Error::new(
                 Some(value),
@@ -1994,7 +2028,7 @@ impl TryFrom<u64> for CellIndex {
         if base.is_pentagon() && resolution != 0 {
             // Move directions to the front, so that we can count leading
             // zeroes.
-            let offset = 64 - (resolution * h3o_bit::DIRECTION_BITSIZE);
+            let offset = bits::DIRECTIONS_MASK.leading_zeros();
 
             // Find the position of the first bit set, if it's a multiple of 3
             // that means we have a K axe as the first non-center direction,
@@ -2180,6 +2214,51 @@ fn compute_last_sibling(cell: CellIndex, res: Resolution) -> CellIndex {
     let new_dirs = (0x0000_1b6d_b6db_6db6 & mask) << offset;
     // SAFETY: this bit twiddling produces a valid cell index.
     CellIndex::new_unchecked((u64::from(cell) & !(mask << offset)) | new_dirs)
+}
+
+// One cache is shared by the lazy iterator over a cell's vertices. A
+// direction identifies the same neighboring cell throughout the iteration.
+#[derive(Default)]
+struct VertexCache {
+    origin_rotations: Option<u8>,
+    neighbors: [Option<(CellIndex, u8)>; 6],
+    owner_rotations: [Option<u8>; 6],
+}
+
+impl VertexCache {
+    fn neighbor<const CACHE: bool>(
+        &mut self,
+        origin: CellIndex,
+        direction: Direction,
+    ) -> (CellIndex, u8) {
+        if CACHE {
+            *self.neighbors[usize::from(direction) - 1].get_or_insert_with(
+                || {
+                    grid::neighbor_rotations(origin, direction, 0)
+                        .expect("vertex neighbor")
+                },
+            )
+        } else {
+            grid::neighbor_rotations(origin, direction, 0)
+                .expect("vertex neighbor")
+        }
+    }
+
+    fn vertex<const CACHE: bool>(
+        &mut self,
+        owner: CellIndex,
+        neighbor_direction: Direction,
+        direction: Direction,
+    ) -> Vertex {
+        if CACHE {
+            let rotations = *self.owner_rotations
+                [usize::from(neighbor_direction) - 1]
+                .get_or_insert_with(|| owner.vertex_rotations());
+            direction.vertex_with_rotations(owner, rotations)
+        } else {
+            direction.vertex(owner)
+        }
+    }
 }
 
 struct Cursor<'a> {
