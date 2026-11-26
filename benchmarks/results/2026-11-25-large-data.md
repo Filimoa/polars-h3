@@ -6,6 +6,11 @@ directly in Arrow buffers. Disk traversal reuses scratch storage while retaining
 the safe pentagon fallback. Public signatures, dtypes, null/invalid handling,
 and list ordering are preserved. No h3o numerical algorithm was modified.
 
+A subsequent [wrapper optimization pass](2026-11-25-wrapper-pass2.md) reports
+additional gains over this optimized release, expanded compatibility checks,
+and CPU profiles identifying the next h3o targets. The measurements below retain
+their original provenance.
+
 ## Raw data
 
 [Download the complete raw-results ZIP](https://github.com/user-attachments/files/35442368/polars-h3-benchmark-evidence-2026-11-25.zip),
