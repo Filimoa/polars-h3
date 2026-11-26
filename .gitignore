@@ -15,7 +15,10 @@ scratch/
 
 benchmarks/benchmarks-results.json
 notebooks/sample-data
+# Local execution plans belong in the ignored scratch/plans/ directory.
+# Also ignore legacy names if a plan is accidentally written elsewhere.
 *-execplan.md
+*-plan.md
 site/
 
 # Raw benchmark runs are attached to reports/PRs rather than committed.

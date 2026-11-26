@@ -63,6 +63,8 @@ make check
 
 Use an ExecPlan for work that is multi-step, spans several files, adds a feature, performs a refactor, or is likely to take more than about an hour. Small fixes and documentation-only updates do not need one.
 
+Execution plans are local working notes. Store them under `scratch/plans/`, which is ignored by Git. Do not put plans in `docs/` or commit them unless the user explicitly requests a versioned plan. Keep durable contributor guidance, user documentation, and benchmark reports in their normal tracked locations.
+
 When an ExecPlan is useful, create or update a plan using the rules in `PLANS.md`. The plan should be self-contained enough that another contributor can pick it up later, and it should stay current as work progresses.
 
 At minimum, a plan should explain:

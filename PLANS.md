@@ -2,6 +2,10 @@
 
 This file defines how to write and maintain an ExecPlan: a self-contained, living specification that a novice can follow to deliver observable, working behavior in this repository.
 
+## Storage and Version Control
+
+Store generated execution plans under `scratch/plans/` (ignored by Git), never under `docs/` or another published documentation directory. Plans are local working notes and must not be committed unless the user explicitly asks for a versioned plan. This `PLANS.md` file is shared contributor guidance, not a generated execution plan; keep it tracked. Put lasting user-facing explanations and benchmark evidence in the appropriate documentation/report instead of publishing planning logs.
+
 ## When to Use an ExecPlan
 - Required for multi-step or multi-file work, new features, refactors, or tasks expected to take more than about an hour.
 - Optional for trivial fixes (typos, small docs), but if you skip it for a substantial task, state the reason in your response.
