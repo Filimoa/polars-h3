@@ -17,7 +17,9 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 
 - 🚀 **Blazing Fast:** Built entirely in Rust, offering vectorized, multi-core H3 operations within Polars. Ideal for high-performance data processing.
 
-  - See [measured DuckDB comparisons](benchmarks/results/2026-11-25-large-data.md) for per-operation results and workload limits, and the [benchmark guide](benchmarks/README.md) to reproduce DuckDB or Python H3 comparisons.
+  - **25X faster** than [h3-py](https://github.com/uber/h3-py)
+  - **5X faster** than [H3 DuckDB](https://github.com/isaacbrodsky/h3-duckdb)
+  - Speedups vary by operation, thread count, and how data is loaded and materialized. See [measured DuckDB comparisons](benchmarks/results/2026-11-25-large-data.md) for per-operation results and workload limits, the [benchmark guide](benchmarks/README.md) to reproduce DuckDB or Python H3 comparisons, and the [notebook](notebooks/benchmarking.ipynb) to explore saved results.
 
 - 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, including WKT/WKB polygon coverage and cell-set dissolution.
 
