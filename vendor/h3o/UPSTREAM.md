@@ -89,9 +89,11 @@ List targets with `cd vendor/h3o && cargo +nightly fuzz list`. The spelling
 `latltng_to_cell` is upstream's target name. The scheduled workflow runs all
 targets, caches corpus inputs, and uploads crash artifacts. Minimize failures
 and turn them into checked-in regression tests. Fuzz corpus, artifacts and build
-outputs remain ignored. Upstream formatting uses nightly rustfmt; run
-`cargo +nightly fmt --manifest-path vendor/h3o/Cargo.toml -- --check` when editing
-this crate. Root `make fmt` formats the extension separately.
+outputs remain ignored. Upstream formatting uses nightly rustfmt; install it
+with `rustup toolchain install nightly --profile minimal --component rustfmt`.
+Run `make lint-h3o` to check vendor and differential-laboratory formatting,
+Clippy, the no_std build and vendor benchmarks. Root `make check` includes
+these checks; `make fmt` formats the extension and Python separately.
 
 ## Updating upstream
 

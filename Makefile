@@ -1,4 +1,4 @@
-.PHONY: help sync sync-bench install install-release fmt lint test check docs bench bench-h2h test-h3o test-sdist bench-h3o fuzz-h3o test-h3o-lab bench-h3o-lab fuzz-h3o-lab clean
+.PHONY: help sync sync-bench install install-release fmt lint lint-h3o test check docs bench bench-h2h test-h3o test-sdist bench-h3o fuzz-h3o test-h3o-lab bench-h3o-lab fuzz-h3o-lab clean
 
 FUZZ_TARGET ?= latltng_to_cell
 FUZZ_SECONDS ?= 60
@@ -14,6 +14,7 @@ help:
 	@echo "  install-release  Build/install optimized extension"
 	@echo "  fmt              Format Rust and Python"
 	@echo "  lint             Run Rust/Python checks"
+	@echo "  lint-h3o         Check vendor/lab formatting, lint and build modes (nightly rustfmt)"
 	@echo "  test             Run Python tests"
 	@echo "  test-h3o         Run vendored upstream tests"
 	@echo "  test-h3o-lab     Compare vendored h3o with pristine crates.io h3o"
@@ -22,7 +23,7 @@ help:
 	@echo "  fuzz-h3o         Run upstream FUZZ_TARGET for FUZZ_SECONDS"
 	@echo "  fuzz-h3o-lab     Fuzz exact compatibility with pristine h3o"
 	@echo "  test-sdist       Build extracted sdist and verify licenses"
-	@echo "  check            Run fmt, lint, install, and test"
+	@echo "  check            Format/lint, check vendor/lab, rebuild, and run all tests"
 	@echo "  docs             Serve docs locally"
 	@echo "  bench            Build release and run validated DuckDB benchmarks"
 	@echo "  bench-h2h        Build release and compare with DuckDB (BENCH_ARGS, BENCH_OUTPUT)"
@@ -52,7 +53,7 @@ lint:
 test:
 	uv run pytest tests
 
-check: fmt lint test-h3o test-h3o-lab install test
+check: fmt lint lint-h3o test-h3o test-h3o-lab install test
 
 docs:
 	uv run --group docs zensical serve
@@ -68,6 +69,15 @@ clean:
 
 test-h3o:
 	cargo test --manifest-path vendor/h3o/Cargo.toml --locked --all-features
+
+lint-h3o:
+	cargo +nightly fmt --manifest-path vendor/h3o/Cargo.toml -- --check
+	cargo fmt --manifest-path scripts/h3o-lab/Cargo.toml -- --check
+	cargo fmt --manifest-path scripts/h3o-lab/fuzz/Cargo.toml -- --check
+	cargo clippy --manifest-path vendor/h3o/Cargo.toml --locked --all-features --all-targets -- -D warnings
+	cargo clippy --manifest-path scripts/h3o-lab/Cargo.toml --locked --all-targets -- -D warnings
+	cargo check --manifest-path vendor/h3o/Cargo.toml --locked --no-default-features
+	cargo check --manifest-path vendor/h3o/Cargo.toml --locked --benches --features geo
 
 test-sdist:
 	uv run python scripts/check_sdist.py

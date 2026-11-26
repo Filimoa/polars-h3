@@ -22,12 +22,11 @@ jobs:
           python-version: '3.11'
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       - run: rustup show
+      - run: rustup toolchain install nightly --profile minimal --component rustfmt
       - run: make sync
       - run: make test-h3o
       - run: H3O_LAB_POINTS=1000000 make test-h3o-lab
-      - run: cargo clippy --manifest-path vendor/h3o/Cargo.toml --locked --all-features --all-targets -- -D warnings
-      - run: cargo check --manifest-path vendor/h3o/Cargo.toml --locked --no-default-features
-      - run: cargo check --manifest-path vendor/h3o/Cargo.toml --locked --benches --features geo
+      - run: make lint-h3o
       - run: make install
       - run: make test
       - name: Build and verify source distribution
