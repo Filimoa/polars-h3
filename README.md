@@ -17,8 +17,9 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 
 - 🚀 **Blazing Fast:** Built entirely in Rust, offering vectorized, multi-core H3 operations within Polars. Ideal for high-performance data processing.
 
-  - 25X faster than [h3-py](https://github.com/uber/h3-py)
-  - 5X faster than [H3 DuckDB](https://github.com/isaacbrodsky/h3-duckdb) _(See [notebook](notebooks/benchmarking.ipynb) for more details)_
+  - **25X faster** than [h3-py](https://github.com/uber/h3-py)
+  - **5X faster** than [H3 DuckDB](https://github.com/isaacbrodsky/h3-duckdb)
+  - Speedups vary by operation, thread count, and how data is loaded and materialized. See [measured DuckDB comparisons](benchmarks/results/2026-11-25-large-data.md) for per-operation results and workload limits, the [benchmark guide](benchmarks/README.md) to reproduce DuckDB or Python H3 comparisons, and the [notebook](notebooks/benchmarking.ipynb) to explore saved results.
 
 - 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, including WKT/WKB polygon coverage and cell-set dissolution.
 
@@ -185,17 +186,12 @@ You can run test suite with `uv run pytest`. You can also run the docs locally w
 
 ### Benchmarking
 
-If you're looking to benchmark the performance of the extension, build the release version with `maturin develop --release --uv` and then run `uv run -m benchmarks.engine` (assuming you have the benchmark dependencies installed). Benchmarking with the development version will lead to misleading results.
+Compare polars-h3 with **DuckDB H3, Python H3, and h3pandas**, or measure performance changes against a saved build. All suites validate results and record reproducible measurements.
 
 ```bash
-# 1 – (build) compile the optimized Rust extension
-uv run maturin develop --release --uv
-
-# 2 – (run) execute the benchmark CLI
-uv run h3-bench \
-  --libraries plh3 duckdb h3_py \   # which back-ends to test (or “all”)
-  --functions latlng_to_cell cell_to_parent \  # which functions to time (or “all”)
-  --iterations 3 \                  # repetitions per test
-  --fast-factor 4 \                 # divide default row-counts to speed things up
-  --output results.json             # optional: dump raw results
+make sync-bench
+make install-release
+UV_NO_SYNC=1 uv run -m benchmarks --help
 ```
+
+See the [benchmark guide](benchmarks/README.md) for suite commands, quick runs, and timing contracts, plus [published results](benchmarks/results/2026-11-25-large-data.md). Always use a release build for representative timings.

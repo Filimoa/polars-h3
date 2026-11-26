@@ -1,20 +1,24 @@
 use h3o::{CellIndex, LatLng, Resolution};
 use polars::prelude::*;
-use rayon::prelude::*;
 
-use super::utils::parse_cell_indices;
+use super::utils::{
+    for_each_index, map_cells, map_index_lists, parallel_chunks, parallel_chunks_with_min,
+};
 
-fn parse_latlng_to_cells(
+fn map_latlng<T, R, F>(
     lat_series: &Series,
     lng_series: &Series,
     resolution: u8,
-) -> PolarsResult<Vec<Option<CellIndex>>> {
+    op: F,
+) -> PolarsResult<Series>
+where
+    T: PolarsDataType,
+    ChunkedArray<T>: FromIterator<Option<R>> + IntoSeries,
+    F: Fn(CellIndex) -> R + Sync + Send,
+{
     let lat_vals = match lat_series.dtype() {
-        DataType::Float64 => lat_series.f64()?.iter().collect::<Vec<_>>(),
-        DataType::Float32 => {
-            let lat_casted = lat_series.cast(&DataType::Float64)?;
-            lat_casted.f64()?.iter().collect::<Vec<_>>()
-        },
+        DataType::Float64 => lat_series.clone(),
+        DataType::Float32 => lat_series.cast(&DataType::Float64)?,
         _ => {
             return Err(PolarsError::ComputeError(
                 "lat column must be Float32 or Float64".into(),
@@ -23,11 +27,8 @@ fn parse_latlng_to_cells(
     };
 
     let lng_vals = match lng_series.dtype() {
-        DataType::Float64 => lng_series.f64()?.iter().collect::<Vec<_>>(),
-        DataType::Float32 => {
-            let lng_casted = lng_series.cast(&DataType::Float64)?;
-            lng_casted.f64()?.iter().collect::<Vec<_>>()
-        },
+        DataType::Float64 => lng_series.clone(),
+        DataType::Float32 => lng_series.cast(&DataType::Float64)?,
         _ => {
             return Err(PolarsError::ComputeError(
                 "lng column must be Float32 or Float64".into(),
@@ -38,18 +39,20 @@ fn parse_latlng_to_cells(
     let resolution = Resolution::try_from(resolution)
         .map_err(|_| polars_err!(ComputeError: "Invalid resolution: {}", resolution))?;
 
-    let cells: Vec<Option<CellIndex>> = lat_vals
-        .into_par_iter()
-        .zip(lng_vals.into_par_iter())
-        .map(|(opt_lat, opt_lng)| match (opt_lat, opt_lng) {
-            (Some(lat), Some(lng)) => LatLng::new(lat, lng)
-                .ok()
-                .map(|coord| coord.to_cell(resolution)),
-            _ => None,
-        })
-        .collect();
-
-    Ok(cells)
+    parallel_chunks(lat_vals.len().min(lng_vals.len()), |offset, len| {
+        let lat = lat_vals.slice(offset as i64, len);
+        let lng = lng_vals.slice(offset as i64, len);
+        let cells: ChunkedArray<T> = lat
+            .f64()?
+            .iter()
+            .zip(lng.f64()?.iter())
+            .map(|(lat, lng)| {
+                let coord = LatLng::new(lat?, lng?).ok()?;
+                Some(op(coord.to_cell(resolution)))
+            })
+            .collect();
+        Ok(cells.into_series())
+    })
 }
 
 pub fn latlng_to_cell(
@@ -57,14 +60,7 @@ pub fn latlng_to_cell(
     lng_series: &Series,
     resolution: u8,
 ) -> PolarsResult<Series> {
-    let cells = parse_latlng_to_cells(lat_series, lng_series, resolution)?;
-
-    let h3_indices: UInt64Chunked = cells
-        .into_par_iter()
-        .map(|cell| cell.map(Into::into))
-        .collect();
-
-    Ok(h3_indices.into_series())
+    map_latlng::<UInt64Type, _, _>(lat_series, lng_series, resolution, u64::from)
 }
 
 pub fn latlng_to_cell_string(
@@ -72,90 +68,76 @@ pub fn latlng_to_cell_string(
     lng_series: &Series,
     resolution: u8,
 ) -> PolarsResult<Series> {
-    let cells = parse_latlng_to_cells(lat_series, lng_series, resolution)?;
-
-    let h3_strings: StringChunked = cells
-        .into_par_iter()
-        .map(|cell| cell.map(|idx| idx.to_string()))
-        .collect();
-
-    Ok(h3_strings.into_series())
+    map_latlng::<StringType, _, _>(lat_series, lng_series, resolution, |cell| cell.to_string())
 }
 
 pub fn cell_to_lat(cell_series: &Series) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
-
-    let lats: Float64Chunked = cells
-        .into_par_iter()
-        .map(|cell| cell.map(|idx| LatLng::from(idx).lat()))
-        .collect();
-
-    Ok(lats.into_series())
+    map_cells::<Float64Type, _, _>(cell_series, |cell| cell.map(|idx| LatLng::from(idx).lat()))
 }
 
 pub fn cell_to_lng(cell_series: &Series) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
-
-    let lngs: Float64Chunked = cells
-        .into_par_iter()
-        .map(|cell| cell.map(|idx| LatLng::from(idx).lng()))
-        .collect();
-
-    Ok(lngs.into_series())
+    map_cells::<Float64Type, _, _>(cell_series, |cell| cell.map(|idx| LatLng::from(idx).lng()))
 }
 
 pub fn cell_to_latlng(cell_series: &Series) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
-
-    let coords: Vec<Option<[f64; 2]>> = cells
-        .into_par_iter()
-        .map(|cell| {
-            cell.map(|idx| {
-                let latlng = LatLng::from(idx);
-                [latlng.lat(), latlng.lng()]
-            })
-        })
-        .collect();
-
-    let mut builder = ListPrimitiveChunkedBuilder::<Float64Type>::new(
-        PlSmallStr::from(""),
-        coords.len(),
-        coords.len() * 2,
-        DataType::Float64,
-    );
-    for opt_coord in coords {
-        match opt_coord {
-            Some(coord) => builder.append_slice(&coord),
-            None => builder.append_null(),
-        }
-    }
-
-    Ok(builder.finish().into_series())
+    map_index_lists::<CellIndex, Float64Type, _>(
+        cell_series,
+        "h3 cell",
+        2,
+        16_384,
+        |idx, builder| {
+            let coord = LatLng::from(idx);
+            builder.append_slice(&[coord.lat(), coord.lng()]);
+        },
+    )
 }
 
 pub fn cell_to_boundary(cell_series: &Series) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
-
-    let coords: ListChunked = cells
-        .into_par_iter()
-        .map(|cell| {
-            cell.map(|idx| {
-                let boundary = idx.boundary();
-                let mut builder = ListPrimitiveChunkedBuilder::<Float64Type>::new(
-                    PlSmallStr::from(""),
-                    boundary.len(),
-                    boundary.len() * 2,
-                    DataType::Float64,
-                );
-
-                for vertex in boundary.iter() {
-                    builder.append_slice(&[vertex.lat(), vertex.lng()]);
+    let output = parallel_chunks_with_min(cell_series.len(), 1024, |offset, len| {
+        // One coordinate builder per batch, with an outer offset for each cell.
+        // Retain List(List(Float64)), including null outer rows and vertex order.
+        let mut coords = ListPrimitiveChunkedBuilder::<Float64Type>::new(
+            PlSmallStr::EMPTY,
+            len * 6,
+            len * 12,
+            DataType::Float64,
+        );
+        let mut offsets = Vec::<i64>::with_capacity(len + 1);
+        let mut validity = Vec::with_capacity(len);
+        let mut vertices = 0i64;
+        offsets.push(vertices);
+        for_each_index::<CellIndex, _>(
+            &cell_series.slice(offset as i64, len),
+            "h3 cell",
+            |cell| {
+                validity.push(cell.is_some());
+                if let Some(cell) = cell {
+                    let boundary = cell.boundary();
+                    for coord in boundary.iter() {
+                        coords.append_slice(&[coord.lat(), coord.lng()]);
+                    }
+                    vertices += boundary.len() as i64;
                 }
-
-                builder.finish().into_series()
-            })
-        })
-        .collect();
-
-    Ok(coords.into_series())
+                offsets.push(vertices);
+            },
+        )?;
+        let values = coords.finish().into_series();
+        let array = LargeListArray::new(
+            LargeListArray::default_datatype(values.chunks()[0].dtype().clone()),
+            offsets.try_into().expect("monotonic boundary offsets"),
+            values.chunks()[0].clone(),
+            Some(validity.into_iter().collect()),
+        );
+        Ok(ListChunked::with_chunk(PlSmallStr::EMPTY, array).into_series())
+    })?;
+    // Keep the old collector's dtype for empty or entirely invalid inputs.
+    if output.null_count() == output.len() {
+        Ok(Series::full_null(
+            PlSmallStr::EMPTY,
+            output.len(),
+            &DataType::List(Box::new(DataType::Null)),
+        ))
+    } else {
+        Ok(output)
+    }
 }
