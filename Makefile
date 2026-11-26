@@ -1,4 +1,7 @@
-.PHONY: help sync sync-bench install install-release fmt lint test check docs bench clean
+.PHONY: help sync sync-bench install install-release fmt lint test check docs bench bench-h2h clean
+
+BENCH_OUTPUT ?= /tmp/polars-h3-head-to-head.json
+BENCH_ARGS ?= --threads 8 --rows 5000000 --list-rows 250000 --polygon-rows 2000
 
 help:
 	@echo "Targets:"
@@ -12,6 +15,7 @@ help:
 	@echo "  check            Run fmt, lint, install, and test"
 	@echo "  docs             Serve docs locally"
 	@echo "  bench            Run benchmarks after release build"
+	@echo "  bench-h2h        Build release and compare with DuckDB (BENCH_ARGS, BENCH_OUTPUT)"
 	@echo "  clean            Remove build artifacts"
 
 sync:
@@ -45,6 +49,9 @@ docs:
 
 bench: install-release
 	uv run --group benchmarking -m benchmarks.engine
+
+bench-h2h: install-release
+	UV_NO_SYNC=1 uv run --group benchmarking -m benchmarks.head_to_head $(BENCH_ARGS) --output "$(BENCH_OUTPUT)"
 
 clean:
 	cargo clean

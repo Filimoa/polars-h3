@@ -267,7 +267,8 @@ class Benchmark:
                 "category": "basic",
                 "funcs": {
                     "plh3": self._cell_to_boundary_plh3,
-                    "duckdb": self._cell_to_boundary_duckdb,
+                    # DuckDB's WKT includes formatting work and is not the
+                    # numeric coordinate output produced by the other engines.
                     "h3_py": self._cell_to_boundary_h3_py,
                 },
             },
@@ -640,11 +641,6 @@ class Benchmark:
 
     def _cell_to_boundary_plh3(self, df: pl.DataFrame) -> pl.DataFrame:
         return df.with_columns(plh3.cell_to_boundary("int_h3_cell").alias("result"))
-
-    def _cell_to_boundary_duckdb(self, df: pl.DataFrame) -> pl.DataFrame:
-        return self.con.execute(
-            "SELECT h3_cell_to_boundary_wkt(int_h3_cell) as result FROM df;"
-        ).pl()
 
     def _cell_to_boundary_h3_py(self, df: pl.DataFrame) -> pl.DataFrame:
         return df.with_columns(

@@ -3,7 +3,8 @@ use polars::prelude::*;
 use rayon::prelude::*;
 
 use super::utils::{
-    cast_u64_to_dtype, list_u64_vecs_to_series, parse_cell_indices, resolve_target_inner_dtype,
+    cast_list_u64_to_dtype, cast_u64_to_dtype, list_u64_vecs_to_series, map_cell_lists, map_cells,
+    parse_cell_indices, resolve_target_inner_dtype,
 };
 
 fn get_target_resolution(cell: CellIndex, target_res: Option<u8>) -> Option<Resolution> {
@@ -19,39 +20,29 @@ fn get_target_resolution(cell: CellIndex, target_res: Option<u8>) -> Option<Reso
 
 pub fn cell_to_parent(cell_series: &Series, parent_res: Option<u8>) -> PolarsResult<Series> {
     let original_dtype = cell_series.dtype().clone();
-    let cells = parse_cell_indices(cell_series)?;
-
-    let parents: UInt64Chunked = cells
-        .into_par_iter()
-        .map(|cell| {
-            cell.and_then(|idx| {
-                let target_res = match parent_res {
-                    Some(res) => Resolution::try_from(res).ok(),
-                    None => idx.resolution().pred(),
-                };
-                target_res.and_then(|res| idx.parent(res))
-            })
-            .map(Into::into)
+    let parents = map_cells::<UInt64Type, _, _>(cell_series, |cell| {
+        cell.and_then(|idx| {
+            let target_res = match parent_res {
+                Some(res) => Resolution::try_from(res).ok(),
+                None => idx.resolution().pred(),
+            };
+            target_res.and_then(|res| idx.parent(res))
         })
-        .collect();
+        .map(Into::into)
+    })?;
 
-    cast_u64_to_dtype(&original_dtype, None, parents)
+    cast_u64_to_dtype(&original_dtype, None, parents.u64()?.clone())
 }
 
 pub fn cell_to_center_child(cell_series: &Series, child_res: Option<u8>) -> PolarsResult<Series> {
     let original_dtype = cell_series.dtype().clone();
-    let cells = parse_cell_indices(cell_series)?;
-
-    let center_children: UInt64Chunked = cells
-        .into_par_iter()
-        .map(|cell| {
-            cell.and_then(|idx| {
-                let target_res = get_target_resolution(idx, child_res)?;
-                idx.center_child(target_res)
-            })
-            .map(Into::into)
+    let center_children = map_cells::<UInt64Type, _, _>(cell_series, |cell| {
+        cell.and_then(|idx| {
+            let target_res = get_target_resolution(idx, child_res)?;
+            idx.center_child(target_res)
         })
-        .collect();
+        .map(Into::into)
+    })?;
 
     let target_dtype = match original_dtype {
         DataType::UInt64 => DataType::UInt64,
@@ -69,59 +60,46 @@ pub fn cell_to_center_child(cell_series: &Series, child_res: Option<u8>) -> Pola
     };
 
     // Cast the UInt64Chunked result to the correct dtype
-    cast_u64_to_dtype(&original_dtype, Some(&target_dtype), center_children)
+    cast_u64_to_dtype(
+        &original_dtype,
+        Some(&target_dtype),
+        center_children.u64()?.clone(),
+    )
 }
 
 pub fn cell_to_children_size(cell_series: &Series, child_res: Option<u8>) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
-
-    let sizes: UInt64Chunked = cells
-        .into_par_iter()
-        .map(|cell| {
-            cell.map(|idx| {
-                let target_res = get_target_resolution(idx, child_res)
-                    .unwrap_or_else(|| idx.resolution().succ().unwrap_or(idx.resolution()));
-                idx.children_count(target_res)
-            })
+    map_cells::<UInt64Type, _, _>(cell_series, |cell| {
+        cell.map(|idx| {
+            let target_res = get_target_resolution(idx, child_res)
+                .unwrap_or_else(|| idx.resolution().succ().unwrap_or(idx.resolution()));
+            idx.children_count(target_res)
         })
-        .collect();
-
-    Ok(sizes.into_series())
+    })
 }
 
 pub fn cell_to_children(cell_series: &Series, child_res: Option<u8>) -> PolarsResult<Series> {
     let original_dtype = cell_series.dtype().clone();
-    let cells = parse_cell_indices(cell_series)?;
-
-    let children: Vec<Option<Vec<u64>>> = cells
-        .into_par_iter()
-        .map(|cell| {
-            cell.map(|idx| {
-                let target_res = get_target_resolution(idx, child_res)
-                    .unwrap_or_else(|| idx.resolution().succ().unwrap_or(idx.resolution()));
-                idx.children(target_res).map(Into::into).collect()
-            })
-        })
-        .collect();
+    let children = map_cell_lists(cell_series, 7, |idx, builder| {
+        let target_res = get_target_resolution(idx, child_res)
+            .unwrap_or_else(|| idx.resolution().succ().unwrap_or(idx.resolution()));
+        builder.append_values_iter(idx.children(target_res).map(u64::from));
+    })?;
 
     let target_dtype = resolve_target_inner_dtype(&original_dtype)?;
-    list_u64_vecs_to_series(PlSmallStr::from(""), children, &target_dtype)
+    match target_dtype {
+        DataType::UInt64 => Ok(children),
+        DataType::Int64 => children.cast(&DataType::List(Box::new(DataType::Int64))),
+        _ => cast_list_u64_to_dtype(&children, &DataType::UInt64, Some(&target_dtype)),
+    }
 }
 
 pub fn cell_to_child_pos(child_series: &Series, parent_res: u8) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(child_series)?;
-
-    let positions: UInt64Chunked = cells
-        .into_par_iter()
-        .map(|cell| {
-            cell.and_then(|idx| {
-                let parent_res = Resolution::try_from(parent_res).ok()?;
-                idx.child_position(parent_res)
-            })
+    map_cells::<UInt64Type, _, _>(child_series, |cell| {
+        cell.and_then(|idx| {
+            let parent_res = Resolution::try_from(parent_res).ok()?;
+            idx.child_position(parent_res)
         })
-        .collect();
-
-    Ok(positions.into_series())
+    })
 }
 
 pub fn child_pos_to_cell(

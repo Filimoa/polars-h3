@@ -185,6 +185,10 @@ You can run test suite with `uv run pytest`. You can also run the docs locally w
 
 ### Benchmarking
 
+For matched large-data comparisons with DuckDB H3, run `make sync-bench` followed
+by `make bench-h2h`. See the [benchmark guide](benchmarks/README.md) for timing
+contracts, saved-binary comparisons and measured results.
+
 If you're looking to benchmark the performance of the extension, build the release version with `maturin develop --release --uv` and then run `uv run -m benchmarks.engine` (assuming you have the benchmark dependencies installed). Benchmarking with the development version will lead to misleading results.
 
 ```bash

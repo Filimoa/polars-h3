@@ -2,159 +2,107 @@ use h3o::{CellIndex, CoordIJ};
 use polars::prelude::*;
 use rayon::prelude::*;
 
-use super::utils::{list_u64_vecs_to_series, parse_cell_indices, resolve_target_inner_dtype};
+use super::utils::{
+    cast_list_u64_to_dtype, list_u64_vecs_to_series, map_cell_pairs, parallel_chunks,
+    parse_cell_indices, resolve_target_inner_dtype,
+};
 
 pub fn grid_distance(origin_series: &Series, destination_series: &Series) -> PolarsResult<Series> {
-    let origins = parse_cell_indices(origin_series)?;
-    let destinations = parse_cell_indices(destination_series)?;
-
-    // Convert to Vec to ensure parallel iteration works
-    let dest_vec: Vec<_> = destinations.into_iter().collect();
-
-    let distances: Int32Chunked = origins
-        .into_par_iter()
-        .zip(dest_vec.into_par_iter())
-        .map(|(origin, dest)| match (origin, dest) {
+    map_cell_pairs::<Int32Type, _, _>(origin_series, destination_series, |origin, dest| {
+        match (origin, dest) {
             (Some(org), Some(dst)) => org.grid_distance(dst).ok(),
             _ => None,
-        })
-        .collect();
-
-    Ok(distances.into_series())
+        }
+    })
 }
 
 pub fn grid_ring(inputs: &[Series]) -> PolarsResult<Series> {
-    let cell_series = &inputs[0];
-    let k_series = &inputs[1];
-
-    let cells = super::utils::parse_cell_indices(cell_series)?;
-    let k_cast = k_series.cast(&DataType::Int32)?;
-    let k_i32 = k_cast.i32()?;
-
-    let cells_vec: Vec<_> = cells.into_iter().collect();
-    let is_scalar_k = k_series.len() == 1 && !matches!(k_series.dtype(), DataType::List(_));
-    let ring_results: Vec<Option<Vec<u64>>> = if is_scalar_k {
-        // Scalar case: broadcast the single k value across all cells
-        let k_val = k_i32
-            .get(0)
-            .ok_or_else(|| polars_err!(ComputeError: "k_series is empty or invalid"))?;
-        if k_val < 0 {
-            return Err(polars_err!(ComputeError: "k must be non-negative"));
-        }
-        cells_vec
-            .into_par_iter()
-            .map(|maybe_cell| match maybe_cell {
-                Some(cell) => {
-                    let k_u32 = k_val as u32;
-                    Some(
-                        cell.grid_ring_fast(k_u32)
-                            .flatten()
-                            .map(Into::into)
-                            .collect(),
-                    )
-                },
-                _ => None,
-            })
-            .collect()
-    } else {
-        // Column case: zip with k values
-        let k_vec: Vec<_> = k_i32.iter().collect();
-        if k_vec.len() != cells_vec.len() {
-            return Err(polars_err!(
-                ComputeError: "Length of k_series ({}) must match cell_series ({})",
-                k_vec.len(),
-                cells_vec.len()
-            ));
-        }
-        cells_vec
-            .into_par_iter()
-            .zip(k_vec.into_par_iter())
-            .map(|(maybe_cell, maybe_k)| match (maybe_cell, maybe_k) {
-                (Some(cell), Some(k_val)) if k_val >= 0 => {
-                    let k_u32 = k_val as u32;
-                    Some(
-                        cell.grid_ring_fast(k_u32)
-                            .flatten()
-                            .map(Into::into)
-                            .collect(),
-                    )
-                },
-                _ => None,
-            })
-            .collect()
-    };
-
-    let target_inner_dtype = super::utils::resolve_target_inner_dtype(cell_series.dtype())?;
-    list_u64_vecs_to_series(PlSmallStr::from(""), ring_results, &target_inner_dtype)
+    grid_lists(inputs, false)
 }
 
 pub fn grid_disk(inputs: &[Series]) -> PolarsResult<Series> {
+    grid_lists(inputs, true)
+}
+
+fn grid_lists(inputs: &[Series], disk: bool) -> PolarsResult<Series> {
     let cell_series = &inputs[0];
     let k_series = &inputs[1];
-
-    let original_dtype = cell_series.dtype().clone();
-    let cells = parse_cell_indices(cell_series)?;
-    let target_inner_dtype = resolve_target_inner_dtype(&original_dtype)?;
-
-    // Cast k_series to Int32 to handle various integer inputs
+    // Check the input type before radius errors, without parsing the full column.
+    parse_cell_indices(&cell_series.slice(0, 0))?;
+    let target_dtype = resolve_target_inner_dtype(cell_series.dtype())?;
     let k_cast = k_series.cast(&DataType::Int32)?;
-    let k_i32 = k_cast.i32()?;
-
-    let cells_vec: Vec<_> = cells.into_iter().collect();
-
-    let is_scalar_k = k_series.len() == 1 && !matches!(k_series.dtype(), DataType::List(_));
-
-    let disk_results: Vec<Option<Vec<u64>>> = if is_scalar_k {
-        // Scalar case: broadcast the single k value
-        let k_val = k_i32
-            .get(0)
-            .ok_or_else(|| polars_err!(ComputeError: "k_series is empty"))?;
-        if k_val >= 0 {
-            let k_u32 = k_val as u32;
-            cells_vec
-                .into_par_iter()
-                .map(|maybe_cell| {
-                    maybe_cell.map(|cell| {
-                        cell.grid_disk::<Vec<_>>(k_u32)
-                            .into_iter()
-                            .map(Into::into)
-                            .collect()
-                    })
+    let radii = k_cast.i32()?;
+    let scalar = k_series.len() == 1 && !matches!(k_series.dtype(), DataType::List(_));
+    let scalar_k = if scalar {
+        let k = radii.get(0).ok_or_else(|| {
+            PolarsError::ComputeError(
+                (if disk {
+                    "k_series is empty"
+                } else {
+                    "k_series is empty or invalid"
                 })
-                .collect()
-        } else {
-            // If k < 0, return None for all rows
-            vec![None; cells_vec.len()]
+                .into(),
+            )
+        })?;
+        if !disk && k < 0 {
+            polars_bail!(ComputeError: "k must be non-negative");
         }
+        Some(k)
     } else {
-        // Non-scalar case: k_series should match cell_series length
-        let k_vec: Vec<_> = k_i32.iter().collect();
-        if k_vec.len() != cells_vec.len() {
-            return Err(polars_err!(
-                ComputeError: "k_series length ({}) must match cell_series length ({})",
-                k_vec.len(),
-                cells_vec.len()
-            ));
+        if radii.len() != cell_series.len() {
+            if disk {
+                polars_bail!(ComputeError: "k_series length ({}) must match cell_series length ({})", radii.len(), cell_series.len());
+            }
+            polars_bail!(ComputeError: "Length of k_series ({}) must match cell_series ({})", radii.len(), cell_series.len());
         }
-        cells_vec
-            .into_par_iter()
-            .zip(k_vec.into_par_iter())
-            .map(|(maybe_cell, maybe_k)| match (maybe_cell, maybe_k) {
-                (Some(cell), Some(k_val)) if k_val >= 0 => {
-                    let k_u32 = k_val as u32;
-                    Some(
-                        cell.grid_disk::<Vec<_>>(k_u32)
-                            .into_iter()
-                            .map(Into::into)
-                            .collect(),
-                    )
-                },
-                _ => None,
-            })
-            .collect()
+        None
     };
 
-    list_u64_vecs_to_series(PlSmallStr::from(""), disk_results, &target_inner_dtype)
+    parallel_chunks(cell_series.len(), |offset, len| {
+        let cells = parse_cell_indices(&cell_series.slice(offset as i64, len))?;
+        let batch_radii = radii.slice(offset as i64, if scalar { 0 } else { len });
+        let mut builder = ListPrimitiveChunkedBuilder::<UInt64Type>::new(
+            PlSmallStr::EMPTY,
+            len,
+            len * 7,
+            DataType::UInt64,
+        );
+        // Reuse disk scratch across rows. A failed fast traversal must discard
+        // its entire partial result before using the safe pentagon traversal.
+        let mut scratch = Vec::new();
+        for (position, cell) in cells.into_iter().enumerate() {
+            let radius = scalar_k.or_else(|| batch_radii.get(position));
+            match (cell, radius) {
+                (Some(cell), Some(radius)) if radius >= 0 => {
+                    let radius = radius as u32;
+                    if disk {
+                        scratch.clear();
+                        let complete = cell
+                            .grid_disk_fast(radius)
+                            .try_for_each(|cell| cell.map(|cell| scratch.push(u64::from(cell))))
+                            .is_some();
+                        if !complete {
+                            scratch.clear();
+                            scratch.extend(cell.grid_disk_safe(radius).map(u64::from));
+                        }
+                        builder.append_slice(&scratch);
+                    } else {
+                        // Preserve the existing fast-ring API's pentagon behavior.
+                        builder.append_values_iter(
+                            cell.grid_ring_fast(radius).flatten().map(u64::from),
+                        );
+                    }
+                },
+                _ => builder.append_null(),
+            }
+        }
+        let out = builder.finish().into_series();
+        match &target_dtype {
+            DataType::UInt64 => Ok(out),
+            DataType::Int64 => out.cast(&DataType::List(Box::new(DataType::Int64))),
+            _ => cast_list_u64_to_dtype(&out, &DataType::UInt64, Some(&target_dtype)),
+        }
+    })
 }
 
 pub fn grid_path_cells(

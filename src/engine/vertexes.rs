@@ -2,7 +2,7 @@ use h3o::{LatLng, Vertex, VertexIndex};
 use polars::prelude::*;
 use rayon::prelude::*;
 
-use super::utils::{list_u64_vecs_to_series, parse_cell_indices};
+use super::utils::{map_cell_lists, map_cells};
 
 pub fn cell_to_vertex(cell_series: &Series, vertex_num: u8) -> PolarsResult<Series> {
     // Try to create vertex first to validate the number
@@ -10,25 +10,15 @@ pub fn cell_to_vertex(cell_series: &Series, vertex_num: u8) -> PolarsResult<Seri
         PolarsError::ComputeError(format!("Invalid vertex number: {}", vertex_num).into())
     })?;
 
-    let cells = parse_cell_indices(cell_series)?;
-
-    let vertices: UInt64Chunked = cells
-        .into_par_iter()
-        .map(|cell| cell.and_then(|idx| idx.vertex(vertex).map(Into::into)))
-        .collect();
-
-    Ok(vertices.into_series())
+    map_cells::<UInt64Type, _, _>(cell_series, |cell| {
+        cell.and_then(|idx| idx.vertex(vertex).map(Into::into))
+    })
 }
 
 pub fn cell_to_vertexes(cell_series: &Series) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
-
-    let vertex_lists: Vec<Option<Vec<u64>>> = cells
-        .into_par_iter()
-        .map(|cell| cell.map(|idx| idx.vertexes().map(Into::into).collect()))
-        .collect();
-
-    list_u64_vecs_to_series(PlSmallStr::from(""), vertex_lists, &DataType::UInt64)
+    map_cell_lists(cell_series, 6, |cell, builder| {
+        builder.append_values_iter(cell.vertexes().map(u64::from));
+    })
 }
 
 pub fn vertex_to_latlng(vertex_series: &Series) -> PolarsResult<Series> {

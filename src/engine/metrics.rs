@@ -1,10 +1,7 @@
-use std::str::FromStr;
-
 use h3o::{CellIndex, DirectedEdgeIndex, Resolution};
 use polars::prelude::*;
-use rayon::prelude::*;
 
-use super::utils::parse_cell_indices;
+use super::utils::{map_cells, map_indices};
 
 pub fn get_num_cells_series(resolution_series: &Series) -> PolarsResult<Series> {
     let resolutions: Vec<Option<u8>> = match resolution_series.dtype() {
@@ -177,23 +174,16 @@ pub fn get_pentagons(inputs: &[Series]) -> PolarsResult<Series> {
 }
 
 pub fn cell_area(cell_series: &Series, unit: &str) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
-
-    let areas: Float64Chunked = cells
-        .into_par_iter()
-        .map(|cell| {
-            cell.and_then(|idx| {
-                let area_km2 = idx.area_km2();
-                match unit {
-                    "km^2" => Some(area_km2),
-                    "m^2" => Some(area_km2 * 1_000_000.0),
-                    _ => None, // invalid unit
-                }
-            })
+    map_cells::<Float64Type, _, _>(cell_series, |cell| {
+        cell.and_then(|idx| {
+            let area_km2 = idx.area_km2();
+            match unit {
+                "km^2" => Some(area_km2),
+                "m^2" => Some(area_km2 * 1_000_000.0),
+                _ => None, // invalid unit
+            }
         })
-        .collect();
-
-    Ok(areas.into_series())
+    })
 }
 
 pub fn edge_length(series: &Series, unit: &str) -> PolarsResult<Series> {
@@ -204,64 +194,20 @@ pub fn edge_length(series: &Series, unit: &str) -> PolarsResult<Series> {
         ));
     }
 
-    // Parse the edge indices from the series
-    let edges = parse_edge_indices(series)?;
-
-    // Calculate lengths in parallel and convert to the requested unit
-    let lengths: Float64Chunked = edges
-        .into_par_iter()
-        .map(|edge_opt| {
-            edge_opt.map(|edge| {
-                let length_km = edge.length_km(); // Get length in kilometers
-                match unit {
-                    "km" => length_km,
-                    "m" => length_km * 1000.0, // Convert to meters
-                    _ => unreachable!(),       // Unit validation ensures this won't happen
-                }
-            })
-        })
-        .collect();
-
-    // Convert the chunked array into a series
-    Ok(lengths.into_series())
-}
-
-fn parse_edge_indices(series: &Series) -> PolarsResult<Vec<Option<DirectedEdgeIndex>>> {
-    match series.dtype() {
-        // Handle string input (hexadecimal edge indices)
-        DataType::String => {
-            let ca = series.str()?;
-            Ok(ca
-                .iter()
-                .map(|opt| opt.and_then(|s| DirectedEdgeIndex::from_str(s).ok()))
-                .collect())
-        },
-        // Handle u64 input
-        DataType::UInt64 => {
-            let ca = series.u64()?;
-            Ok(ca
-                .iter()
-                .map(|opt| opt.and_then(|v| DirectedEdgeIndex::try_from(v).ok()))
-                .collect())
-        },
-        // Handle i64 input (only non-negative values are valid)
-        DataType::Int64 => {
-            let ca = series.i64()?;
-            Ok(ca
-                .iter()
-                .map(|opt| {
-                    opt.and_then(|v| {
-                        if v >= 0 {
-                            DirectedEdgeIndex::try_from(v as u64).ok()
-                        } else {
-                            None // Negative values are invalid
-                        }
-                    })
-                })
-                .collect())
-        },
-        _ => Err(PolarsError::ComputeError(
-            "Expected String, UInt64, or Int64 for edge indices".into(),
-        )),
+    if !matches!(
+        series.dtype(),
+        DataType::UInt64 | DataType::Int64 | DataType::String
+    ) {
+        polars_bail!(ComputeError: "Expected String, UInt64, or Int64 for edge indices");
     }
+    map_indices::<DirectedEdgeIndex, Float64Type, _, _>(series, "edge", |edge_opt| {
+        edge_opt.map(|edge| {
+            let length_km = edge.length_km(); // Get length in kilometers
+            match unit {
+                "km" => length_km,
+                "m" => length_km * 1000.0, // Convert to meters
+                _ => unreachable!(),       // Unit validation ensures this won't happen
+            }
+        })
+    })
 }

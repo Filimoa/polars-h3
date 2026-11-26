@@ -17,3 +17,7 @@ benchmarks/benchmarks-results.json
 notebooks/sample-data
 *-execplan.md
 site/
+
+# Raw benchmark runs are attached to reports/PRs rather than committed.
+benchmarks/results/*.json
+benchmarks/results/*.zip
