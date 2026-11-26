@@ -217,7 +217,12 @@ class Report:
         self.save()
 
     def __exit__(self, kind, error, traceback):
-        self.data["status"] = "failed" if kind else "complete"
+        incomplete = any(
+            case.get("status", "complete") != "complete" for case in self.data["cases"]
+        )
+        self.data["status"] = (
+            "failed" if kind else "partial" if incomplete else "complete"
+        )
         if kind:
             self.data["error"] = f"{kind.__name__}: {error}"
         self.save()

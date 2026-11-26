@@ -48,6 +48,7 @@ UV_NO_SYNC=1 uv run -m benchmarks python --help
 | `duckdb` | Matched Polars/DuckDB H3 performance, optionally with a saved Polars baseline | 33 workloads including two identity controls; all values checked after every output, with documented type/order/float normalization |
 | `internal` | Broad Polars performance and exact before/after regression checks | 46 operations; exact values, dtypes and list order against a saved baseline; without a baseline, checks repeatability only |
 | `python` | Polars expressions versus Python H3 callbacks in a Polars workflow | 14 operations, including numeric boundaries and paths; same input/output representation, every output validated |
+| `baselines` | Optional plain Python H3 and h3pandas comparisons with hard subprocess deadlines | Six matched string-ID workloads; every output validated, timeouts/skips publish no partial timings |
 | `compare` | Summarize matched saved measurements | Refuses incomplete runs and incompatible settings/environments; reports each operation/mode separately |
 
 All runners accept `--functions`, `--rows`, `--threads`, `--iterations`,
@@ -56,7 +57,8 @@ before engine imports. The default is five measured samples after two excluded
 warmups. Engine order alternates for two engines; three-engine runs rotate and
 reverse order. JSON records medians, min/max, individual wall/CPU samples and
 output chunk counts. Runs checkpoint after each completed case; `status` is
-`running`, `failed`, or `complete`, so partial results are explicit.
+`running`, `failed`, `partial`, or `complete`, so incomplete results are explicit.
+The optional `baselines` suite uses one warmup and three samples by default.
 
 ### DuckDB and saved baselines
 
@@ -135,6 +137,50 @@ result construction. They describe an end-to-end Polars workflow, not native
 H3 call latency. List ordering is normalized only where the mathematical output
 is unordered. Polygon coverage remains in the DuckDB suite. Neither Python nor
 internal runs import DuckDB or install an extension.
+
+### Optional plain Python and pandas baselines
+
+```bash
+UV_NO_SYNC=1 uv run --group benchmarking -m benchmarks baselines \
+  --output /tmp/h3-baselines.json
+```
+
+This opt-in suite compares Polars, ordinary `h3.api.basic_str` Python list
+comprehensions, and the [h3pandas accessor](https://github.com/DahnJ/H3-Pandas).
+It stays out of `make bench` and the large DuckDB runs. The existing `python`
+suite continues to measure H3 callbacks inside Polars; these answer different
+questions.
+
+Defaults are **10,000 scalar rows**, **1,000 list rows**, one excluded warmup,
+three samples, **10 seconds per case**, and a **60-second suite worker budget**.
+Each case runs sequentially in a fresh subprocess. Deadlines include worker
+startup, input setup and validation; parent metadata/report I/O is additional.
+An over-budget worker is killed and waited for, even if a native call has not
+returned. Remaining cases are skipped when the suite budget is exhausted.
+
+All three engines see exactly the same row count and logical inputs, using
+string H3 IDs to match h3pandas. Cases cover indexing, parent lookup, resolution,
+validity, disk and ring. List rows are capped by both `--rows` and `--list-rows`.
+Do not compare Polars at one million rows with Python at one thousand rows and
+call that a speedup; no timings are extrapolated to larger inputs.
+
+Input preparation is recorded separately. Timings include computation and native
+result construction: a Polars result column, a Python list, or a pandas result
+Series selected from the accessor's output. Thus h3pandas' own DataFrame/index
+handling is included. Conversion to a common validation representation happens
+outside timing. These are framework workflows, not isolated H3 kernel calls.
+
+Timed-out/skipped cases contain a reason and no performance numbers. The report
+status is `partial` if any case is unfinished, and `compare` refuses it. Select
+fewer functions or explicitly increase `--seconds-per-case` / `--budget-seconds`
+to retry. Raising `--rows` alone cannot turn a slow run into an hour-long wait.
+For example, to spend at most 30 seconds of worker time on two scalar cases:
+
+```bash
+UV_NO_SYNC=1 uv run --group benchmarking -m benchmarks baselines \
+  --functions latlng_to_cell cell_to_parent --rows 10000 \
+  --seconds-per-case 15 --budget-seconds 30 --output /tmp/h3-baselines-selected.json
+```
 
 ## Migration and maintenance
 

@@ -8,13 +8,14 @@ SUITES = {
     "duckdb": "head_to_head",
     "internal": "regression",
     "python": "python_api",
+    "baselines": "baselines",
     "compare": "compare_results",
 }
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Validated H3 benchmarks: DuckDB, broad internal, Python callbacks, or saved-result comparison."
+        description="Validated H3 benchmarks: DuckDB, broad internal, Python callbacks, bounded Python/pandas baselines, or saved-result comparison."
     )
     parser.add_argument("suite", choices=SUITES)
     # Parse only the suite so each runner owns --help and its arguments.

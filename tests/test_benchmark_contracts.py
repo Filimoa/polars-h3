@@ -127,7 +127,7 @@ def test_report_preserves_failure_and_refuses_overwrite(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "suite,count", [("duckdb", 33), ("internal", 46), ("python", 14)]
+    "suite,count", [("duckdb", 33), ("internal", 46), ("python", 14), ("baselines", 6)]
 )
 def test_suite_listing_does_not_import_duckdb(suite, count):
     import subprocess
@@ -152,7 +152,7 @@ runpy.run_module('benchmarks', run_name='__main__')
     assert len(result.stdout.splitlines()) == count
 
 
-@pytest.mark.parametrize("suite", ["duckdb", "internal", "python"])
+@pytest.mark.parametrize("suite", ["duckdb", "internal", "python", "baselines"])
 def test_cli_rejects_bad_inputs_and_existing_evidence(tmp_path, suite):
     import subprocess
     import sys
