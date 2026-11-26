@@ -186,15 +186,12 @@ You can run test suite with `uv run pytest`. You can also run the docs locally w
 
 ### Benchmarking
 
-Build an optimized extension and run validated DuckDB comparisons:
+Compare polars-h3 with **DuckDB H3, Python H3, and h3pandas**, or measure performance changes against a saved build. All suites validate results and record reproducible measurements.
 
 ```bash
 make sync-bench
-make bench BENCH_OUTPUT=/tmp/h3-duckdb.json
+make install-release
+UV_NO_SYNC=1 uv run -m benchmarks --help
 ```
 
-Use `UV_NO_SYNC=1 uv run -m benchmarks --help` to discover the DuckDB,
-internal regression, Python callback, bounded Python/pandas baseline, and saved-result comparison suites.
-See the [benchmark guide](benchmarks/README.md) for small smoke runs, timing
-contracts, baseline binaries, and [measured results](benchmarks/results/2026-11-25-large-data.md).
-Always benchmark a release build; development builds give misleading timings.
+See the [benchmark guide](benchmarks/README.md) for suite commands, quick runs, and timing contracts, plus [published results](benchmarks/results/2026-11-25-large-data.md). Always use a release build for representative timings.
