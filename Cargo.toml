@@ -12,7 +12,7 @@ pyo3 = { version = "0.29.2", features = ["extension-module", "abi3-py311"] }
 pyo3-polars = { version = "0.28.0", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 polars = { version = "0.55.2", default-features = false }
-h3o = { version = "0.11.0", features = ["geo"] }
+h3o = { path = "vendor/h3o", features = ["geo"] }
 geo = { version = "0.33.0", default-features = false }
 geozero = { version = "0.15.1", default-features = false, features = ["with-geo", "with-geojson", "with-wkb"] }
 wkt = "0.14.0"

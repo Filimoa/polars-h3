@@ -1,0 +1,102 @@
+name: Vendored h3o
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - run: rustup show
+      - run: make sync
+      - run: make test-h3o
+      - run: H3O_LAB_POINTS=1000000 make test-h3o-lab
+      - run: cargo clippy --manifest-path vendor/h3o/Cargo.toml --locked --all-features --all-targets -- -D warnings
+      - run: cargo check --manifest-path vendor/h3o/Cargo.toml --locked --no-default-features
+      - run: cargo check --manifest-path vendor/h3o/Cargo.toml --locked --benches --features geo
+      - run: make install
+      - run: make test
+      - name: Build and verify source distribution
+        run: make test-sdist
+
+  fuzz:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - cell_index
+          - cell_index_hierarchy
+          - cell_index_pair
+          - cell_to_vertex
+          - cells_to_geom
+          - compact
+          - directed_edge_index
+          - grid
+          - index_io
+          - is_valid
+          - latltng_to_cell
+          - local_ij
+          - polygon_to_cells
+          - polygon_with_holes_to_cells
+          - uncompact
+          - vertex_index
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup toolchain install nightly --profile minimal --component rust-src
+      - run: cargo +nightly install cargo-fuzz --version 0.13.2 --locked
+      - uses: actions/cache@v4
+        with:
+          path: vendor/h3o/fuzz/corpus/${{ matrix.target }}
+          key: h3o-corpus-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: h3o-corpus-${{ matrix.target }}-
+      - name: Fuzz for five minutes
+        run: make fuzz-h3o FUZZ_TARGET=${{ matrix.target }} FUZZ_SECONDS=300
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: h3o-fuzz-${{ matrix.target }}
+          path: |
+            vendor/h3o/fuzz/artifacts/
+            vendor/h3o/fuzz/corpus/${{ matrix.target }}/
+          if-no-files-found: ignore
+
+  differential-fuzz:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup toolchain install nightly --profile minimal --component rust-src
+      - run: cargo +nightly install cargo-fuzz --version 0.13.2 --locked
+      - uses: actions/cache@v4
+        with:
+          path: scripts/h3o-lab/fuzz/corpus/differential
+          key: h3o-differential-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: h3o-differential-
+      - name: Compare against pristine h3o for five minutes
+        run: make fuzz-h3o-lab FUZZ_SECONDS=300
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: h3o-differential-fuzz
+          path: |
+            scripts/h3o-lab/fuzz/artifacts/
+            scripts/h3o-lab/fuzz/corpus/differential/
+          if-no-files-found: ignore

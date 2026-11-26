@@ -21,6 +21,6 @@ notebooks/sample-data
 *-plan.md
 site/
 
-# Raw benchmark runs are attached to reports/PRs rather than committed.
+# Raw benchmark samples stay local; concise reports are committed.
 benchmarks/results/*.json
 benchmarks/results/*.zip
