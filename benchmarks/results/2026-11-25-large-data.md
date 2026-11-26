@@ -10,7 +10,9 @@ and list ordering are preserved. No h3o numerical algorithm was modified.
 
 [Download the complete raw-results ZIP](https://github.com/user-attachments/files/35442368/polars-h3-benchmark-evidence-2026-11-25.zip),
 attached to [PR #28](https://github.com/Filimoa/polars-h3/pull/28#issuecomment-7181441150).
-It contains all nine JSON files referenced below, a README, and `SHA256SUMS`.
+It contains the original nine JSON files, a README, and `SHA256SUMS`.
+The later [five-million-row list follow-up](#five-million-row-list-follow-up) has
+a separate checksummed attachment.
 The JSON files are preserved byte-for-byte; generated results are stored outside
 Git while this report and the benchmark runners remain versioned.
 
@@ -343,3 +345,66 @@ Native results confirm the earlier gains without vendoring:
 | index_parent | 5,000,000 | 184.79 | 134.76 | 1.37x |
 
 Registry-backed plugin SHA-256: `641f3d597e97866b0eeb4332e6bc870442e36951eb2821607189a7d5c31f38a5`.
+
+
+## Five-million-row list follow-up
+
+The earlier list workloads used 250,000 input rows to limit output size. This
+follow-up measures **5,000,000 input rows** for both `cell_to_children` and
+`grid_disk`, using the same saved original and registry-backed optimized plugins,
+eight threads, two warmups, and five measured samples. Resolution is 9; children
+use resolution 10 and disks use radius 3. Hardware and engine versions match the
+registry-backed run above. The earlier results remain unchanged as historical
+evidence; these are direct measurements, not extrapolations.
+
+### Native output at five million rows
+
+| Operation | Original ms | Optimized ms | DuckDB ms | Original / optimized | DuckDB / optimized |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| cell_to_children | 176.04 | 12.45 | 58.57 | 14.14x | 4.70x |
+| grid_disk | 700.88 | 307.83 | 405.46 | 2.28x | 1.32x |
+
+### Including Arrow output at five million rows
+
+| Operation | Original ms | Optimized ms | DuckDB ms | Original / optimized | DuckDB / optimized |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| cell_to_children | 175.20 | 12.53 | 190.53 | 13.98x | 15.20x |
+| grid_disk | 709.66 | 327.79 | 1017.03 | 2.16x | 3.10x |
+
+Optimized native samples range from 12.11–13.33 ms for children and
+303.27–314.83 ms for disks. The outputs contain 35 million child IDs and
+185 million disk IDs; estimated Polars result buffers are 320 MB and 1.52 GB
+respectively (decimal units, not peak process memory).
+
+The larger workload improves the measured before/after ratio for children to
+14.14x and disks to 2.28x. DuckDB also scales differently: the native grid-disk
+advantage is 1.32x here, compared with 4.79x at 250,000 rows in the registry
+spot-check. Including materialize-then-Arrow output, it is 3.10x. Row count and
+output handling materially affect cross-library comparisons.
+
+Full-output validation initially dominated the run because it boxed and sorted
+hundreds of millions of IDs in Python. That incomplete attempt was stopped.
+The completed run uses native equality and bounded NumPy sorting for fixed-width
+integer lists, with the general null/ragged/string comparison retained. Every
+value, duplicate and list boundary is still checked after every output, outside
+the query timer. Query execution and the measured plugin binaries are unchanged.
+The validator passed targeted mismatch tests and the full 442-test suite.
+
+Benchmark source revision: `4ed5145508bce31909f4a11716a7de2c04eadb2c` (clean tree).
+[Download the follow-up raw results](https://github.com/user-attachments/files/35443625/polars-h3-list-5m-2026-11-25.zip),
+attached to [PR #28](https://github.com/Filimoa/polars-h3/pull/28#issuecomment-7182193437).
+The ZIP contains `2026-11-25-list-5m.json`, a README, and `SHA256SUMS`; its downloaded
+bytes were verified against the original result file.
+Archive SHA-256: `d27645ba53fb2126e57c90475d7fcf58d2a3b9a423036f39a8b37b210f32094a`.
+
+Reproduce using the saved original and registry-backed binaries:
+
+```bash
+UV_NO_SYNC=1 uv run -m benchmarks duckdb \
+  --functions cell_to_children grid_disk \
+  --rows 5000000 --list-rows 5000000 --threads 8 \
+  --iterations 5 --warmups 2 \
+  --baseline-plugin /tmp/polars-h3-large-optimization/baseline.abi3.so \
+  --plugin-path /tmp/polars-h3-dependency-split/registry.abi3.so \
+  --output /tmp/h3-list-5m-new.json
+```
