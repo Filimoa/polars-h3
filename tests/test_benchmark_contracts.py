@@ -232,3 +232,55 @@ def test_comparison_requires_complete_matched_measurements():
     other["cases"][0]["rows"] = 256
     with pytest.raises(ValueError, match="different rows"):
         compare(report, other)
+
+
+def test_unordered_numeric_validation_checks_every_large_integer_without_boxing(
+    monkeypatch,
+):
+    base = 2**63 + 123
+    values = pl.Series(
+        "result", [[base, base + 1, base + 1]] * 8200, dtype=pl.List(pl.UInt64)
+    )
+    # Multiple chunks and a nonzero slice offset must preserve list boundaries.
+    left = (
+        pl.concat([values.head(4000), values.slice(4000)], rechunk=False)
+        .slice(3)
+        .to_frame()
+    )
+    right = left.select(pl.col("result").list.reverse())
+    bad = right.with_columns(
+        pl.when(pl.int_range(pl.len()) == pl.len() - 1)
+        .then(pl.lit([base, base, base + 1], dtype=pl.List(pl.UInt64)))
+        .otherwise(pl.col("result"))
+        .alias("result")
+    )
+
+    def no_boxing(*args, **kwargs):
+        raise AssertionError("numeric validation should not box values into Python")
+
+    monkeypatch.setattr(pl.Series, "to_list", no_boxing)
+    case = cases(9, 3)["grid_disk"]
+    validate(case, left, right)
+    with pytest.raises(AssertionError, match="unordered results differ near row 8192"):
+        validate(case, left, bad)
+
+
+@pytest.mark.parametrize(
+    "dtype,rows",
+    [
+        (pl.List(pl.UInt64), [[1, None, 2], None, [], [3], [5, 5, 6, 7]]),
+        (pl.List(pl.String), [["a", "b"], [], None, ["c", None, "c"]]),
+    ],
+)
+def test_unordered_validation_preserves_ragged_nulls_and_duplicates(dtype, rows):
+    case = cases(9, 3)["grid_disk"]
+    left = pl.DataFrame({"result": pl.Series(rows, dtype=dtype)})
+    right = left.select(pl.col("result").list.reverse())
+    validate(case, left, right)
+    changed = list(rows)
+    changed[0] = []
+    with pytest.raises(AssertionError):
+        validate(case, left, pl.DataFrame({"result": pl.Series(changed, dtype=dtype)}))
+    changed = [([] if row is None else row) for row in rows]
+    with pytest.raises(AssertionError):
+        validate(case, left, pl.DataFrame({"result": pl.Series(changed, dtype=dtype)}))

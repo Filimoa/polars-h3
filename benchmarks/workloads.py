@@ -284,6 +284,48 @@ def make_frame(case: Case, rows: int, resolution: int, layout: str, null_every: 
     return frame
 
 
+def _unordered_lists_equal(left, right) -> bool:
+    import numpy as np
+    import polars as pl
+
+    # Most original/current outputs already have identical ordering. Native
+    # equality checks every value without constructing Python objects.
+    if left.equals(right):
+        return True
+    if (
+        isinstance(left.dtype, pl.List)
+        and left.dtype.inner.is_integer()
+        and left.null_count() == right.null_count() == 0
+    ):
+        lengths = left.list.len().to_numpy()
+        if not np.array_equal(lengths, right.list.len().to_numpy()):
+            return False
+        if len(lengths) and np.all(lengths == lengths[0]):
+            width = int(lengths[0])
+            if width == 0:
+                return True
+            lhs = left.explode(empty_as_null=False)
+            rhs = right.explode(empty_as_null=False)
+            if lhs.null_count() == rhs.null_count() == 0:
+                # Fixed-width numeric lists (children/disks/rings) can be
+                # sorted in bounded native arrays, retaining every ID and
+                # duplicate. UInt64 stays integer, including values > 2**53.
+                a = np.sort(lhs.to_numpy().reshape(-1, width), axis=1)
+                b = np.sort(rhs.to_numpy().reshape(-1, width), axis=1)
+                return np.array_equal(a, b)
+
+    # Preserve exact handling for ragged/string lists and nullable values.
+    def canonical(values):
+        return [
+            None
+            if row is None
+            else sorted(row, key=lambda value: (value is not None, value))
+            for row in values
+        ]
+
+    return canonical(left.to_list()) == canonical(right.to_list())
+
+
 def validate(case: Case, left, right) -> None:
     import polars as pl
     from polars.testing import assert_frame_equal
@@ -295,17 +337,14 @@ def validate(case: Case, left, right) -> None:
     # Width differences are API conventions, not different mathematical work.
     right = right.cast(left.schema)
     if case.unordered:
-        # Polars list.sort dispatches a parallel sort for each tiny inner list
-        # in some versions. A bounded Python comparison avoids that validation
-        # bottleneck while still checking every cell, duplicate and null.
+        # Check every row in bounded blocks. Native numeric sorting avoids
+        # boxing hundreds of millions of H3 IDs as Python integers.
         if left.height != right.height:
             raise AssertionError("different output heights")
         for offset in range(0, left.height, 8192):
-            lhs = left.to_series().slice(offset, 8192).to_list()
-            rhs = right.to_series().slice(offset, 8192).to_list()
-            if [None if v is None else sorted(v) for v in lhs] != [
-                None if v is None else sorted(v) for v in rhs
-            ]:
+            lhs = left.to_series().slice(offset, 8192)
+            rhs = right.to_series().slice(offset, 8192)
+            if not _unordered_lists_equal(lhs, rhs):
                 raise AssertionError(f"unordered results differ near row {offset}")
         return
     if case.floating and isinstance(left.to_series().dtype, pl.List):
