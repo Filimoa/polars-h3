@@ -1,104 +1,102 @@
-"""Paired broad-API regression check using immutable original/current plugins.
+"""Broad internal timings, optionally paired with an immutable baseline plugin.
 
-Unlike the DuckDB comparison, this checks exact output values, list ordering,
-and dtypes. Setup and validation are excluded from timing.
+With a baseline, every output must match exact values, dtypes and list order.
+Without one, validation checks repeatability only, not independent correctness.
 """
 
-from __future__ import annotations
-
 import argparse
-import gc
-import hashlib
-import json
-import os
-import statistics
-from pathlib import Path
 
-from benchmarks.head_to_head import measure, positive, use_plugin
+from benchmarks.common import (
+    Report,
+    add_controls,
+    collect_samples,
+    configure,
+    measure,
+    metadata,
+    select_cases,
+    summarize,
+    use_plugin,
+)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--baseline-plugin", required=True, type=Path)
-    parser.add_argument("--plugin-path", required=True, type=Path)
-    parser.add_argument("--threads", default=8, type=positive)
-    parser.add_argument("--rows", default=100_000, type=positive)
-    parser.add_argument("--iterations", default=5, type=positive)
-    parser.add_argument("--warmups", default=2, type=positive)
-    parser.add_argument("--output", required=True, type=Path)
+    add_controls(parser)
     args = parser.parse_args()
-    if args.output.exists():
-        parser.error("output already exists; choose a new path")
-    for name in ("baseline_plugin", "plugin_path"):
-        path = getattr(args, name).resolve()
-        if not path.is_file():
-            parser.error(f"missing binary: {path}")
-        setattr(args, name, path)
-    os.environ["POLARS_MAX_THREADS"] = str(args.threads)
-    os.environ["RAYON_NUM_THREADS"] = str(args.threads)
+    configure(args, parser)
 
-    import polars as pl
     from polars.testing import assert_frame_equal
 
-    from benchmarks.large_engine import cases, make_data, prepare_frame
+    from benchmarks.internal_workloads import cases, make_data, prepare_frame
 
+    suite = cases()
+    names = select_cases(suite, args, parser)
+    if not names:
+        return
     use_plugin(args.plugin_path)
-    data = make_data(args.rows).rechunk()
-    report = {
-        "settings": {
-            k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()
-        },
-        "polars_version": pl.__version__,
-        "binary_sha256": hashlib.sha256(args.plugin_path.read_bytes()).hexdigest(),
-        "baseline_binary_sha256": hashlib.sha256(
-            args.baseline_plugin.read_bytes()
-        ).hexdigest(),
-        "validation": "exact values, dtypes and list ordering; every output",
-        "cases": [],
+    info = metadata(args, "internal")
+    info["timing_contracts"] = {
+        "resident": "Preloaded Polars inputs; select and full DataFrame materialization. Setup and exact validation excluded."
     }
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    for case in cases().values():
-        frame = prepare_frame(data.head(min(args.rows, case.rows)), case.name).rechunk()
-        exprs = {}
-        for engine, path in (
-            ("baseline", args.baseline_plugin),
-            ("polars", args.plugin_path),
-        ):
-            use_plugin(path)
-            exprs[engine] = case.expr().alias("result")
-        reference = frame.select(exprs["baseline"])
-        samples = {engine: [] for engine in exprs}
-        for iteration in range(-args.warmups, args.iterations):
-            order = list(exprs)
-            if iteration % 2:
-                order.reverse()
-            for engine in order:
-                gc.collect()
-                output, timing = measure(
-                    lambda frame=frame, expr=exprs[engine]: frame.select(expr)
-                )
-                assert_frame_equal(reference, output, check_exact=True)
-                if iteration >= 0:
-                    samples[engine].append(timing)
-                del output
-        medians = {
-            engine: statistics.median(sample["wall_seconds"] for sample in runs)
-            for engine, runs in samples.items()
-        }
-        report["cases"].append(
-            {
-                "name": case.name,
-                "rows": frame.height,
-                "output_rows": reference.height,
-                "median_seconds": medians,
-                "runs": samples,
+    info["validation"] = (
+        "exact baseline comparison"
+        if args.baseline_plugin
+        else "current-build repeatability only; no independent correctness oracle"
+    )
+    with Report(args.output, info) as report:
+        data, generation = measure(
+            lambda: make_data(
+                min(args.rows, max(suite[name].rows for name in names))
+            ).rechunk()
+        )
+        report.data["setup"] = {"generation": generation}
+        for name in names:
+            case = suite[name]
+            use_plugin(args.plugin_path)
+            frame, preparation = measure(
+                lambda case=case, name=name: prepare_frame(
+                    data.head(min(args.rows, case.rows)), name
+                ).rechunk()
+            )
+            expressions = {}
+            if args.baseline_plugin:
+                use_plugin(args.baseline_plugin)
+                expressions["baseline"] = case.expr().alias("result")
+            use_plugin(args.plugin_path)
+            expressions["polars"] = case.expr().alias("result")
+            reference = frame.select(expressions.get("baseline", expressions["polars"]))
+            runners = {
+                engine: (lambda expr=expr, frame=frame: frame.select(expr))
+                for engine, expr in expressions.items()
             }
-        )
-        print(
-            f"{case.name:28} {frame.height:>9,} rows {medians['baseline']/medians['polars']:.2f}x",
-            flush=True,
-        )
-        args.output.write_text(json.dumps(report, indent=2) + "\n")
+            samples = collect_samples(
+                runners,
+                args,
+                lambda output, reference=reference: assert_frame_equal(
+                    reference, output, check_exact=True
+                ),
+            )
+            results = summarize(samples, "resident")
+            report.append(
+                {
+                    "name": name,
+                    "rows": frame.height,
+                    "output_rows": reference.height,
+                    "input_schema": {
+                        key: str(value) for key, value in frame.schema.items()
+                    },
+                    "input_chunks": frame.n_chunks(),
+                    "input_bytes": frame.estimated_size(),
+                    "output_bytes": reference.estimated_size(),
+                    "setup": {"preparation": preparation},
+                    "validation": info["validation"],
+                    "results": results,
+                }
+            )
+            times = " ".join(
+                f"{r['engine']}={r['median_seconds']:.6f}s" for r in results
+            )
+            print(f"{name:28} {frame.height:>9,} rows {times}", flush=True)
 
 
 if __name__ == "__main__":

@@ -17,8 +17,7 @@ This is a [Polars](https://docs.pola.rs/) extension that adds support for the [H
 
 - 🚀 **Blazing Fast:** Built entirely in Rust, offering vectorized, multi-core H3 operations within Polars. Ideal for high-performance data processing.
 
-  - 25X faster than [h3-py](https://github.com/uber/h3-py)
-  - 5X faster than [H3 DuckDB](https://github.com/isaacbrodsky/h3-duckdb) _(See [notebook](notebooks/benchmarking.ipynb) for more details)_
+  - See [measured DuckDB comparisons](benchmarks/results/2026-11-25-large-data.md) for per-operation results and workload limits, and the [benchmark guide](benchmarks/README.md) to reproduce DuckDB or Python H3 comparisons.
 
 - 🌍 **H3 Feature Parity:** Comprehensive support for H3 functions, including WKT/WKB polygon coverage and cell-set dissolution.
 
@@ -185,21 +184,15 @@ You can run test suite with `uv run pytest`. You can also run the docs locally w
 
 ### Benchmarking
 
-For matched large-data comparisons with DuckDB H3, run `make sync-bench` followed
-by `make bench-h2h`. See the [benchmark guide](benchmarks/README.md) for timing
-contracts, saved-binary comparisons and measured results.
-
-If you're looking to benchmark the performance of the extension, build the release version with `maturin develop --release --uv` and then run `uv run -m benchmarks.engine` (assuming you have the benchmark dependencies installed). Benchmarking with the development version will lead to misleading results.
+Build an optimized extension and run validated DuckDB comparisons:
 
 ```bash
-# 1 – (build) compile the optimized Rust extension
-uv run maturin develop --release --uv
-
-# 2 – (run) execute the benchmark CLI
-uv run h3-bench \
-  --libraries plh3 duckdb h3_py \   # which back-ends to test (or “all”)
-  --functions latlng_to_cell cell_to_parent \  # which functions to time (or “all”)
-  --iterations 3 \                  # repetitions per test
-  --fast-factor 4 \                 # divide default row-counts to speed things up
-  --output results.json             # optional: dump raw results
+make sync-bench
+make bench BENCH_OUTPUT=/tmp/h3-duckdb.json
 ```
+
+Use `UV_NO_SYNC=1 uv run -m benchmarks --help` to discover the DuckDB,
+internal regression, Python callback, and saved-result comparison suites.
+See the [benchmark guide](benchmarks/README.md) for small smoke runs, timing
+contracts, baseline binaries, and [measured results](benchmarks/results/2026-11-25-large-data.md).
+Always benchmark a release build; development builds give misleading timings.
