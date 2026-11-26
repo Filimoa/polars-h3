@@ -313,3 +313,229 @@ def test_disk_discards_partial_fast_traversal_near_a_pentagon():
     expected = [sorted(h3.grid_disk(cell, 2)) for cell in cells]
     result = frame.select(h.grid_disk("cell", 2)).to_series().to_list()
     assert [sorted(row) for row in result] == expected * 23000
+
+
+@pytest.mark.parametrize("dtype", [pl.UInt64, pl.Int64, pl.String])
+def test_batched_nested_boundaries_faces_and_vertices(dtype):
+    """Exercise nested offsets, outer nulls, and vertex order after batching."""
+    edge = h3.origin_to_directed_edges(CELL)[0]
+    pent_edge = h3.origin_to_directed_edges(PENTAGON)[0]
+    vertex = h3.cell_to_vertex(CELL, 0)
+    pent_vertex = h3.cell_to_vertex(PENTAGON, 0)
+    patterns = {
+        "cell": [CELL, PENTAGON, None, 0],
+        "edge": [edge, pent_edge, None, 0],
+        "vertex": [vertex, pent_vertex, None, 0],
+    }
+    repeats = 9000
+    columns = []
+    for name, pattern in patterns.items():
+        values = pattern * repeats
+        if dtype == pl.String:
+            values = [format(v, "x") if v is not None else None for v in values]
+        series = pl.Series(name, values, dtype=dtype)
+        # Nonzero slice offset and chunk boundary inside the repeated pattern.
+        columns.append(pl.concat([series[:19], series[19:]], rechunk=False).slice(3))
+    frame = pl.DataFrame(columns)
+    checks = [
+        (
+            h.cell_to_boundary("cell"),
+            "cell",
+            h3.cell_to_boundary,
+            pl.List(pl.List(pl.Float64)),
+        ),
+        (
+            h.get_icosahedron_faces("cell"),
+            "cell",
+            lambda cell: sorted(h3.get_icosahedron_faces(cell)),
+            pl.List(pl.Int64),
+        ),
+        (
+            h.directed_edge_to_cells("edge"),
+            "edge",
+            h3.directed_edge_to_cells,
+            pl.List(pl.UInt64),
+        ),
+        (
+            h.directed_edge_to_boundary("edge"),
+            "edge",
+            lambda e: [v for pair in h3.directed_edge_to_boundary(e) for v in pair],
+            pl.List(pl.Float64),
+        ),
+        (
+            h.vertex_to_latlng("vertex"),
+            "vertex",
+            h3.vertex_to_latlng,
+            pl.List(pl.Float64),
+        ),
+        (h.is_valid_vertex("vertex"), "vertex", lambda _: True, pl.Boolean),
+        (h.is_valid_directed_edge("edge"), "edge", lambda _: True, pl.Boolean),
+    ]
+    for expression, name, oracle, output_dtype in checks:
+        invalid = False if output_dtype == pl.Boolean else None
+        pattern = [
+            oracle(patterns[name][0]),
+            oracle(patterns[name][1]),
+            invalid,
+            invalid,
+        ]
+        expected = pl.Series(name, (pattern * repeats)[3:], dtype=output_dtype)
+        assert_series_equal(
+            frame.select(expression).to_series(), expected, check_exact=False
+        )
+
+
+@pytest.mark.parametrize("dtype", [pl.UInt64, pl.Int64, pl.String])
+def test_batched_compaction_preserves_null_empty_and_invalid_sets(dtype):
+    children = h3.cell_to_children(CELL, 10)
+    pent_children = h3.cell_to_children(PENTAGON, 10)
+    pattern = [children, pent_children, None, [], [None, 0], [CELL]]
+    if dtype == pl.String:
+        pattern = [
+            [format(v, "x") if v is not None else None for v in row]
+            if row is not None
+            else None
+            for row in pattern
+        ]
+    series = pl.Series("cells", pattern * 6000, dtype=pl.List(dtype))
+    series = pl.concat([series[:17], series[17:]], rechunk=False).slice(3)
+    for expression, expected_pattern in [
+        (h.compact_cells("cells"), [[CELL], [PENTAGON], None, [], [], [CELL]]),
+        (
+            h.uncompact_cells("cells", 10),
+            [children, pent_children, None, [], [], children],
+        ),
+    ]:
+        if dtype == pl.String:
+            expected_pattern = [
+                [format(v, "x") for v in row] if row is not None else None
+                for row in expected_pattern
+            ]
+        expected = pl.Series(
+            "cells", (expected_pattern * 6000)[3:], dtype=pl.List(dtype)
+        )
+        assert_series_equal(series.to_frame().select(expression).to_series(), expected)
+
+
+@pytest.mark.parametrize("dtype", [pl.UInt64, pl.Int64, pl.String])
+def test_batched_local_coordinates_and_child_positions(dtype):
+    neighbor = h3.grid_ring(CELL, 1)[0]
+    pattern = [CELL, neighbor, None, 0, PENTAGON]
+    origins = [CELL, CELL, CELL, CELL, PENTAGON]
+
+    def encode(name, values):
+        if dtype == pl.String:
+            values = [format(v, "x") if v is not None else None for v in values]
+        return pl.Series(name, values * 7000, dtype=dtype)
+
+    cells = encode("cell", pattern)
+    origins = encode("origin", origins)
+    frame = pl.DataFrame(
+        [
+            pl.concat([cells[:17], cells[17:]], rechunk=False),
+            pl.concat([origins[:33], origins[33:]], rechunk=False),
+        ]
+    ).with_columns(pos=pl.lit(0, dtype=pl.UInt64))
+    coords = [
+        h3.cell_to_local_ij(CELL, CELL),
+        h3.cell_to_local_ij(CELL, neighbor),
+        None,
+        None,
+        h3.cell_to_local_ij(PENTAGON, PENTAGON),
+    ]
+    assert_series_equal(
+        frame.select(h.cell_to_local_ij("cell", "origin")).to_series(),
+        pl.Series("cell", coords * 7000, dtype=pl.List(pl.Float64)),
+    )
+    with_coords = frame.with_columns(
+        h.cell_to_local_ij("cell", "origin").alias("ij")
+    ).with_columns(i=pl.col("ij").list.get(0), j=pl.col("ij").list.get(1))
+    assert_series_equal(
+        with_coords.select(h.local_ij_to_cell("origin", "i", "j")).to_series(),
+        pl.Series(
+            "origin", [CELL, neighbor, None, None, PENTAGON] * 7000, dtype=pl.UInt64
+        ),
+    )
+    expected = [
+        h3.child_pos_to_cell(CELL, 10, 0),
+        h3.child_pos_to_cell(neighbor, 10, 0),
+        None,
+        None,
+        h3.child_pos_to_cell(PENTAGON, 10, 0),
+    ]
+    assert_series_equal(
+        frame.select(h.child_pos_to_cell("cell", "pos", 10)).to_series(),
+        encode("cell", expected),
+    )
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [pl.UInt32, pl.UInt64, pl.Int32, pl.Int64],
+)
+def test_batched_resolution_counts_reject_out_of_range_without_wrapping(dtype):
+    pattern = [0, 15, 16, None]
+    if dtype.is_signed_integer():
+        pattern += [-1]
+    pattern += [256]
+    if dtype == pl.UInt64:
+        pattern += [2**64 - 1]
+    expected = [
+        h3.get_num_cells(r) if r is not None and 0 <= r <= 15 else None for r in pattern
+    ]
+    series = pl.Series("resolution", pattern * 9000, dtype=dtype)
+    series = pl.concat([series[:19], series[19:]], rechunk=False).slice(3)
+    assert_series_equal(
+        series.to_frame().select(h.get_num_cells("resolution")).to_series(),
+        pl.Series("resolution", (expected * 9000)[3:], dtype=pl.UInt64),
+    )
+
+
+@pytest.mark.parametrize("rows", [0, 1, 16385])
+def test_empty_and_all_null_nested_outputs_keep_legacy_dtype(rows):
+    frame = pl.DataFrame({"cell": pl.Series([None] * rows, dtype=pl.String)})
+    for expression in [
+        h.cell_to_boundary("cell"),
+        h.cell_to_children("cell", 10),
+        h.grid_disk("cell", 1),
+        h.grid_ring("cell", 1),
+    ]:
+        result = frame.select(expression).to_series()
+        assert result.dtype == pl.List(pl.Null)
+        assert len(result) == result.null_count() == rows
+
+
+@pytest.mark.parametrize("nulls_first", [True, False])
+@pytest.mark.parametrize("dtype", [pl.UInt64, pl.Int64, pl.String])
+def test_entire_null_batches_do_not_change_list_schema(dtype, nulls_first):
+    cell = format(CELL, "x") if dtype == pl.String else CELL
+    values = [None] * 40000 + [cell] * 40000
+    if not nulls_first:
+        values.reverse()
+    frame = pl.DataFrame({"cell": pl.Series(values, dtype=dtype)})
+    sets = pl.Series(
+        "sets",
+        [[value] if value is not None else None for value in values],
+        dtype=pl.List(dtype),
+    )
+    frame = frame.with_columns(sets)
+    children = h3.cell_to_children(CELL, 10)
+    if dtype == pl.String:
+        children = [format(value, "x") for value in children]
+    for expr, valid in [
+        (h.compact_cells("sets"), [cell]),
+        (h.uncompact_cells("sets", 10), children),
+        (h.grid_path_cells("cell", "cell"), [cell]),
+        (h.grid_disk("cell", 0), [cell]),
+        (h.grid_ring("cell", 0), [cell]),
+    ]:
+        result = frame.select(expr.alias("result")).to_series()
+        expected = [valid if value is not None else None for value in values]
+        assert_series_equal(result, pl.Series("result", expected, dtype=pl.List(dtype)))
+        # Preserve the old all-null dtype, which differs for string outputs.
+        all_null = frame.head(40000) if nulls_first else frame.tail(40000)
+        null_result = all_null.select(expr).to_series()
+        assert null_result.dtype == (
+            pl.List(pl.Null) if dtype == pl.String else pl.List(dtype)
+        )
+        assert null_result.null_count() == len(null_result)

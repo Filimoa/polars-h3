@@ -1,70 +1,39 @@
 use h3o::{CellIndex, DirectedEdgeIndex, Resolution};
 use polars::prelude::*;
 
-use super::utils::{map_cells, map_indices};
+use super::utils::{map_cells, map_indices, parallel_chunks};
 
 pub fn get_num_cells_series(resolution_series: &Series) -> PolarsResult<Series> {
-    let resolutions: Vec<Option<u8>> = match resolution_series.dtype() {
-        DataType::UInt8 => resolution_series.u8()?.iter().collect(),
-        DataType::UInt16 => resolution_series
-            .u16()?
-            .iter()
-            .map(|opt| opt.and_then(|v| v.try_into().ok()))
-            .collect(),
-        DataType::UInt32 => resolution_series
-            .u32()?
-            .iter()
-            .map(|opt| opt.and_then(|v| v.try_into().ok()))
-            .collect(),
-        DataType::UInt64 => resolution_series
-            .u64()?
-            .iter()
-            .map(|opt| opt.and_then(|v| v.try_into().ok()))
-            .collect(),
-        DataType::Int8 => resolution_series
-            .i8()?
-            .iter()
-            .map(|opt| opt.and_then(|v| if v >= 0 { Some(v as u8) } else { None }))
-            .collect(),
-        DataType::Int16 => resolution_series
-            .i16()?
-            .iter()
-            .map(|opt| opt.and_then(|v| if v >= 0 { v.try_into().ok() } else { None }))
-            .collect(),
-        DataType::Int32 => resolution_series
-            .i32()?
-            .iter()
-            .map(|opt| opt.and_then(|v| if v >= 0 { v.try_into().ok() } else { None }))
-            .collect(),
-        DataType::Int64 => resolution_series
-            .i64()?
-            .iter()
-            .map(|opt| opt.and_then(|v| if v >= 0 { v.try_into().ok() } else { None }))
-            .collect(),
-        _ => {
-            return Err(PolarsError::ComputeError(
-                "Resolution must be an integer type".into(),
-            ))
-        },
-    };
-
-    // Compute the cell count for each valid resolution
-    let counts: Vec<Option<u64>> = resolutions
-        .into_iter()
-        .map(|opt_res| {
-            opt_res.and_then(|res| {
-                h3o::Resolution::try_from(res) // Convert to H3 Resolution (0–15)
-                    .ok() // Returns None if out of range
-                    .map(|r| r.cell_count()) // Compute cell count
-            })
-        })
-        .collect();
-
-    // Return a Series of type UInt64 with the results
-    Ok(
-        UInt64Chunked::from_iter_options(PlSmallStr::from("count"), counts.into_iter())
-            .into_series(),
-    )
+    parallel_chunks(resolution_series.len(), |offset, len| {
+        let slice = resolution_series.slice(offset as i64, len);
+        macro_rules! counts {
+            ($values:expr) => {
+                $values
+                    .iter()
+                    .map(|value| {
+                        value
+                            .and_then(|v| u8::try_from(v).ok())
+                            .and_then(|v| Resolution::try_from(v).ok())
+                            .map(|resolution| resolution.cell_count())
+                    })
+                    .collect::<UInt64Chunked>()
+            };
+        }
+        let counts = match slice.dtype() {
+            DataType::UInt8 => counts!(slice.u8()?),
+            DataType::UInt16 => counts!(slice.u16()?),
+            DataType::UInt32 => counts!(slice.u32()?),
+            DataType::UInt64 => counts!(slice.u64()?),
+            DataType::Int8 => counts!(slice.i8()?),
+            DataType::Int16 => counts!(slice.i16()?),
+            DataType::Int32 => counts!(slice.i32()?),
+            DataType::Int64 => counts!(slice.i64()?),
+            _ => polars_bail!(ComputeError: "Resolution must be an integer type"),
+        };
+        Ok(counts
+            .with_name(PlSmallStr::from_static("count"))
+            .into_series())
+    })
 }
 
 pub fn get_num_cells(resolution: u8) -> PolarsResult<Series> {
@@ -149,28 +118,27 @@ pub fn get_pentagons(inputs: &[Series]) -> PolarsResult<Series> {
         })
         .collect();
 
-    let mut builder = ListPrimitiveChunkedBuilder::<UInt64Type>::new(
-        PlSmallStr::from("pentagons"),
-        resolutions.len(),
-        resolutions.len() * 12,
-        DataType::UInt64,
-    );
-
-    for res_opt in resolutions {
-        match res_opt {
-            Some(res) => {
-                let pentagons = pentagons_by_res.get(res as usize).ok_or_else(|| {
-                    PolarsError::ComputeError(format!("Invalid resolution: {}", res).into())
-                })?;
-                builder.append_slice(pentagons);
-            },
-            None => {
-                builder.append_null();
-            },
+    // Preserve first-invalid-resolution errors before dispatching output batches.
+    for &res in resolutions.iter().flatten() {
+        if res > 15 {
+            polars_bail!(ComputeError: "Invalid resolution: {}", res);
         }
     }
-
-    Ok(builder.finish().into_series())
+    parallel_chunks(resolutions.len(), |offset, len| {
+        let mut builder = ListPrimitiveChunkedBuilder::<UInt64Type>::new(
+            PlSmallStr::from_static("pentagons"),
+            len,
+            len * 12,
+            DataType::UInt64,
+        );
+        for &resolution in &resolutions[offset..offset + len] {
+            match resolution {
+                Some(resolution) => builder.append_slice(&pentagons_by_res[resolution as usize]),
+                None => builder.append_null(),
+            }
+        }
+        Ok(builder.finish().into_series())
+    })
 }
 
 pub fn cell_area(cell_series: &Series, unit: &str) -> PolarsResult<Series> {

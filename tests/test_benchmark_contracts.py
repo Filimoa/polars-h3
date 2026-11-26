@@ -127,7 +127,7 @@ def test_report_preserves_failure_and_refuses_overwrite(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "suite,count", [("duckdb", 33), ("internal", 46), ("python", 14), ("baselines", 6)]
+    "suite,count", [("duckdb", 33), ("internal", 53), ("python", 14), ("baselines", 6)]
 )
 def test_suite_listing_does_not_import_duckdb(suite, count):
     import subprocess

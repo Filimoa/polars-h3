@@ -1,8 +1,7 @@
 use h3o::{LatLng, Vertex, VertexIndex};
 use polars::prelude::*;
-use rayon::prelude::*;
 
-use super::utils::{map_cell_lists, map_cells};
+use super::utils::{map_cell_lists, map_cells, map_index_lists, map_indices_with_min};
 
 pub fn cell_to_vertex(cell_series: &Series, vertex_num: u8) -> PolarsResult<Series> {
     // Try to create vertex first to validate the number
@@ -22,98 +21,23 @@ pub fn cell_to_vertexes(cell_series: &Series) -> PolarsResult<Series> {
 }
 
 pub fn vertex_to_latlng(vertex_series: &Series) -> PolarsResult<Series> {
-    // Parse vertex indices from various input types
-    let vertices: Vec<Option<VertexIndex>> = match vertex_series.dtype() {
-        DataType::UInt64 => vertex_series
-            .u64()?
-            .iter()
-            .map(|opt| opt.and_then(|v| VertexIndex::try_from(v).ok()))
-            .collect(),
-        DataType::Int64 => vertex_series
-            .i64()?
-            .iter()
-            .map(|opt| opt.and_then(|v| VertexIndex::try_from(v as u64).ok()))
-            .collect(),
-        DataType::String => vertex_series
-            .str()?
-            .iter()
-            .map(|opt| {
-                opt.and_then(|s| u64::from_str_radix(s, 16).ok())
-                    .and_then(|v| VertexIndex::try_from(v).ok())
-            })
-            .collect(),
-        _ => {
-            return Err(PolarsError::ComputeError(
-                format!("Unsupported type for vertex: {:?}", vertex_series.dtype()).into(),
-            ))
+    map_index_lists::<VertexIndex, Float64Type, _>(
+        vertex_series,
+        "vertex",
+        2,
+        1024,
+        |idx, builder| {
+            let coord = LatLng::from(idx);
+            builder.append_slice(&[coord.lat(), coord.lng()]);
         },
-    };
-
-    let coords: Vec<Option<[f64; 2]>> = vertices
-        .into_par_iter()
-        .map(|vertex| {
-            vertex.map(|idx| {
-                let latlng = LatLng::from(idx);
-                [latlng.lat(), latlng.lng()]
-            })
-        })
-        .collect();
-
-    let mut builder = ListPrimitiveChunkedBuilder::<Float64Type>::new(
-        PlSmallStr::from(""),
-        coords.len(),
-        coords.len() * 2,
-        DataType::Float64,
-    );
-    for opt_coord in coords {
-        match opt_coord {
-            Some(coord) => builder.append_slice(&coord),
-            None => builder.append_null(),
-        }
-    }
-
-    Ok(builder.finish().into_series())
+    )
 }
 
 pub fn is_valid_vertex(vertex_series: &Series) -> PolarsResult<Series> {
-    let is_valid = match vertex_series.dtype() {
-        DataType::UInt64 => {
-            let values: Vec<_> = vertex_series.u64()?.iter().collect();
-            values
-                .into_par_iter()
-                .map(|opt| {
-                    opt.map(|v| VertexIndex::try_from(v).is_ok())
-                        .unwrap_or(false)
-                })
-                .collect::<BooleanChunked>()
-        },
-        DataType::Int64 => {
-            let values: Vec<_> = vertex_series.i64()?.iter().collect();
-            values
-                .into_par_iter()
-                .map(|opt| {
-                    opt.map(|v| VertexIndex::try_from(v as u64).is_ok())
-                        .unwrap_or(false)
-                })
-                .collect::<BooleanChunked>()
-        },
-        DataType::String => {
-            let values: Vec<_> = vertex_series.str()?.iter().collect();
-            values
-                .into_par_iter()
-                .map(|opt| {
-                    opt.and_then(|s| u64::from_str_radix(s, 16).ok())
-                        .map(|v| VertexIndex::try_from(v).is_ok())
-                        .unwrap_or(false)
-                })
-                .collect::<BooleanChunked>()
-        },
-        _ => {
-            return Err(PolarsError::ComputeError(
-                format!("Unsupported type for vertex: {:?}", vertex_series.dtype()).into(),
-            ))
-        },
-    };
-
-    Ok(is_valid.into_series())
+    map_indices_with_min::<VertexIndex, BooleanType, _, _>(
+        vertex_series,
+        "vertex",
+        1024,
+        |vertex| Some(vertex.is_some()),
+    )
 }

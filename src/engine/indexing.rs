@@ -1,8 +1,9 @@
 use h3o::{CellIndex, LatLng, Resolution};
 use polars::prelude::*;
-use rayon::prelude::*;
 
-use super::utils::{map_cells, parallel_chunks, parse_cell_indices};
+use super::utils::{
+    for_each_index, map_cells, map_index_lists, parallel_chunks, parallel_chunks_with_min,
+};
 
 fn map_latlng<T, R, F>(
     lat_series: &Series,
@@ -79,50 +80,64 @@ pub fn cell_to_lng(cell_series: &Series) -> PolarsResult<Series> {
 }
 
 pub fn cell_to_latlng(cell_series: &Series) -> PolarsResult<Series> {
-    parallel_chunks(cell_series.len(), |offset, len| {
-        let cells = parse_cell_indices(&cell_series.slice(offset as i64, len))?;
-        let mut builder = ListPrimitiveChunkedBuilder::<Float64Type>::new(
-            PlSmallStr::from(""),
-            len,
-            len * 2,
-            DataType::Float64,
-        );
-        for cell in cells {
-            match cell {
-                Some(cell) => {
-                    let coord = LatLng::from(cell);
-                    builder.append_slice(&[coord.lat(), coord.lng()]);
-                },
-                None => builder.append_null(),
-            }
-        }
-        Ok(builder.finish().into_series())
-    })
+    map_index_lists::<CellIndex, Float64Type, _>(
+        cell_series,
+        "h3 cell",
+        2,
+        16_384,
+        |idx, builder| {
+            let coord = LatLng::from(idx);
+            builder.append_slice(&[coord.lat(), coord.lng()]);
+        },
+    )
 }
 
 pub fn cell_to_boundary(cell_series: &Series) -> PolarsResult<Series> {
-    let cells = parse_cell_indices(cell_series)?;
-
-    let coords: ListChunked = cells
-        .into_par_iter()
-        .map(|cell| {
-            cell.map(|idx| {
-                let boundary = idx.boundary();
-                let mut builder = ListPrimitiveChunkedBuilder::<Float64Type>::new(
-                    PlSmallStr::from(""),
-                    boundary.len(),
-                    boundary.len() * 2,
-                    DataType::Float64,
-                );
-
-                for vertex in boundary.iter() {
-                    builder.append_slice(&[vertex.lat(), vertex.lng()]);
+    let output = parallel_chunks_with_min(cell_series.len(), 1024, |offset, len| {
+        // One coordinate builder per batch, with an outer offset for each cell.
+        // Retain List(List(Float64)), including null outer rows and vertex order.
+        let mut coords = ListPrimitiveChunkedBuilder::<Float64Type>::new(
+            PlSmallStr::EMPTY,
+            len * 6,
+            len * 12,
+            DataType::Float64,
+        );
+        let mut offsets = Vec::<i64>::with_capacity(len + 1);
+        let mut validity = Vec::with_capacity(len);
+        let mut vertices = 0i64;
+        offsets.push(vertices);
+        for_each_index::<CellIndex, _>(
+            &cell_series.slice(offset as i64, len),
+            "h3 cell",
+            |cell| {
+                validity.push(cell.is_some());
+                if let Some(cell) = cell {
+                    let boundary = cell.boundary();
+                    for coord in boundary.iter() {
+                        coords.append_slice(&[coord.lat(), coord.lng()]);
+                    }
+                    vertices += boundary.len() as i64;
                 }
-
-                builder.finish().into_series()
-            })
-        })
-        .collect();
-
-    Ok(coords.into_series())
+                offsets.push(vertices);
+            },
+        )?;
+        let values = coords.finish().into_series();
+        let array = LargeListArray::new(
+            LargeListArray::default_datatype(values.chunks()[0].dtype().clone()),
+            offsets.try_into().expect("monotonic boundary offsets"),
+            values.chunks()[0].clone(),
+            Some(validity.into_iter().collect()),
+        );
+        Ok(ListChunked::with_chunk(PlSmallStr::EMPTY, array).into_series())
+    })?;
+    // Keep the old collector's dtype for empty or entirely invalid inputs.
+    if output.null_count() == output.len() {
+        Ok(Series::full_null(
+            PlSmallStr::EMPTY,
+            output.len(),
+            &DataType::List(Box::new(DataType::Null)),
+        ))
+    } else {
+        Ok(output)
+    }
 }

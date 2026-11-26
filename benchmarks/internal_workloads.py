@@ -117,6 +117,21 @@ def cases() -> dict[str, Case]:
             4_000_000,
             lambda: plh3.cell_to_children("int_h3_cell", RESOLUTION + 1),
         ),
+        "string_cell_to_children": Case(
+            "string_cell_to_children",
+            1_000_000,
+            lambda: plh3.cell_to_children("str_h3_cell", RESOLUTION + 1),
+        ),
+        "string_grid_disk": Case(
+            "string_grid_disk",
+            250_000,
+            lambda: plh3.grid_disk("str_h3_cell", 3),
+        ),
+        "string_grid_ring": Case(
+            "string_grid_ring",
+            500_000,
+            lambda: plh3.grid_ring("str_h3_cell", 3),
+        ),
         "cell_to_child_pos": Case(
             "cell_to_child_pos",
             8_000_000,
@@ -133,6 +148,22 @@ def cases() -> dict[str, Case]:
         "uncompact_cells": Case(
             "uncompact_cells",
             500_000,
+            lambda: plh3.uncompact_cells("cell_list", RESOLUTION + 1),
+        ),
+        "string_compact_cells": Case(
+            "string_compact_cells", 500_000, lambda: plh3.compact_cells("cell_list")
+        ),
+        "string_uncompact_cells": Case(
+            "string_uncompact_cells",
+            250_000,
+            lambda: plh3.uncompact_cells("cell_list", RESOLUTION + 1),
+        ),
+        "compact_large_sets": Case(
+            "compact_large_sets", 128, lambda: plh3.compact_cells("cell_list")
+        ),
+        "uncompact_large_sets": Case(
+            "uncompact_large_sets",
+            128,
             lambda: plh3.uncompact_cells("cell_list", RESOLUTION + 1),
         ),
         "grid_distance": Case(
@@ -259,7 +290,12 @@ def prepare_frame(frame: pl.DataFrame, name: str) -> pl.DataFrame:
         "is_valid_vertex",
     }
     needs_child = {"cell_to_child_pos"}
-    needs_cell_list = {"compact_cells", "uncompact_cells"}
+    needs_cell_list = {
+        "compact_cells",
+        "uncompact_cells",
+        "string_compact_cells",
+        "string_uncompact_cells",
+    }
 
     if name in needs_neighbor or name in needs_edge:
         frame = frame.with_columns(
@@ -276,6 +312,17 @@ def prepare_frame(frame: pl.DataFrame, name: str) -> pl.DataFrame:
             child=plh3.cell_to_center_child("int_h3_cell", RESOLUTION + 1)
         )
     if name in needs_cell_list:
-        frame = frame.with_columns(cell_list=plh3.grid_disk("int_h3_cell", 1))
+        frame = frame.with_columns(
+            cell_list=plh3.grid_disk(
+                "str_h3_cell" if name.startswith("string_") else "int_h3_cell", 1
+            )
+        )
+
+    if name in {"compact_large_sets", "uncompact_large_sets"}:
+        frame = frame.with_columns(
+            cell_list=plh3.cell_to_children(
+                plh3.cell_to_parent("int_h3_cell", RESOLUTION - 4), RESOLUTION
+            )
+        )
 
     return frame

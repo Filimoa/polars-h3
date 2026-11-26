@@ -11,16 +11,25 @@ pub fn parallel_chunks<F>(len: usize, op: F) -> PolarsResult<Series>
 where
     F: Fn(usize, usize) -> PolarsResult<Series> + Sync + Send,
 {
-    const MIN_BATCH_SIZE: usize = 16_384;
+    parallel_chunks_with_min(len, 16_384, op)
+}
+
+/// Expensive rows need smaller batches than simple scalar transforms. Keep the
+/// maximum batch size unchanged so large outputs still have bounded chunk counts.
+pub fn parallel_chunks_with_min<F>(len: usize, min_batch_size: usize, op: F) -> PolarsResult<Series>
+where
+    F: Fn(usize, usize) -> PolarsResult<Series> + Sync + Send,
+{
     const MAX_BATCH_SIZE: usize = 65_536;
-    if len <= MIN_BATCH_SIZE {
+    let min_batch_size = min_batch_size.clamp(1, MAX_BATCH_SIZE);
+    if len <= min_batch_size {
         return op(0, len);
     }
     // Round the number of batches to a multiple of the worker count. Simply
     // clamping batch sizes can leave workers idle (100K rows / 16K = 7 batches
     // on an 8-worker pool), which hurts compute-heavy operations.
     let workers = rayon::current_num_threads();
-    let desired_batches = len.div_ceil(MIN_BATCH_SIZE).min(workers * 4);
+    let desired_batches = len.div_ceil(min_batch_size).min(workers * 4);
     let batches = desired_batches
         .max(len.div_ceil(MAX_BATCH_SIZE))
         .div_ceil(workers)
@@ -59,7 +68,22 @@ where
     ChunkedArray<T>: FromIterator<Option<R>> + IntoSeries,
     F: Fn(Option<I>) -> Option<R> + Sync + Send,
 {
-    parallel_chunks(series.len(), |offset, len| {
+    map_indices_with_min::<I, T, R, F>(series, kind, 16_384, op)
+}
+
+pub fn map_indices_with_min<I, T, R, F>(
+    series: &Series,
+    kind: &str,
+    min_batch_size: usize,
+    op: F,
+) -> PolarsResult<Series>
+where
+    I: TryFrom<u64>,
+    T: PolarsDataType,
+    ChunkedArray<T>: FromIterator<Option<R>> + IntoSeries,
+    F: Fn(Option<I>) -> Option<R> + Sync + Send,
+{
+    parallel_chunks_with_min(series.len(), min_batch_size, |offset, len| {
         let slice = series.slice(offset as i64, len);
         let out: ChunkedArray<T> = match slice.dtype() {
             DataType::UInt64 => slice
@@ -107,20 +131,60 @@ pub fn map_cell_lists<F>(series: &Series, values_per_cell: usize, op: F) -> Pola
 where
     F: Fn(CellIndex, &mut ListPrimitiveChunkedBuilder<UInt64Type>) + Sync + Send,
 {
-    parallel_chunks(series.len(), |offset, len| {
-        let cells = parse_cell_indices(&series.slice(offset as i64, len))?;
-        let mut builder = ListPrimitiveChunkedBuilder::<UInt64Type>::new(
+    map_index_lists::<CellIndex, UInt64Type, _>(series, "h3 cell", values_per_cell, 16_384, op)
+}
+
+/// Visit validated IDs without materializing a temporary column.
+pub fn for_each_index<I, F>(series: &Series, kind: &str, mut op: F) -> PolarsResult<()>
+where
+    I: TryFrom<u64>,
+    F: FnMut(Option<I>),
+{
+    match series.dtype() {
+        DataType::UInt64 => series
+            .u64()?
+            .iter()
+            .for_each(|v| op(v.and_then(|v| I::try_from(v).ok()))),
+        DataType::Int64 => series
+            .i64()?
+            .iter()
+            .for_each(|v| op(v.and_then(|v| I::try_from(v as u64).ok()))),
+        DataType::String => series.str()?.iter().for_each(|v| {
+            op(v.and_then(|s| u64::from_str_radix(s, 16).ok())
+                .and_then(|v| I::try_from(v).ok()))
+        }),
+        _ => polars_bail!(ComputeError: "Unsupported type for {}: {:?}", kind, series.dtype()),
+    }
+    Ok(())
+}
+
+pub fn map_index_lists<I, T, F>(
+    series: &Series,
+    kind: &str,
+    values_per_row: usize,
+    min_batch_size: usize,
+    op: F,
+) -> PolarsResult<Series>
+where
+    I: TryFrom<u64>,
+    T: PolarsNumericType,
+    F: Fn(I, &mut ListPrimitiveChunkedBuilder<T>) + Sync + Send,
+{
+    parallel_chunks_with_min(series.len(), min_batch_size, |offset, len| {
+        let mut builder = ListPrimitiveChunkedBuilder::<T>::new(
             PlSmallStr::EMPTY,
             len,
-            len * values_per_cell,
-            DataType::UInt64,
+            len * values_per_row,
+            T::get_static_dtype(),
         );
-        for cell in cells {
-            match cell {
-                Some(cell) => op(cell, &mut builder),
+        for_each_index::<I, _>(
+            &series.slice(offset as i64, len),
+            kind,
+            |value| match value {
+                Some(value) => op(value, &mut builder),
                 None => builder.append_null(),
-            }
-        }
+            },
+        )?;
         Ok(builder.finish().into_series())
     })
 }
@@ -181,44 +245,26 @@ pub fn cast_list_u64_to_dtype(
     original_dtype: &DataType,
     target_dtype: Option<&DataType>,
 ) -> PolarsResult<Series> {
-    let ca = list_series.list()?;
+    // The previous per-row collector inferred List(Null) when no row was valid.
+    // Preserve that legacy dtype for empty/all-null outputs.
+    if list_series.null_count() == list_series.len() {
+        return Ok(Series::full_null(
+            PlSmallStr::EMPTY,
+            list_series.len(),
+            &DataType::List(Box::new(DataType::Null)),
+        ));
+    }
     let final_dtype = target_dtype.unwrap_or(original_dtype);
-
-    let out: ListChunked = ca
-        .series_iter()
-        .map(|opt_s| {
-            opt_s
-                .map(|s| {
-                    // If the inner list isn't UInt64, cast it to UInt64.
-                    let s_u64 = if s.dtype() != &DataType::UInt64 {
-                        s.cast(&DataType::UInt64)?
-                    } else {
-                        s
-                    };
-
-                    let u64_ca = s_u64.u64()?;
-                    match final_dtype {
-                        DataType::UInt64 => {
-                            // Create an owned version of the UInt64 chunked array before converting.
-                            Ok(u64_ca.to_owned().into_series())
-                        },
-                        DataType::Int64 => u64_ca.cast(&DataType::Int64),
-                        DataType::String => {
-                            // Convert each u64 to a hex string.
-                            let utf8: StringChunked = u64_ca
-                                .iter()
-                                .map(|opt_u| opt_u.map(|u| format!("{:x}", u)))
-                                .collect();
-                            Ok(utf8.into_series())
-                        },
-                        _ => polars_bail!(ComputeError: "Unsupported dtype for H3 List result"),
-                    }
-                })
-                .transpose()
-        })
-        .collect::<PolarsResult<_>>()?;
-
-    Ok(out.into_series())
+    parallel_chunks(list_series.len(), |offset, len| {
+        let slice = list_series.slice(offset as i64, len);
+        Ok(slice
+            .list()?
+            .apply_to_inner(&|values| {
+                let values = values.cast(&DataType::UInt64)?;
+                cast_u64_to_dtype(&DataType::UInt64, Some(final_dtype), values.u64()?.clone())
+            })?
+            .into_series())
+    })
 }
 
 pub fn list_u64_vecs_to_series(

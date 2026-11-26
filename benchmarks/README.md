@@ -46,7 +46,7 @@ UV_NO_SYNC=1 uv run -m benchmarks python --help
 | Suite | Purpose | Coverage and validation |
 | --- | --- | --- |
 | `duckdb` | Matched Polars/DuckDB H3 performance, optionally with a saved Polars baseline | 33 workloads including two identity controls; all values checked after every output, with documented type/order/float normalization |
-| `internal` | Broad Polars performance and exact before/after regression checks | 46 operations; exact values, dtypes and list order against a saved baseline; without a baseline, checks repeatability only |
+| `internal` | Broad Polars performance and exact before/after regression checks | 53 workloads; exact values, dtypes and list order against a saved baseline; without a baseline, checks repeatability only |
 | `python` | Polars expressions versus Python H3 callbacks in a Polars workflow | 14 operations, including numeric boundaries and paths; same input/output representation, every output validated |
 | `baselines` | Optional plain Python H3 and h3pandas comparisons with hard subprocess deadlines | Six matched string-ID workloads; every output validated, timeouts/skips publish no partial timings |
 | `compare` | Summarize matched saved measurements | Refuses incomplete runs and incompatible settings/environments; reports each operation/mode separately |
@@ -117,7 +117,9 @@ UV_NO_SYNC=1 uv run -m benchmarks internal \
   --rows 100000 --threads 8 --output /tmp/h3-regression.json
 ```
 
-All 46 historical internal cases are retained, including local IJ, compaction,
+All 46 historical internal cases are retained, alongside five string-list cases
+for children, traversal, and compaction, and two compaction workloads with large
+sets in a small number of rows. Coverage includes local IJ, compaction,
 metrics, edges and vertices without a matched DuckDB workload. Input preparation
 is excluded and rechunked. `--rows` caps each case's configured size; the default
 100,000 is a regression check. Use larger targeted workloads to substantiate
