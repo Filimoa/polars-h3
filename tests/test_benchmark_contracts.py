@@ -127,7 +127,14 @@ def test_report_preserves_failure_and_refuses_overwrite(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "suite,count", [("duckdb", 33), ("internal", 53), ("python", 14), ("baselines", 6)]
+    "suite,count",
+    [
+        ("duckdb", 33),
+        ("internal", 53),
+        ("python", 14),
+        ("baselines", 6),
+        ("compatibility", 53),
+    ],
 )
 def test_suite_listing_does_not_import_duckdb(suite, count):
     import subprocess
@@ -152,7 +159,9 @@ runpy.run_module('benchmarks', run_name='__main__')
     assert len(result.stdout.splitlines()) == count
 
 
-@pytest.mark.parametrize("suite", ["duckdb", "internal", "python", "baselines"])
+@pytest.mark.parametrize(
+    "suite", ["duckdb", "internal", "python", "baselines", "compatibility"]
+)
 def test_cli_rejects_bad_inputs_and_existing_evidence(tmp_path, suite):
     import subprocess
     import sys
@@ -284,3 +293,26 @@ def test_unordered_validation_preserves_ragged_nulls_and_duplicates(dtype, rows)
     changed = [([] if row is None else row) for row in rows]
     with pytest.raises(AssertionError):
         validate(case, left, pl.DataFrame({"result": pl.Series(changed, dtype=dtype)}))
+
+
+@pytest.mark.parametrize(
+    "encoding,dtype,invalid",
+    [
+        ("native", pl.UInt64, 0),
+        ("signed", pl.Int64, 0),
+        ("string", pl.String, "not-hex"),
+    ],
+)
+def test_compatibility_variants_retain_invalid_null_and_chunk_cases(
+    encoding, dtype, invalid
+):
+    from benchmarks.compatibility import variant_frame
+
+    source = pl.DataFrame({"int_h3_cell": pl.Series(range(40), dtype=pl.UInt64)})
+    result = variant_frame(source, encoding)
+    assert result.height == 37
+    assert result.n_chunks() == 2
+    assert result["int_h3_cell"].dtype == dtype
+    assert result["int_h3_cell"][10] is None
+    assert result["int_h3_cell"][14] == invalid
+    assert result["int_h3_cell"][0] == ("3" if encoding == "string" else 3)

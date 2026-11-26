@@ -1,0 +1,15 @@
+mod area;
+mod fp_adder;
+
+#[cfg(not(feature = "std"))]
+#[path = "functions-libm.rs"]
+mod functions;
+#[cfg(feature = "std")]
+#[path = "functions-std.rs"]
+mod functions;
+
+pub use area::{Coord2d, linear_ring_area};
+pub use fp_adder::FloatAdder;
+pub use functions::{
+    abs, acos, asin, atan2, cos, mul_add, round, sin, sin_cos, sqrt, tan,
+};

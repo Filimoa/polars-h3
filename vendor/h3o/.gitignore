@@ -1,0 +1,7 @@
+# Keep the vendored test and fuzz dependency graphs reproducible.
+/coverage
+/target
+lcov.info
+lcov_correct.info
+*.swp
+.DS_Store

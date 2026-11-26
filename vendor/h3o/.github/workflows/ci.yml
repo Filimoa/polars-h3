@@ -1,0 +1,94 @@
+name: CI
+on: [pull_request, push]
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Rust
+        run: rustup update stable
+      - name: Check compilation errors
+        run: cargo check --all-features
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install rustfmt
+        run: rustup update nightly && rustup component add rustfmt --toolchain nightly
+      - name: Check formatting errors
+        run: cargo +nightly fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Clippy
+        run: rustup update stable && rustup component add clippy
+      - name: Check lint errors
+        run: cargo clippy --all-targets --all-features
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Rust toolchain
+        run: rustup update stable
+      - name: Check documentation errors
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --no-deps --document-private-items --all-features --examples
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Rust toolchain
+        run: rustup update stable
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install rust-covfix
+        uses: actions-rs/install@v0.1
+        with:
+          crate: rust-covfix
+          version: 0.2.1
+          use-tool-cache: true
+      - name: Generate test result and coverage report
+        run: |
+          cargo llvm-cov --features std,geo,serde,typed_floats --workspace --lcov --output-path lcov.info;
+          rust-covfix -o lcov-fixed.info lcov.info
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./lcov-fixed.info
+          fail_ci_if_error: true
+
+  publish-dry-run:
+    name: Publish dry run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Rust toolchain
+        run: rustup update stable
+      - run: cargo publish --dry-run
+
+  no-std-build:
+    name: Make sure the code is no-std compatible
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Rust toolchain
+        run: rustup update stable && rustup target add thumbv7em-none-eabihf
+      - run: cargo build --target=thumbv7em-none-eabihf --no-default-features

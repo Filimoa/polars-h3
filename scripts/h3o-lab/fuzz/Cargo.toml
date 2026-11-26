@@ -1,0 +1,22 @@
+[package]
+name = "h3o-lab-fuzz"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+h3o-lab = { path = ".." }
+h3o-reference = { package = "h3o", version = "=0.11.0" }
+libfuzzer-sys = { version = "0.4", default-features = false, features = ["link_libfuzzer"] }
+
+[[bin]]
+name = "differential"
+path = "fuzz_targets/differential.rs"
+test = false
+doc = false
+bench = false

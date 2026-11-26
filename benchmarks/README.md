@@ -217,9 +217,29 @@ Commit runners, correctness tests and concise reports with reproduction commands
 hardware/software details, source revisions and binary hashes. Write routine raw
 JSON outside the repository; `benchmarks/results/*.json` and ZIPs are ignored.
 
-For published claims, attach complete raw results to the PR and link from the
-report. Include the archive SHA-256 and a per-file checksum manifest, and verify
-a downloaded copy. Commit a raw baseline only when an automated comparison
-consumes it, with a documented update policy and separate location. Treat small
+Keep complete samples locally and record their location in the report; routine
+PRs do not need uploaded attachments. If an evidence archive is requested, include
+its SHA-256 and per-file checksums. Commit a raw baseline only when an automated
+comparison consumes it, with a documented update policy and separate location. Treat small
 differences in millisecond-scale operations as noise; use repeated samples and
 larger workloads before claiming a modest speedup.
+
+## Exact saved-plugin compatibility
+
+Use the same saved release binaries as performance comparisons to check IDs,
+floating-point values, dtypes and list order exactly. This does not time queries.
+The default checks all 53 internal workloads in native, signed and string
+representations at five sizes, with invalid IDs, nulls, uneven chunks and a
+nonzero validity offset (790 comparisons; `int_to_str` excludes string inputs).
+
+```bash
+UV_NO_SYNC=1 uv run -m benchmarks compatibility \
+  --baseline-plugin /absolute/path/to/pristine.abi3.so \
+  --plugin-path /absolute/path/to/candidate.abi3.so \
+  --output /tmp/h3-compatibility.json
+```
+
+Results include binary hashes and stop on the first difference. Choose a new
+output path for each run. `--functions`, `--rows` and `--list` can narrow a probe.
+For core algorithm changes, also run the [Rust differential laboratory](../scripts/h3o-lab/README.md)
+and upstream tests; saved-plugin checks alone do not cover all geographic inputs.

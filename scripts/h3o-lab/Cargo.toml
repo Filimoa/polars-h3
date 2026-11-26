@@ -1,0 +1,23 @@
+[package]
+name = "h3o-lab"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+h3o = { path = "../../vendor/h3o", features = ["geo"] }
+h3o-reference = { package = "h3o", version = "=0.11.0", features = ["geo"] }
+
+[dev-dependencies]
+geo = { version = "0.33", default-features = false }
+geojson = { version = "1.0", default-features = false, features = ["geo-types"] }
+criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "core"
+harness = false
+
+[profile.release]
+lto = "thin"

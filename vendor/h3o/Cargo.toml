@@ -1,0 +1,65 @@
+[package]
+name = "h3o"
+version = "0.11.0"
+authors = ["Sylvain Laperche <sylvain.laperche@gmail.com>"]
+edition = "2024"
+description = "A Rust implementation of the H3 geospatial indexing system."
+documentation = "https://docs.rs/h3o/"
+readme = "README.md"
+homepage = "https://docs.rs/h3o"
+repository = "https://github.com/HydroniumLabs/h3o"
+license = "BSD-3-Clause"
+keywords = ["geography", "geospatial", "gis", "h3", "spatial-index"]
+categories = ["science::geo", "no-std"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[package.metadata.release]
+pre-release-commit-message = "release {{version}}"
+pre-release-replacements = [
+  {file="CHANGELOG.md", search="Unreleased", replace="{{version}}", min=1},
+  {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}", min=1},
+  {file="CHANGELOG.md", search="<!-- next-header -->", replace="<!-- next-header -->\n## [Unreleased] - ReleaseDate\n", exactly=1},
+]
+
+[features]
+default = ["std"]
+std = ["dep:ahash"]
+geo = ["dep:geo", "dep:geo-traits"]
+serde = ["dep:serde", "dep:serde_repr"]
+tools = ["polyfit-rs"]
+typed_floats = ["dep:typed_floats"]
+
+[dependencies]
+ahash = { version = "0.8", optional = true, default-features = false, features = ["std", "compile-time-rng"] }
+arbitrary = { version = "1.0", optional = true, default-features = false }
+either = { version = "1.0", default-features = false }
+float_eq = { version = "1.0", default-features = false }
+geo = { version = "0.33", optional = true, default-features = false }
+geo-traits = { version = "0.3", optional = true, default-features = false }
+h3o-bit = { version = "0.1", default-features = false }
+libm = { version = "0.2", default-features = false }
+ordered-float = { version = "5.0", default-features = false }
+polyfit-rs = { version = "0.2", optional = true, default-features = false }
+serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
+serde_repr = { version = "0.1", optional = true, default-features = false }
+typed_floats = { version = "1.0", optional = true, default-features = false }
+
+[dev-dependencies]
+approx = { version = "0.5", default-features = false }
+criterion = { version = "0.8", default-features = false, features = ["plotters", "cargo_bench_support", "html_reports"] }
+geojson = { version = "1.0", default-features = false, features = ["geo-types"] }
+h3ron-h3-sys = { version = "0.17", default-features = false }
+
+[[bin]]
+name = "average_edge_length"
+path = "tools/average_edge_length.rs"
+required-features = ["tools"]
+
+[[bench]]
+harness = false
+name = "h3"
+
+[profile.release]
+lto = "thin"
