@@ -21,6 +21,12 @@ def main():
             source.extractall(work / "source", filter="data")
         extracted = next((work / "source").iterdir())
         assert (extracted / "vendor/h3o/LICENSE").read_bytes() == license_bytes
+        for directory in ("src", "vendor/h3o/src"):
+            for source in (root / directory).rglob("*.rs"):
+                relative = source.relative_to(root)
+                assert (
+                    (extracted / relative).read_bytes() == source.read_bytes()
+                ), f"sdist source differs: {relative}"
         for relative in (
             "fuzz/Cargo.toml",
             "fuzz/Cargo.lock",
@@ -40,9 +46,16 @@ def main():
         assert (
             Path(h3o[0]["manifest_path"]).resolve().is_relative_to(extracted.resolve())
         )
-        # Reuse compiled dependencies, but compile the extension and h3o from
-        # the extracted sources. Cargo tracks their distinct source paths.
+        # Reuse compiled third-party dependencies, but force these two crates
+        # to rebuild. Normalized archive mtimes can otherwise allow Cargo to
+        # reuse an earlier package build despite changed source contents.
         env = {**os.environ, "CARGO_TARGET_DIR": str(root / "target")}
+        subprocess.run(
+            ["cargo", "clean", "--package", "polars-h3", "--package", "h3o"],
+            cwd=extracted,
+            env=env,
+            check=True,
+        )
         subprocess.run(
             [
                 "maturin",
